@@ -1,0 +1,204 @@
+---
+title: "Plan mensual"
+---
+
+```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Plan mensual</h1>
+    <div class="tf-muted">
+      Proyecta cuánto puedes gastar después de cubrir compromisos, ahorro y reservas del mes.
+    </div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+</div>
+
+<section class="tf-card tf-monthly-plan-toolbar">
+  <div class="tf-toolbar">
+    <div class="tf-field">
+      <label>Mes del plan</label>
+      <input id="monthly-plan-month" type="month">
+    </div>
+    <div class="tf-actions">
+      <button id="monthly-plan-prev" class="tf-btn tf-btn-secondary" type="button">← Mes anterior</button>
+      <button id="monthly-plan-today" class="tf-btn tf-btn-secondary" type="button">Mes actual</button>
+      <button id="monthly-plan-next" class="tf-btn tf-btn-secondary" type="button">Mes siguiente →</button>
+    </div>
+    <div class="tf-plan-save-state" id="monthly-plan-save-state">Plan no guardado</div>
+  </div>
+</section>
+
+<section class="tf-monthly-plan-kpis" aria-label="Resumen del plan mensual">
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-income">
+    <span>Ingresos previstos</span>
+    <strong id="mp-kpi-income">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-fixed">
+    <span>Compromisos</span>
+    <strong id="mp-kpi-fixed">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-saving">
+    <span>Ahorro</span>
+    <strong id="mp-kpi-saving">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-variable">
+    <span>Reservas variables</span>
+    <strong id="mp-kpi-variable">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-free">
+    <span>Disponible para gastar</span>
+    <strong id="mp-kpi-free">$0,00</strong>
+  </div>
+</section>
+
+<div id="monthly-plan-warning" class="tf-alert tf-alert-error"></div>
+
+<section class="tf-grid tf-grid-2 tf-monthly-plan-main">
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Entrada</div>
+        <h2>Ingresos previstos</h2>
+        <div class="tf-muted">Ingresos recurrentes activos durante el mes y ajustes manuales.</div>
+      </div>
+      <strong id="mp-income-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-income-list" class="tf-plan-source-list"></div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Obligaciones</div>
+        <h2>Compromisos del mes</h2>
+        <div class="tf-muted">Recurrentes, préstamos, tarjetas y seguros.</div>
+      </div>
+      <strong id="mp-fixed-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-fixed-list" class="tf-plan-source-list"></div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Objetivos</div>
+        <h2>Plan de ahorro</h2>
+        <div class="tf-muted">Sugerido desde metas con fecha objetivo o definido manualmente para este mes.</div>
+      </div>
+      <strong id="mp-saving-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+
+    <div id="mp-goal-list" class="tf-plan-source-list"></div>
+
+    <div class="tf-plan-saving-control">
+      <div class="tf-field">
+        <label>Ahorro del mes ($)</label>
+        <input id="mp-saving-amount" type="number" min="0" step="0.01" value="0">
+        <small id="mp-saving-help">Se actualizará con la recomendación de las metas incluidas.</small>
+      </div>
+      <button id="mp-use-auto-saving" class="tf-btn tf-btn-secondary" type="button">
+        Usar ahorro sugerido
+      </button>
+    </div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Presupuestos</div>
+        <h2>Reservas variables</h2>
+        <div class="tf-muted">Límites mensuales por subcategoría, incluyendo rollover cuando corresponda.</div>
+      </div>
+      <strong id="mp-variable-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-variable-list" class="tf-plan-source-list"></div>
+  </div>
+</section>
+
+<section class="tf-card tf-plan-result-card">
+  <div class="tf-plan-result-copy">
+    <div class="tf-section-kicker">Resultado del mes</div>
+    <h2>Disponible para gastar</h2>
+    <p>
+      Es el dinero que queda después de ingresos previstos menos compromisos,
+      ahorro y reservas variables. No crea movimientos reales.
+    </p>
+  </div>
+  <div class="tf-plan-result-value" id="mp-free-hero">$0,00</div>
+</section>
+
+<section class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <div class="tf-card">
+    <h2>Ajustes manuales</h2>
+    <div class="tf-muted" style="margin-bottom:.8rem">
+      Agrega ingresos extraordinarios, compromisos no registrados o una reserva adicional.
+    </div>
+
+    <form id="mp-manual-form" class="tf-form-grid">
+      <div class="tf-field">
+        <label>Tipo</label>
+        <select id="mp-manual-type">
+          <option value="income">Ingreso adicional</option>
+          <option value="fixed">Compromiso adicional</option>
+          <option value="variable">Reserva variable adicional</option>
+        </select>
+      </div>
+      <div class="tf-field">
+        <label>Concepto</label>
+        <input id="mp-manual-label" required placeholder="Ej. Bono, matrícula, combustible">
+      </div>
+      <div class="tf-field">
+        <label>Monto ($)</label>
+        <input id="mp-manual-amount" type="number" min="0" step="0.01" required>
+      </div>
+      <div class="tf-field" style="display:flex;align-items:end">
+        <button class="tf-btn tf-btn-primary">Agregar ajuste</button>
+      </div>
+    </form>
+
+    <div id="mp-manual-list" class="tf-plan-manual-list" style="margin-top:1rem"></div>
+  </div>
+
+  <div class="tf-card">
+    <h2>Ejecución registrada</h2>
+    <div class="tf-muted" style="margin-bottom:.8rem">
+      Flujo de caja que ya está registrado en el mes. Se muestra separado del disponible planificado para evitar dobles conteos.
+    </div>
+
+    <div class="tf-plan-execution-grid">
+      <div><span>Ingresos reales</span><strong id="mp-real-income">$0,00</strong></div>
+      <div><span>Egresos de caja</span><strong id="mp-real-expense">$0,00</strong></div>
+      <div><span>Pagos de tarjeta</span><strong id="mp-real-card">$0,00</strong></div>
+      <div><span>Préstamos marcados pagados</span><strong id="mp-real-loan">$0,00</strong></div>
+      <div class="tf-plan-execution-net"><span>Flujo registrado</span><strong id="mp-real-net">$0,00</strong></div>
+    </div>
+
+    <div class="tf-subtle" style="margin-top:1rem">
+      El flujo registrado es informativo. Una compra hecha con tarjeta no se trata como salida de caja hasta que se registra su pago.
+    </div>
+  </div>
+</section>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div>
+      <h2>Guardar configuración del mes</h2>
+      <div class="tf-muted">
+        Se guardan inclusiones/exclusiones, ajustes manuales y el monto de ahorro. Las fuentes automáticas siguen viniendo de tus módulos.
+      </div>
+    </div>
+  </div>
+
+  <div class="tf-field">
+    <label>Nota del plan</label>
+    <textarea id="mp-note" placeholder="Ej. Mes con matrícula, viaje o ingreso extraordinario"></textarea>
+  </div>
+
+  <div class="tf-actions" style="margin-top:.8rem">
+    <button id="mp-save" class="tf-btn tf-btn-primary" type="button">Guardar plan del mes</button>
+    <button id="mp-reset-auto" class="tf-btn tf-btn-secondary" type="button">Restablecer automático</button>
+  </div>
+</section>
+
+<script type="module" src="js/monthly-plan.js"></script>
+```

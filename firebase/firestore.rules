@@ -52,6 +52,17 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
 
+      match /monthlyPlans/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.month is string
+          && request.resource.data.manualItems is list
+          && request.resource.data.excludedSourceKeys is list
+          && request.resource.data.savingMode in ['auto','manual']
+          && nonNegative(request.resource.data.savingAmount);
+        allow delete: if isOwner(userId);
+      }
+
       match /recurring/{id} {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)

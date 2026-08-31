@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.25
+# Tracker Financiero Personal V1.0.26
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -653,3 +653,74 @@ No se modificaron:
 - auditoría.
 
 La configuración Firebase real se preserva.
+
+
+## V1.0.26 — Plan mensual
+
+Nuevo módulo `Plan mensual`, separado de `Presupuestos`.
+
+### Objetivo
+Responder:
+`¿Cuánto dinero puedo gastar este mes después de cubrir mis compromisos y ahorro?`
+
+### Fuentes automáticas
+- Ingresos recurrentes.
+- Egresos recurrentes.
+- Cuotas de préstamos con vencimiento en el mes.
+- Cuotas de planes de tarjeta con vencimiento en el mes.
+- Primas mensuales de seguros.
+- Presupuestos variables por subcategoría.
+- Metas de ahorro con fecha objetivo.
+
+### Cálculo
+`Disponible para gastar = ingresos previstos - compromisos - ahorro - reservas variables`
+
+### Control de duplicados
+Cada fuente automática tiene un control `Incluir en el plan`.
+Esto permite excluir una obligación si está registrada en más de un módulo,
+por ejemplo una prima de seguro que también fue creada como recurrente.
+
+### Ahorro
+Las metas con fecha objetivo generan un aporte mensual sugerido según:
+- objetivo;
+- ahorro acumulado actual;
+- meses restantes.
+El usuario puede reemplazar el total sugerido por un valor manual mensual.
+
+### Ajustes manuales
+Permite agregar:
+- ingreso adicional;
+- compromiso adicional;
+- reserva variable adicional.
+
+### Configuración mensual
+Se guarda en:
+`users/{uid}/monthlyPlans/{YYYY-MM}`
+
+Se persisten:
+- exclusiones de fuentes;
+- ajustes manuales;
+- modo y monto de ahorro;
+- nota;
+- último cálculo resumen.
+
+Las fuentes automáticas permanecen vinculadas a los módulos originales.
+
+### Ejecución registrada
+Se muestra separada de la proyección para evitar dobles conteos:
+- ingresos reales;
+- egresos de caja;
+- pagos de planes de tarjeta;
+- cuotas de préstamo marcadas pagadas;
+- flujo registrado.
+
+### Seguridad
+Se añade regla Firestore owner-only para `monthlyPlans`.
+
+Después de actualizar el proyecto Firebase, publicar:
+`firebase deploy --only firestore:rules`
+
+### Exportación
+`monthlyPlans` se incorpora al JSON de respaldo.
+
+Firebase config real preservado.

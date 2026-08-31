@@ -138,6 +138,9 @@ export const removeCategory=id=>deleteEntity("categories",id,{auditType:"categor
 export const listBudgets=()=>listEntities("budgets");
 export const saveBudget=(d,id=null)=>saveEntity("budgets",d,id,{auditType:"budget"});
 export const removeBudget=id=>deleteEntity("budgets",id,{auditType:"budget"});
+export const listMonthlyPlans=()=>listEntities("monthlyPlans");
+export const saveMonthlyPlan=(d,id=null)=>saveEntity("monthlyPlans",d,id,{auditType:"monthlyPlan"});
+export const removeMonthlyPlan=id=>deleteEntity("monthlyPlans",id,{auditType:"monthlyPlan"});
 export const listRecurring=()=>listEntities("recurring");
 export const saveRecurring=(d,id=null)=>saveEntity("recurring",d,id,{auditType:"recurring"});
 export const archiveRecurring=id=>archiveEntity("recurring",id,{auditType:"recurring"});
