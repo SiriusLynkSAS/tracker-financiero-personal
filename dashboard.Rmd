@@ -1,0 +1,130 @@
+---
+title: "Resumen"
+---
+
+```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Tu panorama financiero</h1>
+    <div class="tf-muted">Vista general de tus finanzas · <span data-user-email></span></div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+</div>
+
+<div class="tf-grid tf-grid-5 tf-summary-kpis">
+  <div class="tf-card">
+    <div class="tf-kpi-label">Liquidez</div>
+    <div id="kpi-liquidity" class="tf-kpi-value">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Inversiones</div>
+    <div id="kpi-investments" class="tf-kpi-value">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Activos productivos</div>
+    <div id="kpi-assets" class="tf-kpi-value">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Deudas</div>
+    <div id="kpi-debt" class="tf-kpi-value tf-negative">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Patrimonio neto</div>
+    <div id="kpi-networth" class="tf-kpi-value">$0</div>
+  </div>
+</div>
+
+<div class="tf-card tf-summary-period" style="margin-top:1rem">
+  <div class="tf-toolbar">
+    <div class="tf-field">
+      <label>Período de análisis</label>
+      <select id="summary-period">
+        <option value="month">Este mes</option>
+        <option value="year">Este año</option>
+        <option value="all">Histórico</option>
+      </select>
+    </div>
+    <div class="tf-muted" id="summary-period-label"></div>
+  </div>
+</div>
+
+<div class="tf-grid tf-grid-4" style="margin-top:1rem">
+  <div class="tf-card">
+    <div class="tf-kpi-label">Ingresos del período</div>
+    <div id="kpi-income" class="tf-kpi-value tf-positive">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Egresos del período</div>
+    <div id="kpi-expense" class="tf-kpi-value tf-negative">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Flujo neto</div>
+    <div id="kpi-flow" class="tf-kpi-value">$0</div>
+  </div>
+  <div class="tf-card">
+    <div class="tf-kpi-label">Por cobrar</div>
+    <div id="kpi-receivable" class="tf-kpi-value">$0</div>
+  </div>
+</div>
+
+<div class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <div class="tf-card">
+    <div class="tf-chart-header">
+      <div>
+        <h2>¿Dónde está tu patrimonio?</h2>
+        <div class="tf-muted">Liquidez, inversiones y activos productivos</div>
+      </div>
+    </div>
+    <div class="tf-chart-wrap">
+      <canvas id="asset-pie-chart"></canvas>
+    </div>
+    <div id="asset-pie-empty" class="tf-empty" hidden>Sin activos para graficar.</div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-chart-header">
+      <div>
+        <h2>¿En qué estás gastando?</h2>
+        <div class="tf-muted">Distribución según el período seleccionado</div>
+      </div>
+    </div>
+    <div class="tf-chart-wrap tf-chart-wrap-compact">
+      <canvas id="expense-pie-chart"></canvas>
+    </div>
+    <div id="expense-pie-legend" class="tf-category-legend"></div>
+    <div id="expense-pie-empty" class="tf-empty" hidden>Sin egresos en este período.</div>
+  </div>
+</div>
+
+<div class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <div class="tf-card">
+    <h2>Lo que viene</h2>
+    <div id="upcoming"></div>
+  </div>
+
+  <div class="tf-card">
+    <h2>Dinero disponible por banco</h2>
+    <div id="bank-summary"></div>
+  </div>
+</div>
+
+<div class="tf-card" style="margin-top:1rem">
+  <h2>Movimientos recientes</h2>
+  <div class="tf-table-wrap">
+    <table class="tf-table">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+          <th>Monto</th>
+        </tr>
+      </thead>
+      <tbody id="recent-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script type="module" src="js/dashboard-v1.js"></script>
+```

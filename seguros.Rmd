@@ -1,0 +1,13 @@
+---
+title: "Seguros"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Seguros</h1><div class="tf-muted">Primas, renovaciones y uso económico. No se almacenan datos clínicos.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-grid tf-grid-2"><section class="tf-card"><h2>Nueva póliza</h2><form id="ins-form" class="tf-form-grid"><div class="tf-field"><label>Tipo</label><select id="ins-type"><option value="health">Salud</option><option value="vehicle">Vehículo</option><option value="equipment">Equipo</option><option value="other">Otro</option></select></div><div class="tf-field"><label>Aseguradora</label><input id="ins-provider" required></div><div class="tf-field"><label>Nombre / póliza</label><input id="ins-name" required></div><div class="tf-field"><label>Prima mensual ($)</label><input id="ins-premium" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Día de pago</label><input id="ins-payment-day" type="number" min="1" max="31" value="1"></div><div class="tf-field"><label>Recordar (días antes)</label><input id="ins-reminder" type="number" min="0" max="30" value="3"></div><div class="tf-field"><label>Inicio vigencia</label><input id="ins-start" type="date"></div><div class="tf-field"><label>Fin / renovación</label><input id="ins-end" type="date"></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Guardar póliza</button></div></form></section>
+<section class="tf-card"><h2>Registrar uso económico</h2><form id="use-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Póliza</label><select id="use-policy"></select></div><div class="tf-field"><label>Fecha</label><input id="use-date" type="date"></div><div class="tf-field"><label>Prestador / referencia</label><input id="use-provider"></div><div class="tf-field"><label>Costo servicio ($)</label><input id="use-cost" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Cubierto por seguro ($)</label><input id="use-covered" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Copago personal ($)</label><input id="use-copay" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Reembolso pendiente ($)</label><input id="use-reimbursement" type="number" min="0" step="0.01" value="0"></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Registrar uso</button></div></form></section></div><div id="ins-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+
+
+<script type="module" src="js/insurance.js"></script>
+```

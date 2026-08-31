@@ -1,0 +1,12 @@
+---
+title: "Recurrentes"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Movimientos recurrentes</h1><div class="tf-muted">Facturas, suscripciones e ingresos programados; se confirman antes de contabilizarse.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-card"><form id="rec-form" class="tf-form-grid"><div class="tf-field"><label>Nombre</label><input id="rec-name" required></div><div class="tf-field"><label>Tipo</label><select id="rec-type"><option value="expense">Egreso</option><option value="income">Ingreso</option></select></div><div class="tf-field"><label>Monto estimado ($)</label><input id="rec-amount" type="number" min="0" step="0.01" required></div><div class="tf-field"><label>Cuenta</label><select id="rec-account"></select></div><div class="tf-field"><label>Categoría</label><select id="rec-category"></select></div><div class="tf-field"><label>Subcategoría</label><select id="rec-subcategory"></select></div><div class="tf-field"><label>Día del mes</label><input id="rec-day" type="number" min="1" max="31" value="1"></div><div class="tf-field"><label>Recordar (días antes)</label><input id="rec-reminder" type="number" min="0" max="30" value="3"></div><div class="tf-field"><label>Desde</label><input id="rec-start" type="date"></div><div class="tf-field"><label>Hasta (opcional)</label><input id="rec-end" type="date"></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Guardar recurrente</button></div></form></div><div id="rec-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+
+
+<script type="module" src="js/recurring.js"></script>
+```

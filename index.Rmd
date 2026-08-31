@@ -1,0 +1,45 @@
+---
+title: "Acceso"
+---
+
+```{=html}
+
+<div class="tf-login-wrap">
+  <div class="tf-login-card tf-login-card-branded">
+    <section class="tf-login-brand-panel" aria-label="Identidad Tracker Financiero">
+      <div class="tf-login-constellation" aria-hidden="true"></div>
+      <div class="tf-login-brand-content">
+        <img class="tf-login-brand-mark" src="assets/brand/tracker-sirius-mark.svg" alt="Tracker Financiero">
+        <div class="tf-login-eyebrow">TRACKER FINANCIERO PERSONAL</div>
+        <h2>Orden financiero con una guía clara.</h2>
+        <p>Una identidad inspirada en Sirius y Canis: tres puntos de referencia para mantener visibles tu liquidez, tus compromisos y tu patrimonio.</p>
+        <div class="tf-login-star-row" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="tf-login-form-panel">
+      <div class="tf-login-form-brand">
+        <img src="assets/brand/tracker-sirius-symbol.svg" alt="" aria-hidden="true">
+        <div>
+          <strong>Tracker Financiero</strong>
+          <span>Personal</span>
+        </div>
+      </div>
+      <h1>Tus finanzas, en un solo lugar</h1>
+      <p class="tf-muted">Consulta cuentas, deudas, inversiones, activos y compromisos desde un espacio privado diseñado para tus finanzas personales.</p>
+
+      <form id="login-form">
+        <div class="tf-field"><label>Correo</label><input id="email" type="email" autocomplete="username" required></div>
+        <div class="tf-field" style="margin-top:.8rem"><label>Contraseña</label><input id="password" type="password" autocomplete="current-password" required></div>
+        <button id="login-submit" class="tf-btn tf-btn-primary tf-login-submit" style="width:100%;margin-top:1rem">Ingresar</button>
+        <div id="login-error" class="tf-alert tf-alert-error"></div>
+      </form>
+    </section>
+  </div>
+</div>
+
+
+<script type="module" src="js/auth-login.js"></script>
+```

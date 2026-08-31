@@ -1,0 +1,11 @@
+---
+title: "Calendario"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Calendario financiero</h1><div class="tf-muted">Recurrentes, préstamos, tarjetas, seguros, inversiones y cuentas por cobrar.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-card"><div class="tf-toolbar"><div class="tf-field"><label>Horizonte</label><select id="cal-horizon"><option value="30">30 días</option><option value="90" selected>90 días</option><option value="365">1 año</option></select></div></div></div><div class="tf-card" style="margin-top:1rem"><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Concepto</th><th>Monto</th><th>Estado</th></tr></thead><tbody id="cal-body"></tbody></table></div></div>
+
+
+<script type="module" src="js/calendar.js"></script>
+```

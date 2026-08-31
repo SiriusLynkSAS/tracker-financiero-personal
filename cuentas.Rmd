@@ -1,0 +1,17 @@
+---
+title: "Bancos y cuentas"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Bancos y cuentas</h1><div class="tf-muted">Varias cuentas por banco y tarjetas con cupo, corte y fecha de pago.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-card" style="margin-bottom:1rem"><h2>Registrar / editar cuenta</h2><form id="account-form" class="tf-form-grid">
+<div class="tf-field"><label>Banco / institución</label><input id="bank" required></div><div class="tf-field"><label>Alias</label><input id="alias" required></div>
+<div class="tf-field"><label>Tipo</label><select id="account-type"><option value="savings">Ahorros</option><option value="checking">Corriente</option><option value="credit_card">Tarjeta de crédito</option><option value="cash">Efectivo / billetera</option></select></div><div class="tf-field"><label>Últimos 4 dígitos</label><input id="last4" maxlength="4" pattern="[0-9]{0,4}"></div>
+<div class="tf-field"><label id="opening-label">Saldo inicial ($)</label><input id="opening-balance" type="number" step="0.01" value="0"></div>
+<div id="credit-fields" class="tf-span-2 tf-form-grid" hidden><div class="tf-field"><label>Cupo total ($)</label><input id="credit-limit" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Día de corte</label><input id="closing-day" type="number" min="1" max="31" value="18"></div><div class="tf-field"><label>Día de pago</label><input id="payment-day" type="number" min="1" max="31" value="5"></div><div class="tf-field"><label>Recordar (días antes)</label><input id="card-reminder" type="number" min="0" max="30" value="3"></div><div class="tf-field"><label>Saldo estado actual ($)</label><input id="statement-balance" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Pago mínimo ($)</label><input id="minimum-payment" type="number" min="0" step="0.01" value="0"></div></div>
+<div class="tf-span-2 tf-actions"><button id="account-submit" class="tf-btn tf-btn-primary">Guardar cuenta</button><button id="account-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar</button></div></form></div><div id="accounts-root"></div>
+
+
+<script type="module" src="js/accounts-v1.js"></script>
+```

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 180" role="img" aria-labelledby="title">
+  <title id="title">Constelación Sirius — Tracker Financiero</title>
+  <defs>
+    <linearGradient id="line" x1="28" y1="148" x2="190" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2C8FE8"/>
+      <stop offset=".5" stop-color="#47B7F2"/>
+      <stop offset="1" stop-color="#3FC4B8"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M28 146 L76 100 L126 118 L190 36" fill="none" stroke="url(#line)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M76 100 L112 54 L190 36" fill="none" stroke="#75C9FA" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>
+  <circle cx="28" cy="146" r="11" fill="#6DCAFF" opacity=".25" filter="url(#glow)"/>
+  <circle cx="28" cy="146" r="6.5" fill="#EAF8FF"/>
+  <circle cx="112" cy="54" r="6" fill="#55D1C6"/>
+  <circle cx="190" cy="36" r="6" fill="#F4C85B"/>
+  <circle cx="76" cy="100" r="3.6" fill="#80CDF9"/>
+  <circle cx="126" cy="118" r="3.6" fill="#80CDF9"/>
+</svg>

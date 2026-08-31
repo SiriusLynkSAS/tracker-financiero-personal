@@ -1,0 +1,11 @@
+---
+title: "Reportes"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Reportes</h1><div class="tf-muted">Flujo mensual y gasto por categoría.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-grid tf-grid-2"><div class="tf-card"><h2>Flujo mensual</h2><canvas id="cashflow-chart"></canvas></div><div class="tf-card"><h2>Egresos por categoría</h2><canvas id="category-chart"></canvas></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script type="module" src="js/reports.js"></script>
+```

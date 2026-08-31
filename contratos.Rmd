@@ -1,0 +1,16 @@
+---
+title: "Contratos y cobros"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Trabajos o alquileres con fecha indefinida, desfase de pago y tarifas por períodos.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-grid tf-grid-2"><section class="tf-card"><h2>Nuevo contrato</h2><form id="contract-form" class="tf-form-grid">
+<div class="tf-field"><label>Cliente / proyecto</label><input id="contract-name" required></div><div class="tf-field"><label>Activo vinculado</label><select id="contract-asset"></select></div><div class="tf-field"><label>Inicio trabajo</label><input id="contract-start" type="date"></div><div class="tf-field"><label>Fin (vacío = indefinido)</label><input id="contract-end" type="date"></div><div class="tf-field"><label>Desfase de pago (meses)</label><input id="contract-lag" type="number" min="0" value="6"></div><div class="tf-field"><label>Día esperado de pago</label><input id="contract-pay-day" type="number" min="1" max="31" value="1"></div><div class="tf-field"><label>Tarifa inicial mensual ($)</label><input id="contract-rate" type="number" min="0" step="0.01" required></div><div class="tf-field"><label>Transporte mensual estimado ($)</label><input id="contract-transport" type="number" min="0" step="0.01" value="0"></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Guardar contrato</button></div></form></section>
+<section class="tf-card"><h2>Nueva tarifa</h2><form id="tariff-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Contrato</label><select id="tariff-contract"></select></div><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Agregar período tarifario</button></div></form></section></div>
+<div id="contract-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+<div class="tf-card" style="margin-top:1rem"><h2>Cuentas por cobrar</h2><div class="tf-toolbar"><div class="tf-field"><label>Cuenta destino</label><select id="payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="payment-amount" type="number" min="0" step="0.01"></div><button id="allocate-payment" class="tf-btn tf-btn-primary">Aplicar a seleccionados</button></div><div class="tf-table-wrap" style="margin-top:.7rem"><table class="tf-table"><thead><tr><th></th><th>Contrato</th><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th></tr></thead><tbody id="recv-body"></tbody></table></div></div>
+
+
+<script type="module" src="js/contracts.js"></script>
+```

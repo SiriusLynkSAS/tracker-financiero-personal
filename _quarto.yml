@@ -1,0 +1,59 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - index.Rmd
+    - dashboard.Rmd
+    - cuentas.Rmd
+    - movimientos.Rmd
+    - presupuestos.Rmd
+    - categorias.Rmd
+    - recurrentes.Rmd
+    - calendario.Rmd
+    - metas.Rmd
+    - deudas.Rmd
+    - seguros.Rmd
+    - activos.Rmd
+    - contratos.Rmd
+    - inversiones.Rmd
+    - conciliacion.Rmd
+    - importar_exportar.Rmd
+    - reportes.Rmd
+    - auditoria.Rmd
+    - perfil.Rmd
+  resources:
+    - js/**
+    - assets/**
+    - manifest.webmanifest
+
+website:
+  title: "Tracker Financiero Personal"
+
+  page-footer:
+    center: "Tracker Financiero Personal V1.0.25"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: false
+    page-layout: full
+    include-in-header:
+      text: |
+        <meta name="robots" content="noindex,nofollow,noarchive">
+        <meta name="referrer" content="same-origin">
+        <meta name="theme-color" content="#0C3567">
+        <link rel="icon" href="assets/brand/favicon.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
+        <link rel="manifest" href="manifest.webmanifest">
+        <script>
+          (function() {
+            try {
+              var saved = localStorage.getItem("tf-theme-preference");
+              var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+              document.documentElement.setAttribute("data-theme", theme);
+            } catch (e) {}
+          })();
+        </script>
+        <script type="module" src="js/theme.js"></script>
+        <script type="module" src="js/app-shell.js"></script>

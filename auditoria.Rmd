@@ -1,0 +1,11 @@
+---
+title: "Auditoría"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Historial de cambios</h1><div class="tf-muted">Creaciones, modificaciones, archivos y eliminaciones.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-card"><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Entidad</th><th>Acción</th><th>ID</th><th>Usuario</th><th>Antes</th><th>Después</th></tr></thead><tbody id="audit-body"></tbody></table></div></div>
+
+
+<script type="module" src="js/audit.js"></script>
+```

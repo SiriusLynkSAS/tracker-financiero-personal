@@ -1,0 +1,11 @@
+---
+title: "Importar / Exportar"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Importar / Exportar</h1><div class="tf-muted">CSV/Excel manual; sin conexión automática a bancos.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-grid tf-grid-2"><section class="tf-card"><h2>Importar movimientos</h2><div class="tf-field"><label>Cuenta destino</label><select id="import-account"></select></div><div class="tf-field" style="margin-top:.7rem"><label>Archivo CSV/XLSX</label><input id="import-file" type="file" accept=".csv,.xlsx,.xls"></div><p class="tf-muted">Columnas: Fecha, Descripcion, Monto, Tipo, Categoria, Subcategoria, IVA.</p><div id="import-preview" class="tf-table-wrap"></div><button id="import-confirm" class="tf-btn tf-btn-primary" disabled>Importar vista previa</button></section><section class="tf-card"><h2>Exportar</h2><div class="tf-actions"><button id="export-json" class="tf-btn tf-btn-primary">Respaldo JSON</button><button id="export-csv" class="tf-btn tf-btn-secondary">Movimientos CSV</button></div></section></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script type="module" src="js/import-export.js"></script>
+```

@@ -1,0 +1,11 @@
+---
+title: "Presupuestos"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Presupuestos</h1><div class="tf-muted">Control mensual por subcategoría con rollover.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-card"><form id="budget-form" class="tf-form-grid"><div class="tf-field"><label>Categoría</label><select id="budget-category"></select></div><div class="tf-field"><label>Subcategoría</label><select id="budget-subcategory"></select></div><div class="tf-field"><label>Límite mensual ($)</label><input id="budget-limit" type="number" min="0" step="0.01" required></div><div class="tf-field tf-check"><input id="budget-rollover" type="checkbox"><label>Arrastrar saldo positivo del mes anterior</label></div><div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Guardar presupuesto</button><button id="budget-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar</button></div></form></div><div class="tf-card" style="margin-top:1rem"><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Categoría</th><th>Subcategoría</th><th>Base</th><th>Rollover</th><th>Disponible</th><th>Gastado</th><th>Queda</th><th></th></tr></thead><tbody id="budget-body"></tbody></table></div></div>
+
+
+<script type="module" src="js/budgets-v1.js"></script>
+```

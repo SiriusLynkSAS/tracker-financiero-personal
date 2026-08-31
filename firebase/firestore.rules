@@ -1,0 +1,145 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn(){ return request.auth != null; }
+    function isOwner(userId){ return signedIn() && request.auth.uid == userId; }
+    function number(v){ return v is int || v is float; }
+    function nonNegative(v){ return number(v) && v >= 0; }
+    function positive(v){ return number(v) && v > 0; }
+    function shortString(v,max){ return v is string && v.size() <= max; }
+
+    match /users/{userId} {
+      allow read,create,update: if isOwner(userId);
+      allow delete: if false;
+
+      match /accounts/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && shortString(request.resource.data.bank,120)
+          && shortString(request.resource.data.alias,120)
+          && request.resource.data.accountType in ['savings','checking','credit_card','cash']
+          && number(request.resource.data.openingBalance);
+        allow delete: if false;
+      }
+
+      match /transactions/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.type in ['income','expense','transfer','investment_out','investment_return']
+          && request.resource.data.date is string
+          && positive(request.resource.data.amount)
+          && nonNegative(request.resource.data.vat);
+        allow delete: if isOwner(userId);
+      }
+
+      match /categories/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.type in ['income','expense']
+          && shortString(request.resource.data.category,100)
+          && shortString(request.resource.data.subcategory,100)
+          && request.resource.data.icon is string
+          && request.resource.data.color in ['blue','sky','teal','green','amber','coral','violet','slate'];
+        allow delete: if isOwner(userId);
+      }
+
+      match /budgets/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.category is string
+          && request.resource.data.subcategory is string
+          && nonNegative(request.resource.data.limit);
+        allow delete: if isOwner(userId);
+      }
+
+      match /recurring/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.type in ['income','expense']
+          && positive(request.resource.data.amount);
+        allow delete: if false;
+      }
+
+      match /goals/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId) && positive(request.resource.data.target);
+        allow delete: if false;
+      }
+
+      match /liabilities/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.mode in ['calculated','manual','imported']
+          && nonNegative(request.resource.data.originalPrincipal);
+        allow delete: if false;
+      }
+
+      match /financingPlans/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.parentType == 'credit_card'
+          && positive(request.resource.data.originalPrincipal)
+          && request.resource.data.schedule is list;
+        allow delete: if false;
+      }
+
+      match /insurance/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId) && nonNegative(request.resource.data.monthlyPremium);
+        allow delete: if false;
+      }
+
+      match /assets/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId) && nonNegative(request.resource.data.purchasePrice);
+        allow delete: if false;
+      }
+
+      match /contracts/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.startDate is string
+          && nonNegative(request.resource.data.initialMonthlyRate);
+        allow delete: if false;
+      }
+
+      match /receivables/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.contractId is string
+          && nonNegative(request.resource.data.amount)
+          && nonNegative(request.resource.data.paidAmount);
+        allow delete: if false;
+      }
+
+      match /investments/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && positive(request.resource.data.principal)
+          && nonNegative(request.resource.data.annualRate)
+          && request.resource.data.rateType in ['nominal','effective']
+          && request.resource.data.status in ['active','liquidated','renewed','cancelled'];
+        allow delete: if false;
+      }
+
+      match /reconciliations/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.accountId is string
+          && request.resource.data.date is string
+          && number(request.resource.data.trackerBalance)
+          && number(request.resource.data.bankBalance)
+          && number(request.resource.data.difference);
+        allow delete: if false;
+      }
+
+      match /auditLog/{id} {
+        allow read,create: if isOwner(userId);
+        allow update,delete: if false;
+      }
+
+      match /{document=**} { allow read,write: if false; }
+    }
+    match /{document=**} { allow read,write: if false; }
+  }
+}

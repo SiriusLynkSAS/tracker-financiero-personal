@@ -1,0 +1,21 @@
+---
+title: "Movimientos"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Movimientos</h1><div class="tf-muted">Ingresos, egresos, transferencias y splits. La edición nunca elimina primero el original.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-grid tf-grid-2"><section class="tf-card"><h2>Registrar / editar</h2><form id="tx-form" class="tf-form-grid">
+<div class="tf-field"><label>Fecha</label><input id="tx-date" type="date" required></div><div class="tf-field"><label>Tipo</label><select id="tx-type"><option value="expense">Egreso</option><option value="income">Ingreso</option><option value="transfer">Transferencia</option></select></div>
+<div id="single-account-fields" class="tf-field tf-span-2"><label>Cuenta</label><select id="tx-account"></select></div><div id="transfer-fields" class="tf-span-2 tf-form-grid" hidden><div class="tf-field"><label>Desde</label><select id="tx-from"></select></div><div class="tf-field"><label>Hacia</label><select id="tx-to"></select></div></div>
+<div id="category-fields" class="tf-span-2 tf-form-grid"><div class="tf-field"><label>Categoría</label><select id="tx-category"></select></div><div class="tf-field"><label>Subcategoría</label><select id="tx-subcategory"></select></div></div>
+<div class="tf-field"><label>Monto total ($)</label><input id="tx-amount" type="number" min="0" step="0.01" value="0" required></div><div class="tf-field"><label>IVA incluido ($)</label><input id="tx-vat" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Comprobante / referencia</label><input id="tx-receipt"></div><div class="tf-field"><label>Descripción</label><input id="tx-description"></div>
+<div id="split-toggle-wrap" class="tf-span-2 tf-check"><input id="tx-split-enabled" type="checkbox"><label>Dividir el movimiento entre varias categorías</label></div><div id="split-panel" class="tf-span-2 tf-subtle" hidden><div id="split-rows"></div><div class="tf-actions"><button id="add-split" type="button" class="tf-btn tf-btn-secondary">Añadir división</button><span id="split-total" class="tf-muted"></span></div></div>
+<div class="tf-span-2 tf-actions"><button id="tx-submit" class="tf-btn tf-btn-primary">Guardar movimiento</button><button id="tx-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button></div></form></section>
+<section class="tf-card"><h2>Filtro</h2><div class="tf-field"><label>Cuenta</label><select id="filter-account"></select></div><p class="tf-muted">Las transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.</p></section></div>
+<div class="tf-card" style="margin-top:1rem"><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th>Categoría</th><th>Detalle</th><th>Monto</th><th></th></tr></thead><tbody id="tx-body"></tbody></table></div></div>
+
+
+<script type="module" src="js/transactions-v1.js"></script>
+```

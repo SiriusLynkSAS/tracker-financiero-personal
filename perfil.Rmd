@@ -1,0 +1,11 @@
+---
+title: "Perfil"
+---
+
+```{=html}
+
+<div class="tf-page-header"><div><h1>Perfil y seguridad</h1><div class="tf-muted">Usuario: <span data-user-email></span></div></div></div><div class="tf-grid tf-grid-2"><div class="tf-card"><h2>Seguridad</h2><p>La contraseña se administra en Firebase Authentication.</p><div class="tf-actions"><button id="reset-password" class="tf-btn tf-btn-secondary">Enviar correo para cambiar contraseña</button><button class="tf-btn tf-btn-danger" data-logout>Cerrar sesión</button></div></div><div class="tf-card"><h2>Política de edición</h2><p class="tf-muted">Cambios monetarios requieren confirmación con impacto. Entidades con historial se archivan. Las modificaciones quedan en Auditoría.</p></div></div>
+
+
+<script type="module" src="js/profile.js"></script>
+```

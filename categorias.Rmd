@@ -1,0 +1,64 @@
+---
+title: "Categorías"
+---
+
+```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Categorías</h1>
+    <div class="tf-muted">Cada categoría tiene un icono y un color. Las subcategorías heredan ese estilo.</div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+</div>
+
+<div class="tf-grid tf-grid-2">
+  <div class="tf-card">
+    <h2>Nueva categoría / subcategoría</h2>
+    <form id="category-form" class="tf-form-grid">
+      <div class="tf-field"><label>Tipo</label><select id="category-type"><option value="expense">Egreso</option><option value="income">Ingreso</option></select></div>
+      <div class="tf-field"><label>Categoría</label><input id="category-name" required placeholder="Ej. Alimentación"></div>
+      <div class="tf-field tf-span-2"><label>Subcategoría</label><input id="subcategory-name" required placeholder="Ej. Supermercado"></div>
+
+      <div class="tf-field tf-span-2" id="category-icon-wrap">
+        <label>Icono de la categoría</label>
+        <input id="category-icon-search" placeholder="Buscar icono..." autocomplete="off">
+        <input id="category-icon" type="hidden" value="wallet">
+        <div id="category-icon-grid" class="tf-icon-picker"></div>
+      </div>
+
+      <div class="tf-field tf-span-2" id="category-color-wrap">
+        <label>Color de la categoría</label>
+        <input id="category-color" type="hidden" value="blue">
+        <div id="category-color-grid" class="tf-color-picker"></div>
+      </div>
+
+      <div id="category-inherited-style" class="tf-span-2 tf-inherited-category-style" hidden></div>
+
+      <div class="tf-span-2 tf-actions">
+        <button class="tf-btn tf-btn-primary">Agregar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="tf-card">
+    <h2>Estilo de categoría existente</h2>
+    <form id="category-style-form" class="tf-form-grid">
+      <div class="tf-field tf-span-2"><label>Categoría</label><select id="style-category"></select></div>
+      <div class="tf-field tf-span-2"><label>Icono</label><div id="style-icon-grid" class="tf-icon-picker"></div><input id="style-icon" type="hidden"></div>
+      <div class="tf-field tf-span-2"><label>Color</label><div id="style-color-grid" class="tf-color-picker"></div><input id="style-color" type="hidden"></div>
+      <div class="tf-span-2"><button class="tf-btn tf-btn-primary">Actualizar estilo</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="tf-card" style="margin-top:1rem">
+  <div class="tf-table-wrap">
+    <table class="tf-table">
+      <thead><tr><th></th><th>Tipo</th><th>Categoría</th><th>Subcategoría</th><th></th></tr></thead>
+      <tbody id="category-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module" src="js/categories-v1.js"></script>
+```
