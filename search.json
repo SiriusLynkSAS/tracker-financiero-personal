@@ -1,0 +1,135 @@
+[
+  {
+    "objectID": "perfil.html",
+    "href": "perfil.html",
+    "title": "Perfil",
+    "section": "",
+    "text": "Perfil y seguridadUsuario: SeguridadLa contraseña se administra en Firebase Authentication.Enviar correo para cambiar contraseñaCerrar sesiónPolítica de ediciónCambios monetarios requieren confirmación con impacto. Entidades con historial se archivan. Las modificaciones quedan en Auditoría."
+  },
+  {
+    "objectID": "reportes.html",
+    "href": "reportes.html",
+    "title": "Reportes",
+    "section": "",
+    "text": "ReportesFlujo mensual y gasto por categoría.Cerrar sesiónFlujo mensualEgresos por categoría"
+  },
+  {
+    "objectID": "conciliacion.html",
+    "href": "conciliacion.html",
+    "title": "Conciliación",
+    "section": "",
+    "text": "Conciliación bancariaCompara el saldo calculado con el saldo informado por el banco.Cerrar sesiónCuentaFechaSaldo informado por banco ($)Conciliar\n\n\n\nFecha\nCuenta\nTracker\nBanco\nDiferencia\nEstado"
+  },
+  {
+    "objectID": "contratos.html",
+    "href": "contratos.html",
+    "title": "Contratos y cobros",
+    "section": "",
+    "text": "Contratos y cuentas por cobrarTrabajos o alquileres con fecha indefinida, desfase de pago y tarifas por períodos.Cerrar sesión\nNuevo contrato\nCliente / proyectoActivo vinculadoInicio trabajoFin (vacío = indefinido)Desfase de pago (meses)Día esperado de pagoTarifa inicial mensual ($)Transporte mensual estimado ($)Guardar contrato\nNueva tarifaContratoVigente desdeTarifa mensual ($)Agregar período tarifario\n\nCuentas por cobrarCuenta destinoMonto recibido ($)Aplicar a seleccionados\n\n\n\n\nContrato\nPeríodo\nGenerado\nPagado\nPendiente\nVence\nEstado"
+  },
+  {
+    "objectID": "seguros.html",
+    "href": "seguros.html",
+    "title": "Seguros",
+    "section": "",
+    "text": "SegurosPrimas, renovaciones y uso económico. No se almacenan datos clínicos.Cerrar sesión\nNueva pólizaTipoSaludVehículoEquipoOtroAseguradoraNombre / pólizaPrima mensual ($)Día de pagoRecordar (días antes)Inicio vigenciaFin / renovaciónGuardar póliza\nRegistrar uso económicoPólizaFechaPrestador / referenciaCosto servicio ($)Cubierto por seguro ($)Copago personal ($)Reembolso pendiente ($)Registrar uso"
+  },
+  {
+    "objectID": "metas.html",
+    "href": "metas.html",
+    "title": "Metas",
+    "section": "",
+    "text": "Metas de ahorroObjetivos vinculables a una cuenta o con avance manual.Cerrar sesiónMetaObjetivo ($)Fecha objetivoCuenta vinculadaAcumulado manual ($)Guardar meta"
+  },
+  {
+    "objectID": "recurrentes.html",
+    "href": "recurrentes.html",
+    "title": "Recurrentes",
+    "section": "",
+    "text": "Movimientos recurrentesFacturas, suscripciones e ingresos programados; se confirman antes de contabilizarse.Cerrar sesión\nNombreTipoEgresoIngresoMonto estimado ($)CuentaCategoríaSubcategoríaDía del mesRecordar (días antes)DesdeHasta (opcional)Guardar recurrente"
+  },
+  {
+    "objectID": "presupuestos.html",
+    "href": "presupuestos.html",
+    "title": "Presupuestos",
+    "section": "",
+    "text": "PresupuestosControl mensual por subcategoría con rollover.Cerrar sesiónCategoríaSubcategoríaLímite mensual ($)Arrastrar saldo positivo del mes anteriorGuardar presupuestoCancelar\n\n\n\nCategoría\nSubcategoría\nBase\nRollover\nDisponible\nGastado\nQueda"
+  },
+  {
+    "objectID": "cuentas.html",
+    "href": "cuentas.html",
+    "title": "Bancos y cuentas",
+    "section": "",
+    "text": "Bancos y cuentasVarias cuentas por banco y tarjetas con cupo, corte y fecha de pago.Cerrar sesión\nRegistrar / editar cuenta\nBanco / instituciónAlias\nTipoAhorrosCorrienteTarjeta de créditoEfectivo / billeteraÚltimos 4 dígitos\nSaldo inicial ($)\nCupo total ($)Día de corteDía de pagoRecordar (días antes)Saldo estado actual ($)Pago mínimo ($)\nGuardar cuentaCancelar"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Acceso",
+    "section": "",
+    "text": "TRACKER FINANCIERO PERSONAL\n        Orden financiero con una guía clara.\n        Una identidad inspirada en Sirius y Canis: tres puntos de referencia para mantener visibles tu liquidez, tus compromisos y tu patrimonio.\n        \n          \n        \n      \n    \n\n    \n      \n        \n        \n          Tracker Financiero\n          Personal\n        \n      \n      Tus finanzas, en un solo lugar\n      Consulta cuentas, deudas, inversiones, activos y compromisos desde un espacio privado diseñado para tus finanzas personales.\n\n      \n        Correo\n        Contraseña\n        Ingresar"
+  },
+  {
+    "objectID": "dashboard.html",
+    "href": "dashboard.html",
+    "title": "Resumen",
+    "section": "",
+    "text": "Tu panorama financiero\n    Vista general de tus finanzas · \n  \n  Cerrar sesión\n\n\n\n  \n    Liquidez\n    $0\n  \n  \n    Inversiones\n    $0\n  \n  \n    Activos productivos\n    $0\n  \n  \n    Deudas\n    $0\n  \n  \n    Patrimonio neto\n    $0\n  \n\n\n\n  \n    \n      Período de análisis\n      \n        Este mes\n        Este año\n        Histórico\n      \n    \n    \n  \n\n\n\n  \n    Ingresos del período\n    $0\n  \n  \n    Egresos del período\n    $0\n  \n  \n    Flujo neto\n    $0\n  \n  \n    Por cobrar\n    $0\n  \n\n\n\n  \n    \n      \n        ¿Dónde está tu patrimonio?\n        Liquidez, inversiones y activos productivos\n      \n    \n    \n      \n    \n    Sin activos para graficar.\n  \n\n  \n    \n      \n        ¿En qué estás gastando?\n        Distribución según el período seleccionado\n      \n    \n    \n      \n    \n    \n    Sin egresos en este período.\n  \n\n\n\n  \n    Lo que viene\n    \n  \n\n  \n    Dinero disponible por banco\n    \n  \n\n\n\n  Movimientos recientes\n  \n    \n\n\n\nFecha\nTipo\nDescripción\nMonto"
+  },
+  {
+    "objectID": "movimientos.html",
+    "href": "movimientos.html",
+    "title": "Movimientos",
+    "section": "",
+    "text": "MovimientosIngresos, egresos, transferencias y splits. La edición nunca elimina primero el original.Cerrar sesión\nRegistrar / editar\nFechaTipoEgresoIngresoTransferencia\nCuentaDesdeHacia\nCategoríaSubcategoría\nMonto total ($)IVA incluido ($)\nComprobante / referenciaDescripción\nDividir el movimiento entre varias categoríasAñadir división\nGuardar movimientoCancelar edición\nFiltroCuentaLas transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.\n\n\n\n\nFecha\nTipo\nCuenta\nCategoría\nDetalle\nMonto"
+  },
+  {
+    "objectID": "categorias.html",
+    "href": "categorias.html",
+    "title": "Categorías",
+    "section": "",
+    "text": "Categorías\n    Cada categoría tiene un icono y un color. Las subcategorías heredan ese estilo.\n  \n  Cerrar sesión\n\n\n\n  \n    Nueva categoría / subcategoría\n    \n      TipoEgresoIngreso\n      Categoría\n      Subcategoría\n\n      \n        Icono de la categoría\n        \n        \n        \n      \n\n      \n        Color de la categoría\n        \n        \n      \n\n      \n\n      \n        Agregar\n      \n    \n  \n\n  \n    Estilo de categoría existente\n    \n      Categoría\n      Icono\n      Color\n      Actualizar estilo\n    \n  \n\n\n\n  \n    \n\n\n\n\nTipo\nCategoría\nSubcategoría"
+  },
+  {
+    "objectID": "calendario.html",
+    "href": "calendario.html",
+    "title": "Calendario",
+    "section": "",
+    "text": "Calendario financieroRecurrentes, préstamos, tarjetas, seguros, inversiones y cuentas por cobrar.Cerrar sesiónHorizonte30 días90 días1 año\n\n\n\nFecha\nTipo\nConcepto\nMonto\nEstado"
+  },
+  {
+    "objectID": "deudas.html",
+    "href": "deudas.html",
+    "title": "Deudas y tarjetas",
+    "section": "",
+    "text": "Deudas y tarjetasPréstamos y tarjetas se gestionan por separado para evitar mezclar acreedores, saldos y pagos.Cerrar sesión\n\n  \n    Préstamos pendientes\n    $0,00\n  \n  \n    Planes de tarjeta pendientes\n    $0,00\n  \n  \n    Deuda total pendiente\n    $0,00\n  \n\nCalculadora / nueva deuda\nAcreedorConceptoModoCalculadaSaldo manualImportadaSistemaAlemánFrancésManual\nCapital original ($)\n\n  Siguiente cuota\n  \n    Pulsa Calcular para obtener la siguiente cuota.\n  \n\n\n\n  Saldo pendiente calculado ($)\n  \n  Solo lectura. Se actualiza al pulsar Calcular según el cronograma y la cuota pagada seleccionada.\n\n\n  Saldo actual pendiente ($)\n  \n  Disponible únicamente en modo manual/importado.\n\nTasa anual (%)Tipo de tasaNominal anualEfectiva anual\nPlazo (meses)\nPrimera cuota\n\n  Pagado hasta la cuota\n  \n  0 = ninguna pagada. Ej.: 16 marca como pagadas las cuotas 1–16 y calcula el saldo después de la cuota 16.\n\nRecordar (días antes)\n\n  Calcular\n  Guardar deuda\n  Cancelar edición\n\n\nCompra a plazos / avance de tarjeta\nTarjeta\nTipoCompra a plazosAvance de efectivo\nDescripción\nPrincipal ($)\nMétodoCuotas informadas por bancoAlemánFrancés\nNúmero de cuotas\nCuota informada ($)\nTasa anual (%)\nPrimera cuota\nComisión inicial ($)\n\n  Pagado hasta la cuota\n  \n  0 = ninguna pagada. Al guardar, todas las cuotas hasta este número quedan marcadas como pagadas.\n\nCuenta destino del avance\n\n\n  Siguiente cuota\n  \n    Pulsa Calcular para obtener la siguiente cuota.\n  \n\n\n\n  Saldo pendiente del plan ($)\n  \n  Solo lectura. Corresponde a la suma de las cuotas todavía pendientes.\n\n\n\n  Calcular\n  Guardar plan\n  Cancelar edición\n\n\n\n\n\n\n  \n    \n      Préstamos y otras deudas\n      Obligaciones con acreedores. Esta sección no utiliza información de tarjetas de crédito.\n    \n  \n  \n\n\n\n  \n    \n      Préstamo\n      Cronograma del préstamo\n      \n    \n    Cerrar\n  \n  \n    \n\n\n\n#\nFecha\nCapital\nInterés\nCuota\nSaldo\nEstado\n\n\n\n\n\n\n\n  \n\n\n\n  \n    \n      Planes de tarjetas\n      Compras financiadas y avances asociados exclusivamente a tarjetas de crédito.\n    \n  \n  \n\n\n\n  \n    \n      Tarjeta de crédito\n      Cronograma de tarjeta\n      \n    \n    Cerrar\n  \n  \n    \n      Cuenta bancaria para pagar la tarjeta\n      \n    \n    Solo se usa al pagar cuotas de planes de tarjeta. Crea una transferencia banco → tarjeta.\n  \n  \n    \n\n\n\n#\nFecha\nCapital\nInterés\nCuota\nSaldo\nEstado"
+  },
+  {
+    "objectID": "activos.html",
+    "href": "activos.html",
+    "title": "Activos",
+    "section": "",
+    "text": "Activos productivosCompra, transporte, mantenimiento, certificación, depreciación, valor de mercado e ingresos.Cerrar sesión\nRegistrar activoNombreTipoEquipoVehículoOtroPrecio compra ($)Transporte de compra ($)Accesorios iniciales ($)Certificación inicial ($)Otros costos iniciales ($)Fecha compraValor residual ($)Vida útil (años)Valor mercado actual ($)Guardar activo\nRegistrar costo / ingresoActivoTipoCostoIngresoConceptoTransporteMantenimientoCertificación / calibraciónReparaciónSeguroArriendo / uso productivoOtroFechaMonto ($)DetalleRegistrar evento"
+  },
+  {
+    "objectID": "inversiones.html",
+    "href": "inversiones.html",
+    "title": "Inversiones",
+    "section": "",
+    "text": "Inversiones financierasCapital, plazo, tasa, rendimiento esperado/real, vencimiento y renovación.Cerrar sesión\nCalculadora / nueva inversiónBanco / instituciónNombre / certificadoCapital ($)Tasa anual (%)Tipo de tasaNominalEfectivaCálculoInterés simpleCapitalizaciónCapitalizaciónMensualTrimestralSemestralAnualInicioPlazoUnidadDíasMesesAñosRetenciones ($)Comisiones ($)Cuenta origen El movimiento de capital ya fue registradoMarca solo si ya registraste manualmente la salida de capital.Recordar (días antes)CalcularGuardar inversiónPrincipio contableCapital invertido = transferencia de activo, no gasto.\nCapital retornado = retorno de activo, no ingreso.\nSolo el rendimiento neto = ingreso financiero.\n\n  Liquidar inversión\n  \n    Inversión\n    Cuenta destino\n    Fecha\n    Capital retornado ($)\n    Rendimiento neto real ($)\n    Liquidar"
+  },
+  {
+    "objectID": "importar_exportar.html",
+    "href": "importar_exportar.html",
+    "title": "Importar / Exportar",
+    "section": "",
+    "text": "Importar / ExportarCSV/Excel manual; sin conexión automática a bancos.Cerrar sesiónImportar movimientosCuenta destinoArchivo CSV/XLSXColumnas: Fecha, Descripcion, Monto, Tipo, Categoria, Subcategoria, IVA.Importar vista previaExportarRespaldo JSONMovimientos CSV"
+  },
+  {
+    "objectID": "auditoria.html",
+    "href": "auditoria.html",
+    "title": "Auditoría",
+    "section": "",
+    "text": "Historial de cambiosCreaciones, modificaciones, archivos y eliminaciones.Cerrar sesión\n\n\n\nEntidad\nAcción\nID\nUsuario\nAntes\nDespués"
+  }
+]
