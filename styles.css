@@ -2849,3 +2849,315 @@ html[data-theme="dark"] .tf-card{
     border-radius:24px;
   }
 }
+
+
+/* =========================================================
+   V1.0.26 - PLAN MENSUAL
+   ========================================================= */
+body[data-page="plan_mensual"]{
+  --tf-page-accent:var(--tf-teal);
+  --tf-page-accent-soft:var(--tf-teal-soft);
+}
+
+.tf-monthly-plan-toolbar .tf-toolbar{
+  justify-content:space-between;
+}
+
+.tf-plan-save-state{
+  margin-left:auto;
+  padding:.45rem .7rem;
+  border-radius:999px;
+  border:1px solid var(--tf-border);
+  background:var(--tf-surface-soft);
+  color:var(--tf-muted);
+  font-size:.76rem;
+  font-weight:760;
+}
+
+.tf-plan-save-state.is-dirty{
+  color:var(--tf-amber);
+  border-color:color-mix(in srgb,var(--tf-amber) 30%,var(--tf-border));
+  background:var(--tf-amber-soft);
+}
+
+.tf-monthly-plan-kpis{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:.8rem;
+  margin:1rem 0;
+}
+
+.tf-plan-kpi{
+  position:relative;
+  overflow:hidden;
+  min-width:0;
+  padding:1rem;
+}
+
+.tf-plan-kpi::after{
+  content:"";
+  position:absolute;
+  inset:auto 0 0;
+  height:3px;
+  background:var(--plan-accent,var(--tf-blue));
+}
+
+.tf-plan-kpi span{
+  display:block;
+  margin-bottom:.4rem;
+  color:var(--tf-muted);
+  font-size:.76rem;
+  font-weight:760;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+}
+
+.tf-plan-kpi strong{
+  display:block;
+  font-size:clamp(1.08rem,2.1vw,1.45rem);
+  line-height:1.08;
+  font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+}
+
+.tf-plan-kpi-income{--plan-accent:var(--tf-teal)}
+.tf-plan-kpi-fixed{--plan-accent:var(--tf-coral)}
+.tf-plan-kpi-saving{--plan-accent:var(--tf-sky)}
+.tf-plan-kpi-variable{--plan-accent:var(--tf-amber)}
+.tf-plan-kpi-free{--plan-accent:var(--tf-violet)}
+
+.tf-monthly-plan-main{
+  align-items:start;
+}
+
+.tf-plan-section-total{
+  white-space:nowrap;
+  font-size:1.12rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.tf-plan-source-list{
+  display:grid;
+  gap:.5rem;
+}
+
+.tf-plan-source-row{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:.7rem;
+  align-items:center;
+  padding:.72rem .76rem;
+  border:1px solid var(--tf-border);
+  border-radius:14px;
+  background:var(--tf-surface-soft);
+  cursor:pointer;
+}
+
+.tf-plan-source-row input{
+  width:18px;
+  height:18px;
+  accent-color:var(--tf-page-accent);
+}
+
+.tf-plan-source-main{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:.15rem;
+}
+
+.tf-plan-source-main strong{
+  overflow-wrap:anywhere;
+  font-size:.88rem;
+}
+
+.tf-plan-source-main span{
+  color:var(--tf-muted);
+  font-size:.74rem;
+  line-height:1.32;
+}
+
+.tf-plan-source-amount{
+  white-space:nowrap;
+  font-size:.9rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.tf-plan-source-row:has(input:not(:checked)){
+  opacity:.52;
+}
+
+.tf-plan-source-row:has(input:not(:checked)) .tf-plan-source-main strong,
+.tf-plan-source-row:has(input:not(:checked)) .tf-plan-source-amount{
+  text-decoration:line-through;
+}
+
+.tf-plan-source-empty{
+  padding:.8rem 0;
+}
+
+.tf-plan-saving-control{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:.75rem;
+  align-items:end;
+  margin-top:.85rem;
+  padding-top:.85rem;
+  border-top:1px solid var(--tf-border);
+}
+
+.tf-plan-result-card{
+  margin-top:1rem;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:1.5rem;
+  align-items:center;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 90% 40%,color-mix(in srgb,var(--tf-violet) 10%,transparent),transparent 14rem),
+    linear-gradient(120deg,var(--tf-surface),var(--tf-surface-soft));
+}
+
+.tf-plan-result-copy h2{
+  margin:.15rem 0 .35rem;
+}
+
+.tf-plan-result-copy p{
+  max-width:720px;
+  margin:0;
+  color:var(--tf-muted);
+  line-height:1.45;
+}
+
+.tf-plan-result-value{
+  min-width:220px;
+  text-align:right;
+  font-size:clamp(2rem,5vw,3.4rem);
+  font-weight:880;
+  letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+  color:var(--tf-violet);
+}
+
+.tf-plan-manual-list{
+  display:grid;
+  gap:.5rem;
+}
+
+.tf-plan-manual-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  gap:.7rem;
+  align-items:center;
+  padding:.65rem .7rem;
+  border:1px solid var(--tf-border);
+  border-radius:14px;
+  background:var(--tf-surface-soft);
+}
+
+.tf-plan-manual-row>div{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+
+.tf-plan-manual-row>div span{
+  color:var(--tf-muted);
+  font-size:.74rem;
+}
+
+.tf-plan-execution-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.65rem;
+}
+
+.tf-plan-execution-grid>div{
+  display:flex;
+  flex-direction:column;
+  gap:.2rem;
+  padding:.72rem .78rem;
+  border:1px solid var(--tf-border);
+  border-radius:14px;
+  background:var(--tf-surface-soft);
+}
+
+.tf-plan-execution-grid span{
+  color:var(--tf-muted);
+  font-size:.74rem;
+  font-weight:720;
+}
+
+.tf-plan-execution-grid strong{
+  font-size:1.02rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.tf-plan-execution-net{
+  grid-column:1/-1;
+  border-color:color-mix(in srgb,var(--tf-teal) 25%,var(--tf-border)) !important;
+  background:color-mix(in srgb,var(--tf-teal-soft) 62%,var(--tf-surface)) !important;
+}
+
+.tf-plan-execution-net strong{
+  font-size:1.2rem;
+}
+
+@media(max-width:1180px){
+  .tf-monthly-plan-kpis{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:760px){
+  .tf-monthly-plan-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .tf-plan-result-card{
+    grid-template-columns:1fr;
+  }
+
+  .tf-plan-result-value{
+    min-width:0;
+    text-align:left;
+  }
+
+  .tf-plan-saving-control{
+    grid-template-columns:1fr;
+  }
+
+  .tf-plan-save-state{
+    margin-left:0;
+  }
+}
+
+@media(max-width:480px){
+  .tf-monthly-plan-kpis{
+    grid-template-columns:1fr;
+  }
+
+  .tf-plan-source-row{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+
+  .tf-plan-source-amount{
+    grid-column:2;
+  }
+
+  .tf-plan-manual-row{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+
+  .tf-plan-manual-row .tf-btn{
+    grid-column:1/-1;
+  }
+
+  .tf-plan-execution-grid{
+    grid-template-columns:1fr;
+  }
+
+  .tf-plan-execution-net{
+    grid-column:auto;
+  }
+}

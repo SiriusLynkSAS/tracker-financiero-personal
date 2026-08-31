@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Deudas y tarjetas – Tracker Financiero Personal</title>
+<title>Plan mensual – Tracker Financiero Personal</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -104,7 +104,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Deudas y tarjetas</h1>
+<h1 class="title">Plan mensual</h1>
 </div>
 
 
@@ -121,187 +121,204 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<div class="tf-page-header"><div><h1>Deudas y tarjetas</h1><div class="tf-muted">Préstamos y tarjetas se gestionan por separado para evitar mezclar acreedores, saldos y pagos.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<div class="tf-grid tf-grid-3 tf-debt-overview" style="margin-bottom:1rem">
-  <div class="tf-card">
-    <div class="tf-kpi-label">Préstamos pendientes</div>
-    <div id="overview-loans-pending" class="tf-kpi-value tf-negative">$0,00</div>
-  </div>
-  <div class="tf-card">
-    <div class="tf-kpi-label">Planes de tarjeta pendientes</div>
-    <div id="overview-cards-pending" class="tf-kpi-value tf-negative">$0,00</div>
-  </div>
-  <div class="tf-card">
-    <div class="tf-kpi-label">Deuda total pendiente</div>
-    <div id="overview-total-pending" class="tf-kpi-value tf-negative">$0,00</div>
-  </div>
-</div>
-<div class="tf-grid tf-grid-2"><section class="tf-card"><h2 class="anchored">Calculadora / nueva deuda</h2><form id="debt-form" class="tf-form-grid">
-<div class="tf-field"><label>Acreedor</label><input id="debt-creditor" required=""></div><div class="tf-field"><label>Concepto</label><input id="debt-concept" required=""></div><div class="tf-field"><label>Modo</label><select id="debt-mode"><option value="calculated">Calculada</option><option value="manual">Saldo manual</option><option value="imported">Importada</option></select></div><div class="tf-field"><label>Sistema</label><select id="debt-method"><option value="german">Alemán</option><option value="french">Francés</option><option value="manual">Manual</option></select></div>
-<div class="tf-field"><label>Capital original ($)</label><input id="debt-principal" type="number" min="0" step="0.01" value="10000"></div>
-<div class="tf-field tf-span-2" id="debt-next-installment-wrap">
-  <label>Siguiente cuota</label>
-  <div id="debt-next-installment-summary" class="tf-next-installment-summary">
-    <div class="tf-next-installment-empty">Pulsa <strong>Calcular</strong> para obtener la siguiente cuota.</div>
-  </div>
-</div>
-
-<div class="tf-field" id="debt-calculated-balance-wrap">
-  <label>Saldo pendiente calculado ($)</label>
-  <input id="debt-calculated-balance" type="text" readonly="" value="$0,00">
-  <small>Solo lectura. Se actualiza al pulsar <strong>Calcular</strong> según el cronograma y la cuota pagada seleccionada.</small>
-</div>
-<div class="tf-field" id="debt-manual-balance-wrap" hidden="">
-  <label>Saldo actual pendiente ($)</label>
-  <input id="debt-current" type="number" min="0" step="0.01" placeholder="0,00">
-  <small>Disponible únicamente en modo manual/importado.</small>
-</div>
-<div class="tf-field"><label>Tasa anual (%)</label><input id="debt-rate" type="number" min="0" step="0.01" value="4.99"></div><div class="tf-field"><label>Tipo de tasa</label><select id="debt-rate-type"><option value="nominal">Nominal anual</option><option value="effective">Efectiva anual</option></select></div>
-<div class="tf-field"><label>Plazo (meses)</label><input id="debt-term" type="number" min="1" value="36"></div>
-<div class="tf-field"><label>Primera cuota</label><input id="debt-first" type="date"></div>
-<div class="tf-field">
-  <label id="debt-installment-label">Pagado hasta la cuota</label>
-  <input id="debt-current-installment" type="number" min="0" value="0">
-  <small id="debt-installment-help">0 = ninguna pagada. Ej.: 16 marca como pagadas las cuotas 1–16 y calcula el saldo después de la cuota 16.</small>
-</div>
-<div class="tf-field"><label>Recordar (días antes)</label><input id="debt-reminder" type="number" min="0" max="30" value="3"></div>
-<div class="tf-span-2 tf-actions">
-  <button id="debt-preview" type="button" class="tf-btn tf-btn-secondary">Calcular</button>
-  <button id="debt-submit" class="tf-btn tf-btn-primary">Guardar deuda</button>
-  <button id="debt-cancel-edit" type="button" class="tf-btn tf-btn-secondary" hidden="">Cancelar edición</button>
-</div>
-<div id="debt-edit-status" class="tf-span-2 tf-subtle" hidden=""></div></form><div id="debt-preview-box" class="tf-subtle" style="margin-top:1rem"></div></section>
-<section class="tf-card"><h2 class="anchored">Compra a plazos / avance de tarjeta</h2><form id="plan-form" class="tf-form-grid">
-<div class="tf-field"><label>Tarjeta</label><select id="plan-card"></select></div>
-<div class="tf-field"><label>Tipo</label><select id="plan-type"><option value="installment_purchase">Compra a plazos</option><option value="cash_advance">Avance de efectivo</option></select></div>
-<div class="tf-field"><label>Descripción</label><input id="plan-description" required=""></div>
-<div class="tf-field"><label>Principal ($)</label><input id="plan-principal" type="number" min="0" step="0.01" required=""></div>
-<div class="tf-field"><label>Método</label><select id="plan-method"><option value="fixed_installment">Cuotas informadas por banco</option><option value="german">Alemán</option><option value="french">Francés</option></select></div>
-<div class="tf-field"><label>Número de cuotas</label><input id="plan-count" type="number" min="1" value="12"></div>
-<div class="tf-field"><label>Cuota informada ($)</label><input id="plan-payment" type="number" min="0" step="0.01" value="0"></div>
-<div class="tf-field"><label>Tasa anual (%)</label><input id="plan-rate" type="number" min="0" step="0.01" value="0"></div>
-<div class="tf-field"><label>Primera cuota</label><input id="plan-first" type="date"></div>
-<div class="tf-field"><label>Comisión inicial ($)</label><input id="plan-fee" type="number" min="0" step="0.01" value="0"></div>
-<div class="tf-field">
-  <label>Pagado hasta la cuota</label>
-  <input id="plan-paid-through" type="number" min="0" value="0">
-  <small>0 = ninguna pagada. Al guardar, todas las cuotas hasta este número quedan marcadas como pagadas.</small>
-</div>
-<div class="tf-field" id="plan-cash-destination-wrap" hidden=""><label>Cuenta destino del avance</label><select id="plan-cash-destination"></select></div>
-
-<div class="tf-field tf-span-2" id="plan-next-installment-wrap">
-  <label>Siguiente cuota</label>
-  <div id="plan-next-installment-summary" class="tf-next-installment-summary">
-    <div class="tf-next-installment-empty">Pulsa <strong>Calcular</strong> para obtener la siguiente cuota.</div>
-  </div>
-</div>
-
-<div class="tf-field tf-span-2">
-  <label>Saldo pendiente del plan ($)</label>
-  <input id="plan-calculated-balance" type="text" readonly="" value="$0,00">
-  <small>Solo lectura. Corresponde a la suma de las cuotas todavía pendientes.</small>
-</div>
-
-<div class="tf-span-2 tf-actions">
-  <button id="plan-preview" type="button" class="tf-btn tf-btn-secondary">Calcular</button>
-  <button id="plan-submit" class="tf-btn tf-btn-primary">Guardar plan</button>
-  <button id="plan-cancel-edit" type="button" class="tf-btn tf-btn-secondary" hidden="">Cancelar edición</button>
-</div>
-<div id="plan-edit-status" class="tf-span-2 tf-subtle" hidden=""></div>
-</form>
-<div id="plan-preview-box" class="tf-subtle" style="margin-top:1rem"></div>
-</section></div>
-<section class="tf-module-section tf-module-loans" style="margin-top:1.4rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Préstamos y otras deudas</h2>
-      <div class="tf-muted">Obligaciones con acreedores. Esta sección no utiliza información de tarjetas de crédito.</div>
+<div class="tf-page-header">
+  <div>
+    <h1>Plan mensual</h1>
+    <div class="tf-muted">
+      Proyecta cuánto puedes gastar después de cubrir compromisos, ahorro y reservas del mes.
     </div>
   </div>
-  <div id="debt-list" class="tf-grid tf-grid-3"></div>
-</section>
-
-<div id="debt-schedule-card" class="tf-card tf-schedule-card tf-loan-schedule" style="margin-top:1rem" hidden="">
-  <div class="tf-section-heading">
-    <div>
-      <div class="tf-section-kicker">Préstamo</div>
-      <h2 id="debt-schedule-title" class="anchored">Cronograma del préstamo</h2>
-      <div id="debt-schedule-meta" class="tf-muted"></div>
-    </div>
-    <button type="button" class="tf-btn tf-btn-secondary" id="debt-schedule-close">Cerrar</button>
-  </div>
-  <div class="tf-table-wrap">
-    
-<table class="tf-table caption-top">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">#</th>
-<th data-quarto-table-cell-role="th">Fecha</th>
-<th data-quarto-table-cell-role="th">Capital</th>
-<th data-quarto-table-cell-role="th">Interés</th>
-<th data-quarto-table-cell-role="th">Cuota</th>
-<th data-quarto-table-cell-role="th">Saldo</th>
-<th data-quarto-table-cell-role="th">Estado</th>
-<th data-quarto-table-cell-role="th"></th>
-</tr>
-</thead>
-<tbody id="debt-schedule-body">
-</tbody>
-</table>
-
-  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
 </div>
 
-<section class="tf-module-section tf-module-cards" style="margin-top:1.8rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Planes de tarjetas</h2>
-      <div class="tf-muted">Compras financiadas y avances asociados exclusivamente a tarjetas de crédito.</div>
-    </div>
-  </div>
-  <div id="plan-list" class="tf-grid tf-grid-3"></div>
-</section>
-
-<div id="card-schedule-card" class="tf-card tf-schedule-card tf-card-schedule" style="margin-top:1rem" hidden="">
-  <div class="tf-section-heading">
-    <div>
-      <div class="tf-section-kicker">Tarjeta de crédito</div>
-      <h2 id="card-schedule-title" class="anchored">Cronograma de tarjeta</h2>
-      <div id="card-schedule-meta" class="tf-muted"></div>
-    </div>
-    <button type="button" class="tf-btn tf-btn-secondary" id="card-schedule-close">Cerrar</button>
-  </div>
-  <div class="tf-toolbar tf-card-payment-toolbar" style="margin-bottom:.8rem">
+<section class="tf-card tf-monthly-plan-toolbar">
+  <div class="tf-toolbar">
     <div class="tf-field">
-      <label>Cuenta bancaria para pagar la tarjeta</label>
-      <select id="schedule-payment-account"></select>
+      <label>Mes del plan</label>
+      <input id="monthly-plan-month" type="month">
     </div>
-    <div class="tf-muted">Solo se usa al pagar cuotas de planes de tarjeta. Crea una transferencia banco → tarjeta.</div>
+    <div class="tf-actions">
+      <button id="monthly-plan-prev" class="tf-btn tf-btn-secondary" type="button">← Mes anterior</button>
+      <button id="monthly-plan-today" class="tf-btn tf-btn-secondary" type="button">Mes actual</button>
+      <button id="monthly-plan-next" class="tf-btn tf-btn-secondary" type="button">Mes siguiente →</button>
+    </div>
+    <div class="tf-plan-save-state" id="monthly-plan-save-state">Plan no guardado</div>
   </div>
-  <div class="tf-table-wrap">
-    
-<table class="tf-table caption-top">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">#</th>
-<th data-quarto-table-cell-role="th">Fecha</th>
-<th data-quarto-table-cell-role="th">Capital</th>
-<th data-quarto-table-cell-role="th">Interés</th>
-<th data-quarto-table-cell-role="th">Cuota</th>
-<th data-quarto-table-cell-role="th">Saldo</th>
-<th data-quarto-table-cell-role="th">Estado</th>
-<th data-quarto-table-cell-role="th"></th>
-</tr>
-</thead>
-<tbody id="card-schedule-body">
-</tbody>
-</table>
+</section>
 
+<section class="tf-monthly-plan-kpis" aria-label="Resumen del plan mensual">
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-income">
+    <span>Ingresos previstos</span>
+    <strong id="mp-kpi-income">$0,00</strong>
   </div>
-</div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-fixed">
+    <span>Compromisos</span>
+    <strong id="mp-kpi-fixed">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-saving">
+    <span>Ahorro</span>
+    <strong id="mp-kpi-saving">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-variable">
+    <span>Reservas variables</span>
+    <strong id="mp-kpi-variable">$0,00</strong>
+  </div>
+  <div class="tf-card tf-plan-kpi tf-plan-kpi-free">
+    <span>Disponible para gastar</span>
+    <strong id="mp-kpi-free">$0,00</strong>
+  </div>
+</section>
 
+<div id="monthly-plan-warning" class="tf-alert tf-alert-error"></div>
 
-<script type="module" src="js/debts.js"></script>
+<section class="tf-grid tf-grid-2 tf-monthly-plan-main">
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Entrada</div>
+        <h2 class="anchored">Ingresos previstos</h2>
+        <div class="tf-muted">Ingresos recurrentes activos durante el mes y ajustes manuales.</div>
+      </div>
+      <strong id="mp-income-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-income-list" class="tf-plan-source-list"></div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Obligaciones</div>
+        <h2 class="anchored">Compromisos del mes</h2>
+        <div class="tf-muted">Recurrentes, préstamos, tarjetas y seguros.</div>
+      </div>
+      <strong id="mp-fixed-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-fixed-list" class="tf-plan-source-list"></div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Objetivos</div>
+        <h2 class="anchored">Plan de ahorro</h2>
+        <div class="tf-muted">Sugerido desde metas con fecha objetivo o definido manualmente para este mes.</div>
+      </div>
+      <strong id="mp-saving-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+
+    <div id="mp-goal-list" class="tf-plan-source-list"></div>
+
+    <div class="tf-plan-saving-control">
+      <div class="tf-field">
+        <label>Ahorro del mes ($)</label>
+        <input id="mp-saving-amount" type="number" min="0" step="0.01" value="0">
+        <small id="mp-saving-help">Se actualizará con la recomendación de las metas incluidas.</small>
+      </div>
+      <button id="mp-use-auto-saving" class="tf-btn tf-btn-secondary" type="button">
+        Usar ahorro sugerido
+      </button>
+    </div>
+  </div>
+
+  <div class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Presupuestos</div>
+        <h2 class="anchored">Reservas variables</h2>
+        <div class="tf-muted">Límites mensuales por subcategoría, incluyendo rollover cuando corresponda.</div>
+      </div>
+      <strong id="mp-variable-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <div id="mp-variable-list" class="tf-plan-source-list"></div>
+  </div>
+</section>
+
+<section class="tf-card tf-plan-result-card">
+  <div class="tf-plan-result-copy">
+    <div class="tf-section-kicker">Resultado del mes</div>
+    <h2 class="anchored">Disponible para gastar</h2>
+    <p>
+      Es el dinero que queda después de ingresos previstos menos compromisos,
+      ahorro y reservas variables. No crea movimientos reales.
+    </p>
+  </div>
+  <div class="tf-plan-result-value" id="mp-free-hero">$0,00</div>
+</section>
+
+<section class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <div class="tf-card">
+    <h2 class="anchored">Ajustes manuales</h2>
+    <div class="tf-muted" style="margin-bottom:.8rem">
+      Agrega ingresos extraordinarios, compromisos no registrados o una reserva adicional.
+    </div>
+
+    <form id="mp-manual-form" class="tf-form-grid">
+      <div class="tf-field">
+        <label>Tipo</label>
+        <select id="mp-manual-type">
+          <option value="income">Ingreso adicional</option>
+          <option value="fixed">Compromiso adicional</option>
+          <option value="variable">Reserva variable adicional</option>
+        </select>
+      </div>
+      <div class="tf-field">
+        <label>Concepto</label>
+        <input id="mp-manual-label" required="" placeholder="Ej. Bono, matrícula, combustible">
+      </div>
+      <div class="tf-field">
+        <label>Monto ($)</label>
+        <input id="mp-manual-amount" type="number" min="0" step="0.01" required="">
+      </div>
+      <div class="tf-field" style="display:flex;align-items:end">
+        <button class="tf-btn tf-btn-primary">Agregar ajuste</button>
+      </div>
+    </form>
+
+    <div id="mp-manual-list" class="tf-plan-manual-list" style="margin-top:1rem"></div>
+  </div>
+
+  <div class="tf-card">
+    <h2 class="anchored">Ejecución registrada</h2>
+    <div class="tf-muted" style="margin-bottom:.8rem">
+      Flujo de caja que ya está registrado en el mes. Se muestra separado del disponible planificado para evitar dobles conteos.
+    </div>
+
+    <div class="tf-plan-execution-grid">
+      <div><span>Ingresos reales</span><strong id="mp-real-income">$0,00</strong></div>
+      <div><span>Egresos de caja</span><strong id="mp-real-expense">$0,00</strong></div>
+      <div><span>Pagos de tarjeta</span><strong id="mp-real-card">$0,00</strong></div>
+      <div><span>Préstamos marcados pagados</span><strong id="mp-real-loan">$0,00</strong></div>
+      <div class="tf-plan-execution-net"><span>Flujo registrado</span><strong id="mp-real-net">$0,00</strong></div>
+    </div>
+
+    <div class="tf-subtle" style="margin-top:1rem">
+      El flujo registrado es informativo. Una compra hecha con tarjeta no se trata como salida de caja hasta que se registra su pago.
+    </div>
+  </div>
+</section>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div>
+      <h2 class="anchored">Guardar configuración del mes</h2>
+      <div class="tf-muted">
+        Se guardan inclusiones/exclusiones, ajustes manuales y el monto de ahorro. Las fuentes automáticas siguen viniendo de tus módulos.
+      </div>
+    </div>
+  </div>
+
+  <div class="tf-field">
+    <label>Nota del plan</label>
+    <textarea id="mp-note" placeholder="Ej. Mes con matrícula, viaje o ingreso extraordinario"></textarea>
+  </div>
+
+  <div class="tf-actions" style="margin-top:.8rem">
+    <button id="mp-save" class="tf-btn tf-btn-primary" type="button">Guardar plan del mes</button>
+    <button id="mp-reset-auto" class="tf-btn tf-btn-secondary" type="button">Restablecer automático</button>
+  </div>
+</section>
+
+<script type="module" src="js/monthly-plan.js"></script>
 
 
 

@@ -1,6 +1,6 @@
 import {requireUser} from "./guard.js";
 import {
-  listAccounts,listTransactions,listBudgets,listCategories,listRecurring,listGoals,listLiabilities,
+  listAccounts,listTransactions,listBudgets,listMonthlyPlans,listCategories,listRecurring,listGoals,listLiabilities,
   listFinancingPlans,listInsurance,listAssets,listContracts,listReceivables,listInvestments,
   listReconciliations,listAudit,saveTransaction
 } from "./data-service.js";
@@ -52,11 +52,11 @@ document.querySelector("#import-confirm").addEventListener("click",async()=>{
 });
 document.querySelector("#export-json").addEventListener("click",async()=>{
   const names=[
-    ["accounts",listAccounts],["transactions",listTransactions],["budgets",listBudgets],["categories",listCategories],
+    ["accounts",listAccounts],["transactions",listTransactions],["budgets",listBudgets],["monthlyPlans",listMonthlyPlans],["categories",listCategories],
     ["recurring",listRecurring],["goals",listGoals],["liabilities",listLiabilities],["financingPlans",listFinancingPlans],
     ["insurance",listInsurance],["assets",listAssets],["contracts",listContracts],["receivables",listReceivables],
     ["investments",listInvestments],["reconciliations",listReconciliations],["auditLog",listAudit]
-  ],out={exportedAt:new Date().toISOString(),version:"1.0.7",kind:"data-export"};
+  ],out={exportedAt:new Date().toISOString(),version:"1.0.26",kind:"data-export"};
   for(const[n,fn]of names)out[n]=await fn();
   downloadText(`tracker-data-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(out,null,2),"application/json");
 });

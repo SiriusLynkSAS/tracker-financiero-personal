@@ -49,25 +49,18 @@
     "text": "Movimientos recurrentesFacturas, suscripciones e ingresos programados; se confirman antes de contabilizarse.Cerrar sesión\nNombreTipoEgresoIngresoMonto estimado ($)CuentaCategoríaSubcategoríaDía del mesRecordar (días antes)DesdeHasta (opcional)Guardar recurrente"
   },
   {
-    "objectID": "presupuestos.html",
-    "href": "presupuestos.html",
-    "title": "Presupuestos",
+    "objectID": "plan_mensual.html",
+    "href": "plan_mensual.html",
+    "title": "Plan mensual",
     "section": "",
-    "text": "PresupuestosControl mensual por subcategoría con rollover.Cerrar sesiónCategoríaSubcategoríaLímite mensual ($)Arrastrar saldo positivo del mes anteriorGuardar presupuestoCancelar\n\n\n\nCategoría\nSubcategoría\nBase\nRollover\nDisponible\nGastado\nQueda"
+    "text": "Plan mensual\n    \n      Proyecta cuánto puedes gastar después de cubrir compromisos, ahorro y reservas del mes.\n    \n  \n  Cerrar sesión\n\n\n\n  \n    \n      Mes del plan\n      \n    \n    \n      ← Mes anterior\n      Mes actual\n      Mes siguiente →\n    \n    Plan no guardado\n  \n\n\n\n  \n    Ingresos previstos\n    $0,00\n  \n  \n    Compromisos\n    $0,00\n  \n  \n    Ahorro\n    $0,00\n  \n  \n    Reservas variables\n    $0,00\n  \n  \n    Disponible para gastar\n    $0,00\n  \n\n\n\n\n\n  \n    \n      \n        Entrada\n        Ingresos previstos\n        Ingresos recurrentes activos durante el mes y ajustes manuales.\n      \n      $0,00\n    \n    \n  \n\n  \n    \n      \n        Obligaciones\n        Compromisos del mes\n        Recurrentes, préstamos, tarjetas y seguros.\n      \n      $0,00\n    \n    \n  \n\n  \n    \n      \n        Objetivos\n        Plan de ahorro\n        Sugerido desde metas con fecha objetivo o definido manualmente para este mes.\n      \n      $0,00\n    \n\n    \n\n    \n      \n        Ahorro del mes ($)\n        \n        Se actualizará con la recomendación de las metas incluidas.\n      \n      \n        Usar ahorro sugerido\n      \n    \n  \n\n  \n    \n      \n        Presupuestos\n        Reservas variables\n        Límites mensuales por subcategoría, incluyendo rollover cuando corresponda.\n      \n      $0,00\n    \n    \n  \n\n\n\n  \n    Resultado del mes\n    Disponible para gastar\n    \n      Es el dinero que queda después de ingresos previstos menos compromisos,\n      ahorro y reservas variables. No crea movimientos reales.\n    \n  \n  $0,00\n\n\n\n  \n    Ajustes manuales\n    \n      Agrega ingresos extraordinarios, compromisos no registrados o una reserva adicional.\n    \n\n    \n      \n        Tipo\n        \n          Ingreso adicional\n          Compromiso adicional\n          Reserva variable adicional\n        \n      \n      \n        Concepto\n        \n      \n      \n        Monto ($)\n        \n      \n      \n        Agregar ajuste\n      \n    \n\n    \n  \n\n  \n    Ejecución registrada\n    \n      Flujo de caja que ya está registrado en el mes. Se muestra separado del disponible planificado para evitar dobles conteos.\n    \n\n    \n      Ingresos reales$0,00\n      Egresos de caja$0,00\n      Pagos de tarjeta$0,00\n      Préstamos marcados pagados$0,00\n      Flujo registrado$0,00\n    \n\n    \n      El flujo registrado es informativo. Una compra hecha con tarjeta no se trata como salida de caja hasta que se registra su pago.\n    \n  \n\n\n\n  \n    \n      Guardar configuración del mes\n      \n        Se guardan inclusiones/exclusiones, ajustes manuales y el monto de ahorro. Las fuentes automáticas siguen viniendo de tus módulos.\n      \n    \n  \n\n  \n    Nota del plan\n    \n  \n\n  \n    Guardar plan del mes\n    Restablecer automático"
   },
   {
-    "objectID": "cuentas.html",
-    "href": "cuentas.html",
-    "title": "Bancos y cuentas",
+    "objectID": "movimientos.html",
+    "href": "movimientos.html",
+    "title": "Movimientos",
     "section": "",
-    "text": "Bancos y cuentasVarias cuentas por banco y tarjetas con cupo, corte y fecha de pago.Cerrar sesión\nRegistrar / editar cuenta\nBanco / instituciónAlias\nTipoAhorrosCorrienteTarjeta de créditoEfectivo / billeteraÚltimos 4 dígitos\nSaldo inicial ($)\nCupo total ($)Día de corteDía de pagoRecordar (días antes)Saldo estado actual ($)Pago mínimo ($)\nGuardar cuentaCancelar"
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Acceso",
-    "section": "",
-    "text": "TRACKER FINANCIERO PERSONAL\n        Orden financiero con una guía clara.\n        Una identidad inspirada en Sirius y Canis: tres puntos de referencia para mantener visibles tu liquidez, tus compromisos y tu patrimonio.\n        \n          \n        \n      \n    \n\n    \n      \n        \n        \n          Tracker Financiero\n          Personal\n        \n      \n      Tus finanzas, en un solo lugar\n      Consulta cuentas, deudas, inversiones, activos y compromisos desde un espacio privado diseñado para tus finanzas personales.\n\n      \n        Correo\n        Contraseña\n        Ingresar"
+    "text": "MovimientosIngresos, egresos, transferencias y splits. La edición nunca elimina primero el original.Cerrar sesión\nRegistrar / editar\nFechaTipoEgresoIngresoTransferencia\nCuentaDesdeHacia\nCategoríaSubcategoría\nMonto total ($)IVA incluido ($)\nComprobante / referenciaDescripción\nDividir el movimiento entre varias categoríasAñadir división\nGuardar movimientoCancelar edición\nFiltroCuentaLas transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.\n\n\n\n\nFecha\nTipo\nCuenta\nCategoría\nDetalle\nMonto"
   },
   {
     "objectID": "dashboard.html",
@@ -77,11 +70,25 @@
     "text": "Tu panorama financiero\n    Vista general de tus finanzas · \n  \n  Cerrar sesión\n\n\n\n  \n    Liquidez\n    $0\n  \n  \n    Inversiones\n    $0\n  \n  \n    Activos productivos\n    $0\n  \n  \n    Deudas\n    $0\n  \n  \n    Patrimonio neto\n    $0\n  \n\n\n\n  \n    \n      Período de análisis\n      \n        Este mes\n        Este año\n        Histórico\n      \n    \n    \n  \n\n\n\n  \n    Ingresos del período\n    $0\n  \n  \n    Egresos del período\n    $0\n  \n  \n    Flujo neto\n    $0\n  \n  \n    Por cobrar\n    $0\n  \n\n\n\n  \n    \n      \n        ¿Dónde está tu patrimonio?\n        Liquidez, inversiones y activos productivos\n      \n    \n    \n      \n    \n    Sin activos para graficar.\n  \n\n  \n    \n      \n        ¿En qué estás gastando?\n        Distribución según el período seleccionado\n      \n    \n    \n      \n    \n    \n    Sin egresos en este período.\n  \n\n\n\n  \n    Lo que viene\n    \n  \n\n  \n    Dinero disponible por banco\n    \n  \n\n\n\n  Movimientos recientes\n  \n    \n\n\n\nFecha\nTipo\nDescripción\nMonto"
   },
   {
-    "objectID": "movimientos.html",
-    "href": "movimientos.html",
-    "title": "Movimientos",
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Acceso",
     "section": "",
-    "text": "MovimientosIngresos, egresos, transferencias y splits. La edición nunca elimina primero el original.Cerrar sesión\nRegistrar / editar\nFechaTipoEgresoIngresoTransferencia\nCuentaDesdeHacia\nCategoríaSubcategoría\nMonto total ($)IVA incluido ($)\nComprobante / referenciaDescripción\nDividir el movimiento entre varias categoríasAñadir división\nGuardar movimientoCancelar edición\nFiltroCuentaLas transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.\n\n\n\n\nFecha\nTipo\nCuenta\nCategoría\nDetalle\nMonto"
+    "text": "TRACKER FINANCIERO PERSONAL\n        Orden financiero con una guía clara.\n        Una identidad inspirada en Sirius y Canis: tres puntos de referencia para mantener visibles tu liquidez, tus compromisos y tu patrimonio.\n        \n          \n        \n      \n    \n\n    \n      \n        \n        \n          Tracker Financiero\n          Personal\n        \n      \n      Tus finanzas, en un solo lugar\n      Consulta cuentas, deudas, inversiones, activos y compromisos desde un espacio privado diseñado para tus finanzas personales.\n\n      \n        Correo\n        Contraseña\n        Ingresar"
+  },
+  {
+    "objectID": "cuentas.html",
+    "href": "cuentas.html",
+    "title": "Bancos y cuentas",
+    "section": "",
+    "text": "Bancos y cuentasVarias cuentas por banco y tarjetas con cupo, corte y fecha de pago.Cerrar sesión\nRegistrar / editar cuenta\nBanco / instituciónAlias\nTipoAhorrosCorrienteTarjeta de créditoEfectivo / billeteraÚltimos 4 dígitos\nSaldo inicial ($)\nCupo total ($)Día de corteDía de pagoRecordar (días antes)Saldo estado actual ($)Pago mínimo ($)\nGuardar cuentaCancelar"
+  },
+  {
+    "objectID": "presupuestos.html",
+    "href": "presupuestos.html",
+    "title": "Presupuestos",
+    "section": "",
+    "text": "PresupuestosControl mensual por subcategoría con rollover.Cerrar sesiónCategoríaSubcategoríaLímite mensual ($)Arrastrar saldo positivo del mes anteriorGuardar presupuestoCancelar\n\n\n\nCategoría\nSubcategoría\nBase\nRollover\nDisponible\nGastado\nQueda"
   },
   {
     "objectID": "categorias.html",

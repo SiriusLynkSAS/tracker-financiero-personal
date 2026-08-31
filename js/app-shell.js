@@ -6,7 +6,7 @@ const currentFile = (() => {
 const isLogin = currentFile === "index";
 
 const pageGroup = (() => {
-  const operation = ["cuentas","movimientos","presupuestos","recurrentes","calendario","categorias"];
+  const operation = ["cuentas","movimientos","presupuestos","plan_mensual","recurrentes","calendario","categorias"];
   const wealth = ["metas","deudas","seguros","activos","inversiones"];
   const work = ["contratos"];
   const control = ["conciliacion","importar_exportar","reportes","auditoria"];
@@ -24,6 +24,7 @@ const icon = name => {
     wallet: `<svg viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19v16H6.5A2.5 2.5 0 0 1 4 17.5z"/><path d="M4 7h13M15 11h6v5h-6z"/></svg>`,
     arrows: `<svg viewBox="0 0 24 24"><path d="M7 7h12l-3-3m3 3-3 3M17 17H5l3 3m-3-3 3-3"/></svg>`,
     budget: `<svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h5M8 16h3"/></svg>`,
+    plan: `<svg viewBox="0 0 24 24"><path d="M4 20V7M9 20V11M14 20V4M19 20v-6"/><path d="M3 20h18"/><path d="m5 8 4-3 5 2 5-5"/></svg>`,
     repeat: `<svg viewBox="0 0 24 24"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>`,
     calendar: `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>`,
     target: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M22 12h-3"/></svg>`,
@@ -59,6 +60,7 @@ const groups = [
       ["cuentas", "Bancos y cuentas", "wallet"],
       ["movimientos", "Movimientos", "arrows"],
       ["presupuestos", "Presupuestos", "budget"],
+      ["plan_mensual", "Plan mensual", "plan"],
       ["recurrentes", "Recurrentes", "repeat"],
       ["calendario", "Calendario", "calendar"],
       ["categorias", "Categorías", "tags"]
