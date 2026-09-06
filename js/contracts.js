@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listContracts,saveContract,listReceivables,saveReceivable,listAssets,listAccounts,atomicWrite} from "./data-service.js";
+import {listContracts,saveContract,listReceivables,listAssets,listAccounts,atomicWrite,syncReceivablesClosed} from "./data-service.js";
 import {escapeHtml,money,todayISO,addMonthsISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 let contracts=[],receivables=[],assets=[],accounts=[];const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
@@ -9,16 +9,7 @@ function tariffFor(c,period){const ts=[...(c.tariffPeriods||[])].sort((a,b)=>a.e
 function monthSeq(start,end){const out=[];let cur=start.slice(0,7)+"-01",stop=end.slice(0,7);while(cur.slice(0,7)<=stop){out.push(cur.slice(0,7));cur=addMonthsISO(cur,1)}return out}
 function statusOf(r){const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0));return pending<=.009?"paid":Number(r.paidAmount)>0?"partial":r.dueDate<todayISO()?"overdue":"pending"}
 async function sync(){
-  const today=todayISO();
-  for(const c of contracts.filter(x=>x.active!==false)){
-    const end=c.endDate&&c.endDate<today?c.endDate:today;
-    for(const p of monthSeq(c.startDate,end)){
-      if(receivables.some(r=>r.contractId===c.id&&r.workPeriod===p))continue;
-      const amount=tariffFor(c,p),due=addMonthsISO(`${p}-01`,Number(c.paymentLagMonths||0),Number(c.paymentDay||1));
-      const id=await saveReceivable({contractId:c.id,workPeriod:p,amount,paidAmount:0,dueDate:due,status:"pending",active:true});
-      receivables.push({id,contractId:c.id,workPeriod:p,amount,paidAmount:0,dueDate:due,status:"pending",active:true});
-    }
-  }
+  receivables=await syncReceivablesClosed();
 }
 function render(){
   document.querySelector("#tariff-contract").innerHTML=contracts.filter(x=>x.active!==false).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
@@ -77,6 +68,6 @@ document.querySelector("#allocate-payment").addEventListener("click",async()=>{
 list.addEventListener("click",async e=>{
   const b=e.target.closest("[data-finish]");if(!b)return;
   const c=contracts.find(x=>x.id===b.dataset.finish);
-  if(await confirmAction({title:"Finalizar contrato",message:"Los períodos ya generados permanecen por cobrar.",impact:["No se generarán períodos posteriores al cierre."],confirmText:"Finalizar"})){await saveContract({...c,endDate:c.endDate||todayISO(),active:false},c.id);await refresh()}
+  if(await confirmAction({title:"Finalizar contrato",message:"Los períodos ya generados permanecen por cobrar.",impact:["La fecha de fin se fijará en la fecha efectiva de cierre.","No se generarán períodos posteriores al cierre."],confirmText:"Finalizar"})){const effectiveEnd=todayISO()<String(c.startDate||"")?String(c.startDate):todayISO();await saveContract({...c,endDate:effectiveEnd,active:false},c.id);await refresh()}
 });
 requireUser(()=>refresh().catch(console.error));

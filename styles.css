@@ -3161,3 +3161,225 @@ body[data-page="plan_mensual"]{
     grid-column:auto;
   }
 }
+
+
+/* =========================================================
+   V1.0.27 - PARIDAD WEB / ANDROID V0.2.14
+   Fondo de emergencia · IVA · Proyección · Metas
+   ========================================================= */
+.tf-emergency-hero{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(320px,.9fr);
+  gap:1.25rem;
+  align-items:center;
+  background:
+    radial-gradient(circle at 88% 18%,color-mix(in srgb,var(--tf-teal) 10%,transparent),transparent 15rem),
+    linear-gradient(120deg,var(--tf-surface),var(--tf-surface-soft));
+}
+
+.tf-emergency-current{
+  margin:.35rem 0 .1rem;
+  font-size:clamp(2.2rem,5vw,3.8rem);
+  font-weight:900;
+  letter-spacing:-.045em;
+}
+
+.tf-emergency-progress{
+  height:10px;
+  overflow:hidden;
+  border-radius:999px;
+  background:var(--tf-surface-soft);
+  border:1px solid var(--tf-border);
+}
+
+.tf-emergency-progress span{
+  display:block;
+  height:100%;
+  width:0;
+  border-radius:inherit;
+  background:linear-gradient(90deg,var(--tf-teal),var(--tf-sky));
+  transition:width .25s ease;
+}
+
+.tf-emergency-metrics{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:.7rem;
+  margin-top:.9rem;
+}
+
+.tf-emergency-metrics div,
+.tf-emergency-saving div{
+  display:flex;
+  flex-direction:column;
+  gap:.18rem;
+}
+
+.tf-emergency-metrics span,
+.tf-emergency-saving span{
+  color:var(--tf-muted);
+  font-size:.73rem;
+  font-weight:760;
+}
+
+.tf-emergency-saving{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:1rem;
+  margin:.7rem 0;
+}
+
+.tf-emergency-saving strong{
+  font-size:1.35rem;
+}
+
+.tf-emergency-minimum{
+  min-width:52px;
+  padding:.25rem .45rem;
+  border-radius:999px;
+  background:var(--tf-teal-soft);
+  color:var(--tf-teal);
+  font-size:.68rem;
+  font-weight:800;
+  text-align:center;
+}
+
+.tf-chip-row{
+  display:flex;
+  gap:.45rem;
+  flex-wrap:wrap;
+}
+
+.tf-emergency-transfer-modal{
+  width:min(520px,calc(100vw - 2rem));
+}
+
+.tf-tax-invoice-selector{
+  max-height:330px;
+  overflow:auto;
+  display:grid;
+  gap:.45rem;
+  padding-right:.2rem;
+}
+
+.tf-tx-invoice-line{
+  margin-top:.22rem;
+  font-size:.72rem;
+  line-height:1.35;
+}
+
+.tf-goal-emergency-link{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  text-decoration:none;
+  color:inherit;
+}
+
+.tf-goal-card{
+  position:relative;
+  overflow:hidden;
+}
+
+.tf-goal-card::before{
+  content:"";
+  position:absolute;
+  inset:0 auto 0 0;
+  width:4px;
+  background:var(--goal-priority,var(--tf-blue));
+}
+
+.tf-priority-high{--goal-priority:var(--tf-coral)}
+.tf-priority-medium{--goal-priority:var(--tf-blue)}
+.tf-priority-low{--goal-priority:var(--tf-teal)}
+
+.tf-dashboard-projection{
+  background:
+    radial-gradient(circle at 92% 8%,color-mix(in srgb,var(--tf-sky) 8%,transparent),transparent 15rem),
+    linear-gradient(120deg,var(--tf-surface),var(--tf-surface-soft));
+}
+
+.tf-dashboard-projection-grid a{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:.25rem;
+  padding:.78rem;
+  border:1px solid var(--tf-border);
+  border-radius:14px;
+  background:var(--tf-surface);
+  color:inherit;
+  text-decoration:none;
+}
+
+.tf-dashboard-projection-grid span{
+  color:var(--tf-muted);
+  font-size:.72rem;
+  font-weight:720;
+}
+
+.tf-dashboard-projection-grid strong{
+  font-size:1rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.tf-dashboard-available{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  margin-top:.9rem;
+  padding-top:.9rem;
+  border-top:1px solid var(--tf-border);
+}
+
+.tf-dashboard-available>div{
+  display:flex;
+  flex-direction:column;
+}
+
+.tf-dashboard-available span{
+  color:var(--tf-muted);
+  font-size:.75rem;
+}
+
+.tf-dashboard-available>strong{
+  font-size:1.55rem;
+  font-variant-numeric:tabular-nums;
+}
+
+.tf-dashboard-emergency{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(220px,.5fr);
+  gap:1rem;
+  align-items:center;
+  color:inherit;
+  text-decoration:none;
+}
+
+body[data-page="fondo_emergencia"]{--tf-page-accent:var(--tf-teal);--tf-page-accent-soft:var(--tf-teal-soft)}
+body[data-page="impuestos"]{--tf-page-accent:var(--tf-amber);--tf-page-accent-soft:var(--tf-amber-soft)}
+
+@media(max-width:900px){
+  .tf-emergency-hero{grid-template-columns:1fr}
+  .tf-dashboard-projection-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}
+  .tf-dashboard-emergency{grid-template-columns:1fr}
+}
+
+@media(max-width:560px){
+  .tf-emergency-metrics{grid-template-columns:1fr}
+  .tf-emergency-saving{grid-template-columns:1fr}
+  .tf-dashboard-projection-grid{grid-template-columns:1fr !important}
+  .tf-dashboard-available{align-items:flex-start;flex-direction:column}
+}
+
+
+/* =========================================================
+   V1.0.28 - Presupuestos mensuales / edición recurrentes
+   ========================================================= */
+#budget-view-month,#budget-month{min-width:150px}
+.tf-pill-warn{background:var(--tf-amber-soft);color:var(--tf-amber)}
+@media(max-width:700px){
+  #budget-view-month,#budget-month{width:100%}
+}

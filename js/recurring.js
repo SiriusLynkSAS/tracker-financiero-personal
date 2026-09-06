@@ -23,6 +23,7 @@ import { confirmAction, toast } from "./ui.js";
 let rows = [];
 let accounts = [];
 let categories = [];
+let editingId = null;
 
 const list = document.querySelector("#rec-list");
 const typeSelect = document.querySelector("#rec-type");
@@ -116,12 +117,9 @@ function render() {
           ${escapeHtml(accountLabel(r.accountId))}
         </div>
         <div class="tf-actions">
-          <button class="tf-btn tf-btn-primary" data-post="${r.id}">
-            Registrar ahora
-          </button>
-          <button class="tf-btn tf-btn-secondary" data-archive="${r.id}">
-            Archivar
-          </button>
+          <button class="tf-btn tf-btn-primary" data-post="${r.id}">Registrar ahora</button>
+          <button class="tf-btn tf-btn-secondary" data-edit="${r.id}">Editar</button>
+          <button class="tf-btn tf-btn-secondary" data-archive="${r.id}">Archivar</button>
         </div>
       </div>
     `).join("") || `
@@ -147,10 +145,23 @@ async function refresh() {
   render();
 }
 
+function resetForm(){
+  editingId=null;
+  document.querySelector("#rec-form").reset();
+  document.querySelector("#rec-start").value=todayISO();
+  document.querySelector("#rec-day").value=1;
+  document.querySelector("#rec-reminder").value=3;
+  document.querySelector("#rec-submit").textContent="Guardar recurrente";
+  document.querySelector("#rec-cancel").hidden=true;
+  typeSelect.value="expense";
+  fillCategoryCatalog();
+}
+
 typeSelect.addEventListener("change", () => fillCategoryCatalog());
 categorySelect.addEventListener("change", () => fillSubcategories());
 
 document.querySelector("#rec-start").value = todayISO();
+document.querySelector("#rec-cancel").addEventListener("click", resetForm);
 
 document.querySelector("#rec-form").addEventListener("submit", async e => {
   e.preventDefault();
@@ -161,32 +172,49 @@ document.querySelector("#rec-form").addEventListener("submit", async e => {
     );
   }
 
-  await saveRecurring({
-    name: document.querySelector("#rec-name").value.trim(),
-    type: typeSelect.value,
-    amount: Number(document.querySelector("#rec-amount").value),
-    accountId: document.querySelector("#rec-account").value,
-    category: categorySelect.value,
-    subcategory: subcategorySelect.value,
-    dayOfMonth: Number(document.querySelector("#rec-day").value),
-    reminderDaysBefore: Number(
-      document.querySelector("#rec-reminder").value
-    ),
-    startDate: document.querySelector("#rec-start").value,
-    endDate: document.querySelector("#rec-end").value || null,
-    active: true
-  });
-
-  e.target.reset();
-  document.querySelector("#rec-start").value = todayISO();
-  fillCategoryCatalog();
-  toast("Recurrente guardado.");
+  const data={
+    name:document.querySelector("#rec-name").value.trim(),
+    type:typeSelect.value,
+    amount:Number(document.querySelector("#rec-amount").value),
+    accountId:document.querySelector("#rec-account").value,
+    category:categorySelect.value,
+    subcategory:subcategorySelect.value,
+    dayOfMonth:Number(document.querySelector("#rec-day").value),
+    reminderDaysBefore:Number(document.querySelector("#rec-reminder").value),
+    startDate:document.querySelector("#rec-start").value,
+    endDate:document.querySelector("#rec-end").value||null,
+    active:true
+  };
+  if(!(data.amount>0))return alert("El monto debe ser mayor que cero.");
+  if(editingId&&!await confirmAction({title:"Actualizar recurrente",message:`${data.name} · ${money(data.amount)}`,impact:["Los compromisos futuros usarán los nuevos datos.","No modifica movimientos ya registrados."]}))return;
+  await saveRecurring(data,editingId);
+  const wasEditing=!!editingId;
+  resetForm();
+  toast(wasEditing?"Recurrente actualizado.":"Recurrente guardado.");
   await refresh();
 });
 
 list.addEventListener("click", async e => {
   const postButton = e.target.closest("[data-post]");
+  const editButton = e.target.closest("[data-edit]");
   const archiveButton = e.target.closest("[data-archive]");
+
+  if(editButton){
+    const r=rows.find(x=>x.id===editButton.dataset.edit);if(!r)return;
+    editingId=r.id;
+    document.querySelector("#rec-name").value=r.name||"";
+    typeSelect.value=r.type||"expense";
+    document.querySelector("#rec-amount").value=Number(r.amount||0);
+    document.querySelector("#rec-account").value=r.accountId||"";
+    fillCategoryCatalog(r.category||"",r.subcategory||"");
+    document.querySelector("#rec-day").value=Number(r.dayOfMonth||1);
+    document.querySelector("#rec-reminder").value=Number(r.reminderDaysBefore||0);
+    document.querySelector("#rec-start").value=r.startDate||todayISO();
+    document.querySelector("#rec-end").value=r.endDate||"";
+    document.querySelector("#rec-submit").textContent="Actualizar recurrente";
+    document.querySelector("#rec-cancel").hidden=false;
+    scrollTo({top:0,behavior:"smooth"});
+  }
 
   if (postButton) {
     const recurring = rows.find(x => x.id === postButton.dataset.post);

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Inversiones – Tracker Financiero Personal</title>
+<title>IVA / Impuestos – Tracker Financiero Personal</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -104,7 +104,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Inversiones</h1>
+<h1 class="title">IVA / Impuestos</h1>
 </div>
 
 
@@ -121,25 +121,52 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-
-<div class="tf-page-header"><div><h1>Inversiones financieras</h1><div class="tf-muted">Capital, plazo, tasa, rendimiento esperado/real, vencimiento y renovación.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<div class="tf-grid tf-grid-2"><section class="tf-card"><h2 class="anchored">Calculadora / nueva inversión</h2><form id="inv-form" class="tf-form-grid"><div class="tf-field"><label>Banco / institución</label><input id="inv-bank" required=""></div><div class="tf-field"><label>Nombre / certificado</label><input id="inv-name" required=""></div><div class="tf-field"><label>Capital ($)</label><input id="inv-principal" type="number" min="0" step="0.01" value="10000"></div><div class="tf-field"><label>Tasa anual (%)</label><input id="inv-rate" type="number" min="0" step="0.01" value="5.5"></div><div class="tf-field"><label>Tipo de tasa</label><select id="inv-rate-type"><option value="nominal">Nominal</option><option value="effective">Efectiva</option></select></div><div class="tf-field"><label>Cálculo</label><select id="inv-calc"><option value="simple">Interés simple</option><option value="compound">Capitalización</option></select></div><div class="tf-field"><label>Capitalización</label><select id="inv-cap"><option value="monthly">Mensual</option><option value="quarterly">Trimestral</option><option value="semiannual">Semestral</option><option value="annual">Anual</option></select></div><div class="tf-field"><label>Inicio</label><input id="inv-start" type="date"></div><div class="tf-field"><label>Plazo</label><input id="inv-term" type="number" min="1" value="180"></div><div class="tf-field"><label>Unidad</label><select id="inv-unit"><option value="days">Días</option><option value="months">Meses</option><option value="years">Años</option></select></div><div class="tf-field"><label>Retenciones ($)</label><input id="inv-withholding" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Comisiones ($)</label><input id="inv-fees" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Cuenta origen</label><select id="inv-account"></select></div><div class="tf-field"><label class="tf-check"><input id="inv-already-moved" type="checkbox"> El movimiento de capital ya fue registrado</label><small>Marca solo si ya registraste manualmente la salida de capital.</small></div><div class="tf-field"><label>Recordar (días antes)</label><input id="inv-reminder" type="number" min="0" max="90" value="15"></div><div class="tf-span-2 tf-actions"><button id="inv-preview" type="button" class="tf-btn tf-btn-secondary">Calcular</button><button class="tf-btn tf-btn-primary">Guardar inversión</button></div></form><div id="inv-preview-box" class="tf-subtle" style="margin-top:1rem"></div></section><section class="tf-card"><h2 class="anchored">Principio contable</h2><div class="tf-code">Capital invertido = transferencia de activo, no gasto.
-Capital retornado = retorno de activo, no ingreso.
-Solo el rendimiento neto = ingreso financiero.</div></section></div><div id="inv-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
-<div class="tf-card" style="margin-top:1rem">
-  <h2 class="anchored">Liquidar inversión</h2>
-  <form id="inv-settle-form" class="tf-form-grid">
-    <div class="tf-field"><label>Inversión</label><select id="settle-investment"></select></div>
-    <div class="tf-field"><label>Cuenta destino</label><select id="settle-account"></select></div>
-    <div class="tf-field"><label>Fecha</label><input id="settle-date" type="date"></div>
-    <div class="tf-field"><label>Capital retornado ($)</label><input id="settle-principal" type="number" min="0" step="0.01"></div>
-    <div class="tf-field"><label>Rendimiento neto real ($)</label><input id="settle-interest" type="number" min="0" step="0.01"></div>
-    <div class="tf-span-2"><button class="tf-btn tf-btn-primary">Liquidar</button></div>
-  </form>
+<div class="tf-page-header">
+  <div>
+    <h1>IVA / Impuestos</h1>
+    <div class="tf-muted">Reserva el IVA facturado y registra la liquidación real sin mezclarlo con tus ingresos disponibles.</div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
 </div>
 
+<div class="tf-alert tf-alert-info is-visible">
+  Las facturas de ingreso reservan su IVA. Al liquidar se conserva el valor esperado y se descuenta de la cuenta únicamente lo realmente pagado.
+</div>
 
-<script type="module" src="js/investments.js"></script>
+<div class="tf-grid tf-grid-3" style="margin-top:1rem">
+  <div class="tf-card"><div class="tf-kpi-label">IVA reservado</div><div id="tax-reserved" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">IVA pagado</div><div id="tax-paid" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">Esperado ya liquidado</div><div id="tax-expected" class="tf-kpi-value">$0,00</div></div>
+</div>
+
+<div class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <section class="tf-card">
+    <div class="tf-section-heading"><div><h2 class="anchored">Facturas pendientes</h2><div class="tf-muted">Solo ingresos con IVA todavía no liquidados.</div></div><strong id="tax-pending-count">0</strong></div>
+    <div id="tax-pending-list" class="tf-plan-source-list"></div>
+  </section>
+
+  <section class="tf-card">
+    <h2 class="anchored">Registrar pago de IVA</h2>
+    <form id="tax-form">
+      <div class="tf-field"><label>Período tributario</label><select id="tax-period"></select></div>
+      <div id="tax-invoices" class="tf-tax-invoice-selector" style="margin-top:.8rem"></div>
+      <div class="tf-field" style="margin-top:.8rem"><label>IVA esperado</label><input id="tax-expected-input" readonly=""></div>
+      <div class="tf-field" style="margin-top:.8rem"><label>IVA realmente pagado ($)</label><input id="tax-paid-input" type="number" min="0" step="0.01"></div>
+      <div class="tf-field" style="margin-top:.8rem"><label>Cuenta de pago</label><select id="tax-account"></select></div>
+      <div class="tf-field" style="margin-top:.8rem"><label>Fecha de pago</label><input id="tax-date" type="date"></div>
+      <div class="tf-field" style="margin-top:.8rem"><label>Notas</label><textarea id="tax-notes"></textarea></div>
+      <div id="tax-difference" class="tf-subtle" style="margin-top:.8rem"></div>
+      <button class="tf-btn tf-btn-primary" style="margin-top:1rem">Registrar liquidación</button>
+    </form>
+  </section>
+</div>
+
+<section class="tf-card" style="margin-top:1rem">
+  <h2 class="anchored">Liquidaciones registradas</h2>
+  <div id="tax-payment-list" class="tf-grid tf-grid-3"></div>
+</section>
+
+<script type="module" src="js/taxes.js"></script>
 
 
 

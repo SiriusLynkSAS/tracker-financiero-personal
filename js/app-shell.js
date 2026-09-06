@@ -6,13 +6,15 @@ const currentFile = (() => {
 const isLogin = currentFile === "index";
 
 const pageGroup = (() => {
-  const operation = ["cuentas","movimientos","presupuestos","plan_mensual","recurrentes","calendario","categorias"];
-  const wealth = ["metas","deudas","seguros","activos","inversiones"];
-  const work = ["contratos"];
-  const control = ["conciliacion","importar_exportar","reportes","auditoria"];
+  const operation = ["cuentas","movimientos","categorias"];
+  const planning = ["presupuestos","plan_mensual","recurrentes","fondo_emergencia","metas"];
+  const obligations = ["deudas","seguros","contratos","impuestos"];
+  const wealth = ["activos","inversiones"];
+  const control = ["conciliacion","importar_exportar","reportes","calendario","auditoria"];
   if (operation.includes(currentFile)) return "operation";
+  if (planning.includes(currentFile)) return "planning";
+  if (obligations.includes(currentFile)) return "obligations";
   if (wealth.includes(currentFile)) return "wealth";
-  if (work.includes(currentFile)) return "work";
   if (control.includes(currentFile)) return "control";
   if (currentFile === "perfil") return "profile";
   return "home";
@@ -30,6 +32,8 @@ const icon = name => {
     target: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 2v3M22 12h-3"/></svg>`,
     card: `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 15h4"/></svg>`,
     shield: `<svg viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>`,
+    emergency: `<svg viewBox="0 0 24 24"><path d="M12 21s8-4.5 8-11V5l-8-3-8 3v5c0 6.5 8 11 8 11z"/><path d="M12 7v6M9 10h6"/></svg>`,
+    tax: `<svg viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8M8 15h3"/><circle cx="16" cy="16" r="2"/></svg>`,
     box: `<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4z"/><path d="m4 7 8 4 8-4M12 11v10"/></svg>`,
     chart: `<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
     briefcase: `<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18"/></svg>`,
@@ -50,45 +54,50 @@ const icon = name => {
 const groups = [
   {
     title: "Principal",
-    items: [
-      ["dashboard", "Resumen", "home"]
-    ]
+    items: [["dashboard","Resumen","home"]]
   },
   {
     title: "Operación",
     items: [
-      ["cuentas", "Bancos y cuentas", "wallet"],
-      ["movimientos", "Movimientos", "arrows"],
-      ["presupuestos", "Presupuestos", "budget"],
-      ["plan_mensual", "Plan mensual", "plan"],
-      ["recurrentes", "Recurrentes", "repeat"],
-      ["calendario", "Calendario", "calendar"],
-      ["categorias", "Categorías", "tags"]
+      ["cuentas","Bancos y cuentas","wallet"],
+      ["movimientos","Movimientos","arrows"],
+      ["categorias","Categorías","tags"]
+    ]
+  },
+  {
+    title: "Planificación",
+    items: [
+      ["presupuestos","Presupuestos","budget"],
+      ["plan_mensual","Plan mensual","plan"],
+      ["recurrentes","Recurrentes","repeat"],
+      ["fondo_emergencia","Fondo de emergencia","emergency"],
+      ["metas","Metas","target"]
+    ]
+  },
+  {
+    title: "Obligaciones",
+    items: [
+      ["deudas","Deudas y tarjetas","card"],
+      ["seguros","Seguros","shield"],
+      ["contratos","Contratos y cobros","briefcase"],
+      ["impuestos","IVA / Impuestos","tax"]
     ]
   },
   {
     title: "Patrimonio",
     items: [
-      ["metas", "Metas", "target"],
-      ["deudas", "Deudas y tarjetas", "card"],
-      ["seguros", "Seguros", "shield"],
-      ["activos", "Activos", "box"],
-      ["inversiones", "Inversiones", "chart"]
-    ]
-  },
-  {
-    title: "Trabajo",
-    items: [
-      ["contratos", "Contratos y cobros", "briefcase"]
+      ["activos","Activos","box"],
+      ["inversiones","Inversiones","chart"]
     ]
   },
   {
     title: "Control",
     items: [
-      ["conciliacion", "Conciliación", "check"],
-      ["importar_exportar", "Importar / Exportar", "upload"],
-      ["reportes", "Reportes", "report"],
-      ["auditoria", "Auditoría", "audit"]
+      ["conciliacion","Conciliación","check"],
+      ["importar_exportar","Importar / Exportar","upload"],
+      ["reportes","Reportes","report"],
+      ["calendario","Calendario","calendar"],
+      ["auditoria","Auditoría","audit"]
     ]
   }
 ];

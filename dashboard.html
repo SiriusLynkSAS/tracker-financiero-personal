@@ -185,6 +185,35 @@ ul.task-list li input[type="checkbox"] {
   </div>
 </div>
 
+<section class="tf-card tf-dashboard-projection" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div><div class="tf-section-kicker">Proyección del mes</div><h2 class="anchored">Disponible proyectado</h2></div>
+    <strong id="dash-projection-month"></strong>
+  </div>
+  <div class="tf-grid tf-grid-5 tf-dashboard-projection-grid">
+    <a href="plan_mensual.html"><span>Ingresos proyectados</span><strong id="dash-proj-income">$0,00</strong></a>
+    <a href="movimientos.html"><span>Egresos registrados</span><strong id="dash-proj-registered">$0,00</strong></a>
+    <a href="calendario.html"><span>Egresos pendientes</span><strong id="dash-proj-pending">$0,00</strong></a>
+    <a href="plan_mensual.html"><span>Ahorro recomendado · 10%</span><strong id="dash-proj-saving">$0,00</strong></a>
+    <a href="impuestos.html"><span>IVA reservado</span><strong id="dash-proj-vat">$0,00</strong></a>
+  </div>
+  <div class="tf-dashboard-available">
+    <div><strong>Disponible proyectado</strong><span>Después de gastos, compromisos, ahorro e IVA reservado.</span></div>
+    <strong id="dash-proj-available">$0,00</strong>
+  </div>
+  <div id="dash-proj-detail" class="tf-muted" style="margin-top:.55rem"></div>
+</section>
+
+<a id="dash-emergency-card" href="fondo_emergencia.html" class="tf-card tf-dashboard-emergency" style="margin-top:1rem">
+  <div>
+    <div class="tf-section-kicker">Protección financiera</div>
+    <h2 class="anchored">Fondo de emergencia</h2>
+    <div><strong id="dash-ef-current">$0,00</strong> / <span id="dash-ef-target">$0,00</span></div>
+    <div id="dash-ef-coverage" class="tf-muted">Cobertura 0,0 meses</div>
+  </div>
+  <div class="tf-emergency-progress"><span id="dash-ef-progress"></span></div>
+</a>
+
 <div class="tf-grid tf-grid-2" style="margin-top:1rem">
   <div class="tf-card">
     <div class="tf-chart-header">
@@ -659,7 +688,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.26</p>
+<p>Tracker Financiero Personal V1.0.28</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

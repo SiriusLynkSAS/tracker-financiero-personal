@@ -2,691 +2,327 @@ import {requireUser} from "./guard.js";
 import {
   listMonthlyPlans,saveMonthlyPlan,
   listRecurring,listBudgets,listTransactions,listLiabilities,listFinancingPlans,
-  listInsurance,listGoals,listAccounts,calculateBalances
+  listInsurance,listGoals,listAccounts,calculateBalances,listContracts,
+  syncReceivablesClosed
 } from "./data-service.js";
-import {
-  money,escapeHtml,todayISO,isoFromParts,addMonthsISO,sum
-} from "./utils.js";
+import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
+import {
+  monthlyCommitments,goalSavingsSources,budgetReserveSources,shiftMonth,inMonth
+} from "./planning.js";
 
-let plans=[];
-let recurring=[];
-let budgets=[];
-let txs=[];
-let debts=[];
-let cardPlans=[];
-let insurance=[];
-let goals=[];
-let accounts=[];
-let balances={};
-
+let plans=[],recurring=[],budgets=[],txs=[],debts=[],cardPlans=[],insurance=[],goals=[],accounts=[],contracts=[],receivables=[],balances={};
 let selectedMonth="";
-let manualItems=[];
-let excludedSourceKeys=new Set();
-let savingMode="auto";
-let savingAmount=0;
-let note="";
+let excludedSources=new Set();
+let adjustments=[];
+let manualSavings=null;
+let notes="";
 let dirty=false;
 
 const monthInput=document.querySelector("#monthly-plan-month");
 
-function currentMonthKey(){
-  return todayISO().slice(0,7);
-}
+function currentMonth(){ return todayISO().slice(0,7); }
 
-function monthStart(month){
-  return `${month}-01`;
-}
-
-function monthEnd(month){
-  const [y,m]=month.split("-").map(Number);
-  const last=new Date(Date.UTC(y,m,0)).getUTCDate();
-  return isoFromParts(y,m,last);
-}
-
-function shiftMonth(month,delta){
-  return addMonthsISO(`${month}-01`,delta).slice(0,7);
-}
-
-function monthDiff(fromMonth,toDate){
-  const [fy,fm]=fromMonth.split("-").map(Number);
-  const [ty,tm]=String(toDate).slice(0,7).split("-").map(Number);
-  return (ty-fy)*12+(tm-fm);
-}
-
-function overlapsMonth(item,month){
-  const start=monthStart(month);
-  const end=monthEnd(month);
-  const itemStart=item.startDate||"0000-01-01";
-  const itemEnd=item.endDate||"9999-12-31";
-  return itemStart<=end && itemEnd>=start;
-}
-
-function dueDateForDay(month,day){
-  const [y,m]=month.split("-").map(Number);
-  const last=new Date(Date.UTC(y,m,0)).getUTCDate();
-  return isoFromParts(y,m,Math.min(Math.max(1,Number(day||1)),last));
-}
-
-function inMonth(date,month){
-  return String(date||"").slice(0,7)===month;
-}
-
-function sourceItem({key,kind,label,amount,date="",source="",detail=""}){
+function oldItemToAdjustment(x){
+  const map={income:"income",fixed:"commitment",variable:"reserve",saving:"savings",savings:"savings"};
   return {
-    key,kind,label,
-    amount:Math.max(0,Number(amount||0)),
-    date,source,detail
+    id:x.id||`legacy-${Math.random().toString(36).slice(2)}`,
+    label:x.label||"Ajuste",
+    bucket:map[x.type]||x.bucket||"commitment",
+    amount:Math.max(0,Number(x.amount||0))
   };
 }
 
-function recurringItems(){
-  return recurring
-    .filter(r=>r.active!==false && overlapsMonth(r,selectedMonth))
-    .map(r=>sourceItem({
-      key:`recurring:${r.id}`,
-      kind:r.type==="income"?"income":"fixed",
-      label:r.name||"Recurrente",
-      amount:r.amount,
-      date:dueDateForDay(selectedMonth,r.dayOfMonth),
-      source:"Recurrente",
-      detail:[r.category,r.subcategory].filter(Boolean).join(" › ")
-    }));
-}
-
-function debtItems(){
-  const out=[];
-
-  for(const debt of debts.filter(x=>x.active!==false)){
-    for(const row of debt.schedule||[]){
-      if(!inMonth(row.dueDate,selectedMonth)) continue;
-
-      out.push(sourceItem({
-        key:`debt:${debt.id}:${row.n}`,
-        kind:"fixed",
-        label:`${debt.creditor||"Acreedor"} · ${debt.concept||"Préstamo"}`,
-        amount:row.payment,
-        date:row.dueDate,
-        source:"Préstamo",
-        detail:`Cuota ${row.n}${row.status==="paid"?" · pagada":""}`
-      }));
-    }
+function planConfig(row){
+  if(!row){
+    return {excludedSources:new Set(),adjustments:[],manualSavings:null,notes:""};
   }
 
-  return out;
+  const excluded=
+    row.excludedSources ??
+    row.exclusions ??
+    row.excludedSourceKeys ??
+    [];
+
+  const rawAdjustments=
+    row.adjustments ??
+    row.manualAdjustments ??
+    row.manualItems ??
+    [];
+
+  let manual=null;
+  if(row.savingsMode==="automatic") manual=null;
+  else if(row.savingsMode==="manual") manual=Number(row.manualSavings||0);
+  else if(row.manualSavings!==undefined && row.manualSavings!==null) manual=Number(row.manualSavings||0);
+  else if(row.savingMode==="manual") manual=Number(row.savingAmount||0);
+
+  return {
+    excludedSources:new Set(Array.isArray(excluded)?excluded:[]),
+    adjustments:(Array.isArray(rawAdjustments)?rawAdjustments:[]).map(oldItemToAdjustment),
+    manualSavings:manual,
+    notes:String(row.notes??row.note??"")
+  };
 }
 
-function cardItems(){
-  const out=[];
-
-  for(const plan of cardPlans.filter(x=>x.active!==false)){
-    for(const row of plan.schedule||[]){
-      if(!inMonth(row.dueDate,selectedMonth)) continue;
-
-      out.push(sourceItem({
-        key:`card:${plan.id}:${row.n}`,
-        kind:"fixed",
-        label:plan.description||"Plan de tarjeta",
-        amount:row.payment,
-        date:row.dueDate,
-        source:"Tarjeta",
-        detail:`Cuota ${row.n}${row.status==="paid"?" · pagada":""}`
-      }));
-    }
-  }
-
-  return out;
+function commitments(){
+  return monthlyCommitments({
+    recurring,insurance,receivables,contracts,debts,cardPlans,
+    month:selectedMonth,today:todayISO()
+  });
 }
 
-function insuranceItems(){
-  return insurance
-    .filter(p=>p.active!==false && overlapsMonth(p,selectedMonth))
-    .filter(p=>Number(p.monthlyPremium||0)>0)
-    .map(p=>sourceItem({
-      key:`insurance:${p.id}`,
-      kind:"fixed",
-      label:p.name||p.provider||"Seguro",
-      amount:p.monthlyPremium,
-      date:dueDateForDay(selectedMonth,p.paymentDay),
-      source:"Seguro",
-      detail:p.provider||"Prima mensual"
-    }));
-}
+function sources(){
+  const base=commitments().map(x=>({
+    key:x.key,
+    bucket:x.kind==="income"?"income":"commitment",
+    label:x.label,
+    detail:x.detail,
+    amount:Number(x.amount||0)
+  }));
 
-function spentForBudget(budget,start,end){
-  return txs
-    .filter(t=>t.type==="expense" && t.date>=start && t.date<=end)
-    .reduce((total,t)=>{
-      if(t.splits?.length){
-        return total+t.splits
-          .filter(x=>
-            x.category===budget.category &&
-            x.subcategory===budget.subcategory
-          )
-          .reduce((s,x)=>s+Number(x.amount||0),0);
-      }
-
-      return total+(
-        t.category===budget.category &&
-        t.subcategory===budget.subcategory
-          ? Number(t.amount||0)
-          : 0
-      );
-    },0);
-}
-
-function variableItems(){
-  const prevMonth=shiftMonth(selectedMonth,-1);
-  const prevStart=monthStart(prevMonth);
-  const prevEnd=monthEnd(prevMonth);
-
-  return budgets
-    .filter(b=>b.active!==false)
-    .map(b=>{
-      const previousSpent=spentForBudget(b,prevStart,prevEnd);
-      const carry=b.rollover
-        ? Math.max(0,Number(b.limit||0)-previousSpent)
-        : 0;
-      const available=Number(b.limit||0)+carry;
-
-      return sourceItem({
-        key:`budget:${b.id}`,
-        kind:"variable",
-        label:`${b.category} › ${b.subcategory}`,
-        amount:available,
-        source:"Presupuesto",
-        detail:b.rollover
-          ? `Base ${money(b.limit)} + rollover ${money(carry)}`
-          : `Límite mensual ${money(b.limit)}`
-      });
-    });
-}
-
-function goalSuggestedItems(){
-  return goals
-    .filter(g=>g.active!==false)
-    .map(g=>{
-      const saved=g.accountId
-        ? Math.max(0,Number(balances[g.accountId]||0))
-        : Math.max(0,Number(g.savedManual||0));
-
-      const remaining=Math.max(0,Number(g.target||0)-saved);
-      let suggested=0;
-      let detail="Sin fecha objetivo";
-
-      if(remaining>0 && g.targetDate){
-        const diff=monthDiff(selectedMonth,g.targetDate);
-        const months=Math.max(1,diff+1);
-        suggested=remaining/months;
-        detail=`Faltan ${money(remaining)} · ${months} mes(es)`;
-      }else if(remaining<=0){
-        detail="Meta cubierta";
-      }
-
-      return sourceItem({
-        key:`goal:${g.id}`,
-        kind:"saving",
-        label:g.name||"Meta de ahorro",
-        amount:suggested,
-        date:g.targetDate||"",
-        source:"Meta",
-        detail
-      });
-    })
-    .filter(x=>x.amount>0);
-}
-
-function automaticItems(){
   return [
-    ...recurringItems(),
-    ...debtItems(),
-    ...cardItems(),
-    ...insuranceItems(),
-    ...variableItems(),
-    ...goalSuggestedItems()
+    ...base,
+    ...goalSavingsSources({goals,accounts,balances,month:selectedMonth}),
+    ...budgetReserveSources({budgets,transactions:txs,month:selectedMonth})
   ];
 }
 
-function isIncluded(item){
-  return !excludedSourceKeys.has(item.key);
+function calc(){
+  const src=sources().map(x=>({...x,excluded:excludedSources.has(x.key)}));
+  const sourceTotal=bucket=>sum(src.filter(x=>x.bucket===bucket&&!x.excluded),x=>x.amount);
+  const adjustmentTotal=bucket=>sum(adjustments.filter(x=>x.bucket===bucket),x=>x.amount);
+
+  const income=Math.max(0,sourceTotal("income")+adjustmentTotal("income"));
+  const commitments=Math.max(0,sourceTotal("commitment")+adjustmentTotal("commitment"));
+  const automaticSavings=Math.max(0,sourceTotal("savings")+adjustmentTotal("savings"));
+  const savings=Math.max(0,manualSavings===null?automaticSavings:Number(manualSavings||0));
+  const reserves=Math.max(0,sourceTotal("reserve")+adjustmentTotal("reserve"));
+  const available=income-commitments-savings-reserves;
+
+  return {src,income,commitments,automaticSavings,savings,reserves,available};
 }
 
-function included(items,kind){
-  return items.filter(x=>x.kind===kind && isIncluded(x));
-}
-
-function manualByType(type){
-  return manualItems.filter(x=>x.type===type);
-}
-
-function totals(){
-  const items=automaticItems();
-
-  const income=
-    sum(included(items,"income"),x=>x.amount)+
-    sum(manualByType("income"),x=>x.amount);
-
-  const fixed=
-    sum(included(items,"fixed"),x=>x.amount)+
-    sum(manualByType("fixed"),x=>x.amount);
-
-  const autoSaving=sum(included(items,"saving"),x=>x.amount);
-
-  const savings=savingMode==="auto"
-    ? autoSaving
-    : Math.max(0,Number(savingAmount||0));
-
-  const variable=
-    sum(included(items,"variable"),x=>x.amount)+
-    sum(manualByType("variable"),x=>x.amount);
-
-  return {
-    items,
-    income,
-    fixed,
-    autoSaving,
-    savings,
-    variable,
-    free:income-fixed-savings-variable
-  };
-}
-
-function sourceRow(item){
-  const checked=isIncluded(item);
-
+function sourceRow(x){
   return `
     <label class="tf-plan-source-row">
-      <input
-        type="checkbox"
-        data-source-toggle="${escapeHtml(item.key)}"
-        ${checked?"checked":""}
-      >
+      <input type="checkbox" data-source-toggle="${escapeHtml(x.key)}" ${x.excluded?"":"checked"}>
       <span class="tf-plan-source-main">
-        <strong>${escapeHtml(item.label)}</strong>
-        <span>
-          ${escapeHtml(item.source)}
-          ${item.date?` · ${escapeHtml(item.date)}`:""}
-          ${item.detail?` · ${escapeHtml(item.detail)}`:""}
-        </span>
+        <strong>${escapeHtml(x.label)}</strong>
+        <span>${escapeHtml(x.detail||"")}</span>
       </span>
-      <strong class="tf-plan-source-amount">${money(item.amount)}</strong>
+      <strong class="tf-plan-source-amount">${money(x.amount)}</strong>
     </label>
   `;
 }
 
-function emptySource(text){
-  return `<div class="tf-empty tf-plan-source-empty">${escapeHtml(text)}</div>`;
-}
+function empty(text){ return `<div class="tf-empty tf-plan-source-empty">${escapeHtml(text)}</div>`; }
 
-function renderSources(t){
-  const incomes=t.items.filter(x=>x.kind==="income");
-  const fixed=t.items.filter(x=>x.kind==="fixed");
-  const variables=t.items.filter(x=>x.kind==="variable");
-  const savings=t.items.filter(x=>x.kind==="saving");
-
-  document.querySelector("#mp-income-list").innerHTML=
-    incomes.map(sourceRow).join("")||
-    emptySource("Sin ingresos automáticos para este mes.");
-
-  document.querySelector("#mp-fixed-list").innerHTML=
-    fixed.map(sourceRow).join("")||
-    emptySource("Sin compromisos automáticos para este mes.");
-
-  document.querySelector("#mp-variable-list").innerHTML=
-    variables.map(sourceRow).join("")||
-    emptySource("Sin presupuestos variables configurados.");
-
-  document.querySelector("#mp-goal-list").innerHTML=
-    savings.map(sourceRow).join("")||
-    emptySource("No hay metas con un aporte mensual sugerido.");
-}
-
-function renderManual(){
-  const labels={
-    income:"Ingreso adicional",
-    fixed:"Compromiso adicional",
-    variable:"Reserva adicional"
-  };
-
-  document.querySelector("#mp-manual-list").innerHTML=
-    manualItems.map(item=>`
-      <div class="tf-plan-manual-row">
-        <div>
-          <strong>${escapeHtml(item.label)}</strong>
-          <span>${labels[item.type]||escapeHtml(item.type)}</span>
-        </div>
-        <strong>${money(item.amount)}</strong>
-        <button
-          type="button"
-          class="tf-btn tf-btn-secondary"
-          data-manual-delete="${escapeHtml(item.id)}"
-        >Quitar</button>
-      </div>
-    `).join("")||
-    `<div class="tf-empty">Sin ajustes manuales.</div>`;
-}
-
-function actualExecution(){
-  const accountById=new Map(accounts.map(a=>[a.id,a]));
-
+function execution(){
+  const types=new Map(accounts.map(a=>[a.id,a.accountType]));
   const monthTx=txs.filter(t=>inMonth(t.date,selectedMonth));
-
-  const realIncome=sum(
-    monthTx.filter(t=>t.type==="income"),
+  const realIncome=sum(monthTx.filter(t=>t.type==="income"),t=>t.amount);
+  const cashExpenses=sum(
+    monthTx.filter(t=>t.type==="expense"&&types.get(t.accountId)!=="credit_card"),
     t=>t.amount
   );
-
-  const realExpense=sum(
-    monthTx.filter(t=>{
-      if(t.type!=="expense") return false;
-      const a=accountById.get(t.accountId);
-      return a?.accountType!=="credit_card";
-    }),
-    t=>t.amount
-  );
-
   const cardPayments=sum(
-    monthTx.filter(t=>
-      t.type==="transfer" &&
-      !!t.financingPlanId
-    ),
+    monthTx.filter(t=>t.type==="transfer"&&types.get(t.toAccountId)==="credit_card"),
     t=>t.amount
   );
-
   const loanPayments=sum(
-    debts.flatMap(d=>d.schedule||[])
-      .filter(row=>row.status==="paid" && inMonth(row.paidDate,selectedMonth)),
-    row=>row.paidAmount ?? row.payment
+    debts.flatMap(d=>d.schedule||[]).filter(r=>r.status==="paid"&&inMonth(r.paidDate,selectedMonth)),
+    r=>Number(r.paidAmount||0)>0?r.paidAmount:r.payment
   );
-
   return {
-    realIncome,
-    realExpense,
-    cardPayments,
-    loanPayments,
-    net:realIncome-realExpense-cardPayments-loanPayments
+    realIncome,cashExpenses,cardPayments,loanPayments,
+    registeredFlow:realIncome-cashExpenses-cardPayments-loanPayments
   };
 }
 
-function renderExecution(){
-  const x=actualExecution();
-
-  document.querySelector("#mp-real-income").textContent=money(x.realIncome);
-  document.querySelector("#mp-real-expense").textContent=money(x.realExpense);
-  document.querySelector("#mp-real-card").textContent=money(x.cardPayments);
-  document.querySelector("#mp-real-loan").textContent=money(x.loanPayments);
-
-  const net=document.querySelector("#mp-real-net");
-  net.textContent=money(x.net);
-  net.classList.toggle("tf-negative",x.net<0);
+function renderAdjustments(){
+  const label={
+    income:"Ingreso adicional",
+    commitment:"Compromiso adicional",
+    savings:"Ahorro adicional",
+    reserve:"Reserva adicional"
+  };
+  document.querySelector("#mp-manual-list").innerHTML=
+    adjustments.map(a=>`
+      <div class="tf-plan-manual-row">
+        <div><strong>${escapeHtml(a.label)}</strong><span>${label[a.bucket]||a.bucket}</span></div>
+        <strong>${money(a.amount)}</strong>
+        <button type="button" class="tf-btn tf-btn-secondary" data-adjustment-delete="${escapeHtml(a.id)}">Quitar</button>
+      </div>
+    `).join("")||`<div class="tf-empty">Sin ajustes manuales.</div>`;
 }
 
 function render(){
-  const t=totals();
+  const c=calc();
+  const buckets={
+    income:c.src.filter(x=>x.bucket==="income"),
+    commitment:c.src.filter(x=>x.bucket==="commitment"),
+    savings:c.src.filter(x=>x.bucket==="savings"),
+    reserve:c.src.filter(x=>x.bucket==="reserve")
+  };
 
-  renderSources(t);
-  renderManual();
-  renderExecution();
+  document.querySelector("#mp-income-list").innerHTML=buckets.income.map(sourceRow).join("")||empty("Sin ingresos automáticos para este mes.");
+  document.querySelector("#mp-fixed-list").innerHTML=buckets.commitment.map(sourceRow).join("")||empty("Sin compromisos automáticos para este mes.");
+  document.querySelector("#mp-goal-list").innerHTML=buckets.savings.map(sourceRow).join("")||empty("No hay metas con aporte mensual sugerido.");
+  document.querySelector("#mp-variable-list").innerHTML=buckets.reserve.map(sourceRow).join("")||empty("Sin presupuestos aplicables a este mes.");
 
-  for(const [id,value] of [
-    ["#mp-kpi-income",t.income],
-    ["#mp-income-total",t.income],
-    ["#mp-kpi-fixed",t.fixed],
-    ["#mp-fixed-total",t.fixed],
-    ["#mp-kpi-saving",t.savings],
-    ["#mp-saving-total",t.savings],
-    ["#mp-kpi-variable",t.variable],
-    ["#mp-variable-total",t.variable],
-    ["#mp-kpi-free",t.free],
-    ["#mp-free-hero",t.free]
+  for(const [id,v] of [
+    ["mp-kpi-income",c.income],["mp-income-total",c.income],
+    ["mp-kpi-fixed",c.commitments],["mp-fixed-total",c.commitments],
+    ["mp-kpi-saving",c.savings],["mp-saving-total",c.savings],
+    ["mp-kpi-variable",c.reserves],["mp-variable-total",c.reserves],
+    ["mp-kpi-free",c.available],["mp-free-hero",c.available]
   ]){
-    document.querySelector(id).textContent=money(value);
+    document.querySelector(`#${id}`).textContent=money(v);
   }
 
-  document.querySelector("#mp-kpi-free").classList.toggle("tf-negative",t.free<0);
-  document.querySelector("#mp-free-hero").classList.toggle("tf-negative",t.free<0);
+  const saving=document.querySelector("#mp-saving-amount");
+  saving.value=Number(manualSavings===null?c.automaticSavings:manualSavings).toFixed(2);
+  document.querySelector("#mp-saving-help").textContent=
+    manualSavings===null
+      ? `Ahorro automático sugerido por metas: ${money(c.automaticSavings)}.`
+      : `Ahorro manual. Sugerencia automática actual: ${money(c.automaticSavings)}.`;
 
-  const savingInput=document.querySelector("#mp-saving-amount");
+  const warn=document.querySelector("#monthly-plan-warning");
+  warn.classList.toggle("is-visible",c.available<0);
+  warn.textContent=c.available<0
+    ? `El plan tiene un déficit de ${money(Math.abs(c.available))}.`
+    : "";
 
-  if(savingMode==="auto"){
-    savingAmount=t.autoSaving;
-    savingInput.value=t.autoSaving.toFixed(2);
-    document.querySelector("#mp-saving-help").textContent=
-      `Ahorro sugerido por las metas incluidas: ${money(t.autoSaving)}.`;
-  }else{
-    savingInput.value=Number(savingAmount||0).toFixed(2);
-    document.querySelector("#mp-saving-help").textContent=
-      `Monto manual para ${selectedMonth}. El sugerido actual es ${money(t.autoSaving)}.`;
-  }
+  const ex=execution();
+  document.querySelector("#mp-real-income").textContent=money(ex.realIncome);
+  document.querySelector("#mp-real-expense").textContent=money(ex.cashExpenses);
+  document.querySelector("#mp-real-card").textContent=money(ex.cardPayments);
+  document.querySelector("#mp-real-loan").textContent=money(ex.loanPayments);
+  document.querySelector("#mp-real-net").textContent=money(ex.registeredFlow);
+  document.querySelector("#mp-real-net").classList.toggle("tf-negative",ex.registeredFlow<0);
 
-  const warning=document.querySelector("#monthly-plan-warning");
-
-  if(t.free<0){
-    warning.textContent=
-      `El plan tiene un déficit de ${money(Math.abs(t.free))}. Revisa compromisos, ahorro o reservas.`;
-    warning.classList.add("is-visible");
-  }else{
-    warning.classList.remove("is-visible");
-    warning.textContent="";
-  }
-
-  document.querySelector("#mp-note").value=note||"";
-  document.querySelector("#monthly-plan-save-state").textContent=
-    dirty ? "Cambios sin guardar" : "Plan cargado";
-  document.querySelector("#monthly-plan-save-state").classList.toggle(
-    "is-dirty",
-    dirty
-  );
+  document.querySelector("#mp-note").value=notes;
+  document.querySelector("#monthly-plan-save-state").textContent=dirty?"Cambios sin guardar":"Plan cargado";
+  document.querySelector("#monthly-plan-save-state").classList.toggle("is-dirty",dirty);
+  renderAdjustments();
 }
 
-function savedPlanForMonth(month){
-  return plans.find(p=>p.id===month || p.month===month)||null;
-}
-
-function loadMonthConfig(month){
+function loadConfig(month){
   selectedMonth=month;
   monthInput.value=month;
-
-  const saved=savedPlanForMonth(month);
-
-  manualItems=Array.isArray(saved?.manualItems)
-    ? saved.manualItems.map(x=>({...x}))
-    : [];
-
-  excludedSourceKeys=new Set(
-    Array.isArray(saved?.excludedSourceKeys)
-      ? saved.excludedSourceKeys
-      : []
-  );
-
-  savingMode=saved?.savingMode==="manual" ? "manual" : "auto";
-  savingAmount=Math.max(0,Number(saved?.savingAmount||0));
-  note=saved?.note||"";
+  const row=plans.find(p=>p.id===month||p.month===month);
+  const c=planConfig(row);
+  excludedSources=c.excludedSources;
+  adjustments=c.adjustments;
+  manualSavings=c.manualSavings;
+  notes=c.notes;
   dirty=false;
-
   render();
 }
 
-function markDirty(){
-  dirty=true;
-  document.querySelector("#monthly-plan-save-state").textContent=
-    "Cambios sin guardar";
-  document.querySelector("#monthly-plan-save-state").classList.add("is-dirty");
-}
+function markDirty(){ dirty=true; }
 
 async function refresh(){
-  [
-    plans,
-    recurring,
-    budgets,
-    txs,
-    debts,
-    cardPlans,
-    insurance,
-    goals,
-    accounts
-  ]=await Promise.all([
-    listMonthlyPlans(),
-    listRecurring(),
-    listBudgets(),
-    listTransactions(),
-    listLiabilities(),
-    listFinancingPlans(),
-    listInsurance(),
-    listGoals(),
-    listAccounts({includeArchived:false})
+  receivables=await syncReceivablesClosed();
+  [plans,recurring,budgets,txs,debts,cardPlans,insurance,goals,accounts,contracts]=await Promise.all([
+    listMonthlyPlans(),listRecurring(),listBudgets(),listTransactions(),listLiabilities(),
+    listFinancingPlans(),listInsurance(),listGoals(),listAccounts({includeArchived:false}),listContracts()
   ]);
-
   balances=calculateBalances(accounts,txs);
-
-  loadMonthConfig(selectedMonth||currentMonthKey());
+  loadConfig(selectedMonth||currentMonth());
 }
 
-monthInput.addEventListener("change",()=>{
-  if(!monthInput.value) return;
-  loadMonthConfig(monthInput.value);
-});
-
-document.querySelector("#monthly-plan-prev").addEventListener("click",()=>{
-  loadMonthConfig(shiftMonth(selectedMonth,-1));
-});
-
-document.querySelector("#monthly-plan-next").addEventListener("click",()=>{
-  loadMonthConfig(shiftMonth(selectedMonth,1));
-});
-
-document.querySelector("#monthly-plan-today").addEventListener("click",()=>{
-  loadMonthConfig(currentMonthKey());
-});
+monthInput.addEventListener("change",()=>{if(monthInput.value)loadConfig(monthInput.value)});
+document.querySelector("#monthly-plan-prev").addEventListener("click",()=>loadConfig(shiftMonth(selectedMonth,-1)));
+document.querySelector("#monthly-plan-next").addEventListener("click",()=>loadConfig(shiftMonth(selectedMonth,1)));
+document.querySelector("#monthly-plan-today").addEventListener("click",()=>loadConfig(currentMonth()));
 
 document.addEventListener("change",e=>{
-  const checkbox=e.target.closest("[data-source-toggle]");
-  if(!checkbox) return;
-
-  const key=checkbox.dataset.sourceToggle;
-
-  if(checkbox.checked) excludedSourceKeys.delete(key);
-  else excludedSourceKeys.add(key);
-
-  markDirty();
-  render();
+  const box=e.target.closest("[data-source-toggle]");
+  if(!box)return;
+  if(box.checked)excludedSources.delete(box.dataset.sourceToggle);
+  else excludedSources.add(box.dataset.sourceToggle);
+  markDirty();render();
 });
 
 document.querySelector("#mp-saving-amount").addEventListener("input",e=>{
-  savingMode="manual";
-  savingAmount=Math.max(0,Number(e.target.value||0));
-  markDirty();
-  render();
+  manualSavings=Math.max(0,Number(e.target.value||0));
+  markDirty();render();
 });
-
 document.querySelector("#mp-use-auto-saving").addEventListener("click",()=>{
-  savingMode="auto";
-  markDirty();
-  render();
+  manualSavings=null;markDirty();render();
 });
 
 document.querySelector("#mp-manual-form").addEventListener("submit",e=>{
   e.preventDefault();
-
-  const type=document.querySelector("#mp-manual-type").value;
+  const bucket=document.querySelector("#mp-manual-type").value;
   const label=document.querySelector("#mp-manual-label").value.trim();
-  const amount=Number(document.querySelector("#mp-manual-amount").value);
-
-  if(!label || !(amount>0)){
-    toast("Indica un concepto y un monto mayor que cero.");
-    return;
-  }
-
-  manualItems.push({
+  const amount=Number(document.querySelector("#mp-manual-amount").value||0);
+  if(!label||!(amount>0)){toast("Indica concepto y monto mayor que cero.");return}
+  adjustments.push({
     id:`manual-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-    type,
-    label,
-    amount
+    label,bucket,amount
   });
-
-  e.target.reset();
-  markDirty();
-  render();
+  e.target.reset();markDirty();render();
 });
 
 document.querySelector("#mp-manual-list").addEventListener("click",e=>{
-  const b=e.target.closest("[data-manual-delete]");
-  if(!b) return;
-
-  manualItems=manualItems.filter(x=>x.id!==b.dataset.manualDelete);
-  markDirty();
-  render();
+  const b=e.target.closest("[data-adjustment-delete]");
+  if(!b)return;
+  adjustments=adjustments.filter(x=>x.id!==b.dataset.adjustmentDelete);
+  markDirty();render();
 });
 
-document.querySelector("#mp-note").addEventListener("input",e=>{
-  note=e.target.value;
-  markDirty();
-});
+document.querySelector("#mp-note").addEventListener("input",e=>{notes=e.target.value;markDirty()});
 
 document.querySelector("#mp-reset-auto").addEventListener("click",async()=>{
   if(!await confirmAction({
     title:"Restablecer plan automático",
     message:selectedMonth,
-    impact:[
-      "Se quitarán exclusiones y ajustes manuales de esta vista.",
-      "El ahorro volverá al valor sugerido por las metas.",
-      "No se borrarán movimientos ni datos de otros módulos."
-    ],
+    impact:["Se quitarán exclusiones y ajustes.","El ahorro volverá al cálculo automático.","No se modifican movimientos reales."],
     confirmText:"Restablecer"
-  })) return;
-
-  manualItems=[];
-  excludedSourceKeys.clear();
-  savingMode="auto";
-  savingAmount=0;
-  note="";
-  markDirty();
-  render();
+  }))return;
+  excludedSources.clear();adjustments=[];manualSavings=null;notes="";markDirty();render();
 });
 
 document.querySelector("#mp-save").addEventListener("click",async()=>{
-  const t=totals();
-
+  const c=calc(),ex=execution();
   const data={
     month:selectedMonth,
-    manualItems,
-    excludedSourceKeys:[...excludedSourceKeys],
-    savingMode,
-    savingAmount:t.savings,
-    note,
-    lastCalculated:{
-      income:t.income,
-      fixed:t.fixed,
-      savings:t.savings,
-      variable:t.variable,
-      free:t.free
+    excludedSources:[...excludedSources].sort(),
+    exclusions:[...excludedSources].sort(),
+    adjustments,
+    manualAdjustments:adjustments,
+    savingsMode:manualSavings===null?"automatic":"manual",
+    manualSavings,
+    notes,
+    lastCalculation:{
+      plannedIncome:c.income,
+      commitments:c.commitments,
+      automaticSavings:c.automaticSavings,
+      savings:c.savings,
+      variableReserves:c.reserves,
+      available:c.available,
+      realIncome:ex.realIncome,
+      cashExpenses:ex.cashExpenses,
+      cardPayments:ex.cardPayments,
+      loanPayments:ex.loanPayments,
+      registeredFlow:ex.registeredFlow
     }
   };
 
   if(!await confirmAction({
     title:"Guardar plan mensual",
     message:selectedMonth,
-    impact:[
-      `Disponible calculado: ${money(t.free)}.`,
-      "Se guardará la configuración del mes, no se crearán movimientos.",
-      "Los datos automáticos seguirán vinculados a Recurrentes, Deudas, Tarjetas, Seguros, Metas y Presupuestos."
-    ],
+    impact:[`Disponible: ${money(c.available)}.`,"La configuración quedará compartida con Android.","No se crean movimientos."],
     confirmText:"Guardar plan"
-  })) return;
+  }))return;
 
   await saveMonthlyPlan(data,selectedMonth);
-
-  const idx=plans.findIndex(p=>p.id===selectedMonth || p.month===selectedMonth);
-  if(idx>=0) plans[idx]={...plans[idx],...data,id:selectedMonth};
-  else plans.push({...data,id:selectedMonth});
-
-  dirty=false;
-  render();
-  toast("Plan mensual guardado.");
+  const idx=plans.findIndex(p=>p.id===selectedMonth||p.month===selectedMonth);
+  if(idx>=0)plans[idx]={...plans[idx],...data,id:selectedMonth};else plans.push({...data,id:selectedMonth});
+  dirty=false;render();toast("Plan mensual guardado.");
 });
 
-selectedMonth=currentMonthKey();
-requireUser(()=>refresh().catch(err=>{
-  console.error(err);
-  toast("No se pudo cargar el plan mensual.");
-}));
+selectedMonth=currentMonth();
+requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudo cargar el plan mensual.");}));
