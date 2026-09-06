@@ -1,224 +1,116 @@
-import { requireUser } from "./guard.js";
-import {
-  listBudgets,
-  listTransactions,
-  listCategories,
-  saveBudget,
-  removeBudget
-} from "./data-service.js";
-import { money, monthBounds, escapeHtml } from "./utils.js";
-import {
-  sortCategoryRows,
-  setCategorySelect,
-  setSubcategorySelect
-} from "./category-catalog.js";
-import { confirmAction, toast } from "./ui.js";
+import {requireUser} from "./guard.js";
+import {listBudgets,listTransactions,listCategories,saveBudget,removeBudget} from "./data-service.js";
+import {money,escapeHtml,todayISO} from "./utils.js";
+import {sortCategoryRows,setCategorySelect,setSubcategorySelect} from "./category-catalog.js";
+import {confirmAction,toast} from "./ui.js";
+import {budgetsForMonth,budgetMetricsForMonth,shiftMonth,normalizeText} from "./planning.js";
 
-let budgets = [];
-let txs = [];
-let cats = [];
-let editingId = null;
+let budgets=[],txs=[],cats=[],editingId=null;
+let viewMonth=todayISO().slice(0,7);
 
-const form = document.querySelector("#budget-form");
-const tbody = document.querySelector("#budget-body");
-const categorySelect = document.querySelector("#budget-category");
-const subcategorySelect = document.querySelector("#budget-subcategory");
+const form=document.querySelector("#budget-form");
+const tbody=document.querySelector("#budget-body");
+const categorySelect=document.querySelector("#budget-category");
+const subcategorySelect=document.querySelector("#budget-subcategory");
+const viewMonthInput=document.querySelector("#budget-view-month");
+const budgetMonthInput=document.querySelector("#budget-month");
 
-function fillCatalog(preferredCategory = "", preferredSubcategory = "") {
-  const category = setCategorySelect(
-    categorySelect,
-    cats,
-    "expense",
-    preferredCategory
-  );
-
-  setSubcategorySelect(
-    subcategorySelect,
-    cats,
-    "expense",
-    category,
-    preferredSubcategory
-  );
+function fillCatalog(preferredCategory="",preferredSubcategory=""){
+  const category=setCategorySelect(categorySelect,cats,"expense",preferredCategory);
+  setSubcategorySelect(subcategorySelect,cats,"expense",category,preferredSubcategory);
 }
-
-function fillSubs(preferred = "") {
-  setSubcategorySelect(
-    subcategorySelect,
-    cats,
-    "expense",
-    categorySelect.value,
-    preferred
-  );
+function fillSubs(preferred=""){
+  setSubcategorySelect(subcategorySelect,cats,"expense",categorySelect.value,preferred);
 }
-
-function spent(cat, sub, start, end) {
-  return txs
-    .filter(t =>
-      t.type === "expense" &&
-      t.date >= start &&
-      t.date <= end
-    )
-    .reduce((total, t) => {
-      if (t.splits?.length) {
-        return total + t.splits
-          .filter(x => x.category === cat && x.subcategory === sub)
-          .reduce((s, x) => s + Number(x.amount || 0), 0);
-      }
-
-      return total + (
-        t.category === cat && t.subcategory === sub
-          ? Number(t.amount || 0)
-          : 0
-      );
-    }, 0);
+function samePair(a,b){
+  return normalizeText(a.category)===normalizeText(b.category)&&normalizeText(a.subcategory)===normalizeText(b.subcategory);
 }
-
-function metrics(budget) {
-  const now = new Date();
-  const current = monthBounds(now);
-  const previous = monthBounds(
-    new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  );
-
-  const currentSpent = spent(
-    budget.category,
-    budget.subcategory,
-    current.start,
-    current.end
-  );
-
-  const previousSpent = spent(
-    budget.category,
-    budget.subcategory,
-    previous.start,
-    previous.end
-  );
-
-  const carry = budget.rollover
-    ? Math.max(0, Number(budget.limit) - previousSpent)
-    : 0;
-
-  const available = Number(budget.limit) + carry;
-
-  return {
-    carry,
-    available,
-    currentSpent,
-    remaining: available - currentSpent
-  };
+function activeForView(){
+  return budgetsForMonth({budgets,month:viewMonth});
 }
-
-function render() {
-  const sortedBudgets = [...budgets].sort((a, b) =>
-    a.category.localeCompare(b.category, "es", { sensitivity: "base" }) ||
-    a.subcategory.localeCompare(b.subcategory, "es", { sensitivity: "base" })
+function render(){
+  viewMonthInput.value=viewMonth;
+  document.querySelector("#budget-table-title").textContent=`Presupuestos · ${viewMonth}`;
+  const rows=activeForView().sort((a,b)=>
+    a.category.localeCompare(b.category,"es",{sensitivity:"base"})||
+    a.subcategory.localeCompare(b.subcategory,"es",{sensitivity:"base"})
   );
-
-  tbody.innerHTML = sortedBudgets.map(b => {
-    const m = metrics(b);
-
-    return `
-      <tr>
-        <td>${escapeHtml(b.category)}</td>
-        <td>${escapeHtml(b.subcategory)}</td>
-        <td>${money(b.limit)}</td>
-        <td>${b.rollover ? money(m.carry) : "No"}</td>
-        <td>${money(m.available)}</td>
-        <td>${money(m.currentSpent)}</td>
-        <td class="${m.remaining < 0 ? "tf-negative" : ""}">
-          ${money(m.remaining)}
-        </td>
-        <td>
-          <div class="tf-actions">
-            <button class="tf-btn tf-btn-secondary" data-edit="${b.id}">
-              Editar
-            </button>
-            <button class="tf-btn tf-btn-danger" data-delete="${b.id}">
-              Eliminar
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join("") || `
-    <tr>
-      <td colspan="8" class="tf-empty">Sin presupuestos.</td>
-    </tr>
-  `;
+  let totalAvailable=0;
+  tbody.innerHTML=rows.map(b=>{
+    const m=budgetMetricsForMonth({budget:b,budgets,transactions:txs,month:viewMonth});
+    totalAvailable+=m.available;
+    const legacy=!String(b.month||"").trim();
+    return `<tr>
+      <td>${escapeHtml(b.category)}${legacy?` <span class="tf-pill tf-pill-warn">Legacy</span>`:""}</td>
+      <td>${escapeHtml(b.subcategory)}</td>
+      <td>${money(m.base)}</td>
+      <td>${b.rollover?money(m.carry):"No"}</td>
+      <td>${money(m.available)}</td>
+      <td>${money(m.spent)}</td>
+      <td class="${m.remaining<0?"tf-negative":""}">${money(m.remaining)}</td>
+      <td><div class="tf-actions">
+        <button class="tf-btn tf-btn-secondary" data-edit="${b.id}">Editar</button>
+        <button class="tf-btn tf-btn-danger" data-delete="${b.id}">Eliminar</button>
+      </div></td>
+    </tr>`;
+  }).join("")||`<tr><td colspan="8" class="tf-empty">Sin presupuestos para ${escapeHtml(viewMonth)}.</td></tr>`;
+  document.querySelector("#budget-month-total").textContent=money(totalAvailable);
 }
-
-async function refresh() {
-  [budgets, txs, cats] = await Promise.all([
-    listBudgets(),
-    listTransactions(),
-    listCategories()
-  ]);
-
-  cats = sortCategoryRows(cats);
-  fillCatalog();
-  render();
+async function refresh(){
+  [budgets,txs,cats]=await Promise.all([listBudgets(),listTransactions(),listCategories()]);
+  cats=sortCategoryRows(cats);fillCatalog();render();
 }
-
-function reset() {
-  editingId = null;
-  form.reset();
-  document.querySelector("#budget-cancel").hidden = true;
+function reset(){
+  editingId=null;form.reset();budgetMonthInput.value=viewMonth;
+  document.querySelector("#budget-cancel").hidden=true;
+  document.querySelector("#budget-submit").textContent="Guardar presupuesto";
   fillCatalog();
 }
+categorySelect.addEventListener("change",()=>fillSubs());
+document.querySelector("#budget-cancel").addEventListener("click",reset);
+viewMonthInput.addEventListener("change",()=>{if(viewMonthInput.value){viewMonth=viewMonthInput.value;reset();render()}});
+document.querySelector("#budget-prev").addEventListener("click",()=>{viewMonth=shiftMonth(viewMonth,-1);reset();render()});
+document.querySelector("#budget-current").addEventListener("click",()=>{viewMonth=todayISO().slice(0,7);reset();render()});
+document.querySelector("#budget-next").addEventListener("click",()=>{viewMonth=shiftMonth(viewMonth,1);reset();render()});
 
-categorySelect.addEventListener("change", () => fillSubs());
-document.querySelector("#budget-cancel").addEventListener("click", reset);
-
-form.addEventListener("submit", async e => {
+form.addEventListener("submit",async e=>{
   e.preventDefault();
-
-  if (!categorySelect.value || !subcategorySelect.value) {
-    return alert("Configura primero una categoría y subcategoría de egreso.");
-  }
-
-  const data = {
-    category: categorySelect.value,
-    subcategory: subcategorySelect.value,
-    limit: Number(document.querySelector("#budget-limit").value),
-    rollover: document.querySelector("#budget-rollover").checked,
-    active: true
+  if(!categorySelect.value||!subcategorySelect.value)return alert("Configura primero una categoría y subcategoría de egreso.");
+  const data={
+    category:categorySelect.value,
+    subcategory:subcategorySelect.value,
+    limit:Number(document.querySelector("#budget-limit").value),
+    month:budgetMonthInput.value,
+    rollover:document.querySelector("#budget-rollover").checked,
+    active:true
   };
-
-  if (editingId && !await confirmAction({
-    title: "Actualizar presupuesto",
-    message: `Nuevo límite ${money(data.limit)}`,
-    impact: ["No modifica movimientos históricos."]
-  })) return;
-
-  await saveBudget(data, editingId);
-  toast("Presupuesto guardado.");
-  reset();
-  await refresh();
+  if(!/^\d{4}-\d{2}$/.test(data.month))return alert("Selecciona un mes válido.");
+  if(!(data.limit>=0))return alert("El límite no puede ser negativo.");
+  const duplicate=budgets.find(b=>b.id!==editingId&&String(b.month||"")===data.month&&samePair(b,data));
+  if(duplicate){
+    toast("Ya existe un presupuesto para esa categoría, subcategoría y mes. Edítalo en lugar de duplicarlo.");
+    return;
+  }
+  if(editingId&&!await confirmAction({title:"Actualizar presupuesto",message:`${data.month} · ${money(data.limit)}`,impact:["No modifica movimientos históricos.","El rollover se recalculará con los meses anteriores."]}))return;
+  await saveBudget(data,editingId);viewMonth=data.month;toast("Presupuesto guardado.");reset();await refresh();
 });
 
-tbody.addEventListener("click", async e => {
-  const editButton = e.target.closest("[data-edit]");
-  const deleteButton = e.target.closest("[data-delete]");
-
-  if (editButton) {
-    const budget = budgets.find(x => x.id === editButton.dataset.edit);
-    editingId = budget.id;
-
-    fillCatalog(budget.category, budget.subcategory);
-    document.querySelector("#budget-limit").value = budget.limit;
-    document.querySelector("#budget-rollover").checked = !!budget.rollover;
-    document.querySelector("#budget-cancel").hidden = false;
+tbody.addEventListener("click",async e=>{
+  const edit=e.target.closest("[data-edit]");const del=e.target.closest("[data-delete]");
+  if(edit){
+    const b=budgets.find(x=>x.id===edit.dataset.edit);if(!b)return;
+    editingId=b.id;const month=String(b.month||"").trim()||viewMonth;
+    budgetMonthInput.value=month;fillCatalog(b.category,b.subcategory);
+    document.querySelector("#budget-limit").value=b.limit;
+    document.querySelector("#budget-rollover").checked=!!b.rollover;
+    document.querySelector("#budget-cancel").hidden=false;
+    document.querySelector("#budget-submit").textContent="Actualizar presupuesto";
+    scrollTo({top:0,behavior:"smooth"});
   }
-
-  if (deleteButton && await confirmAction({
-    title: "Eliminar presupuesto",
-    message: "No se borrarán movimientos.",
-    danger: true,
-    confirmText: "Eliminar"
-  })) {
-    await removeBudget(deleteButton.dataset.delete);
-    await refresh();
+  if(del&&await confirmAction({title:"Eliminar presupuesto",message:"No se borrarán movimientos.",danger:true,confirmText:"Eliminar"})){
+    await removeBudget(del.dataset.delete);await refresh();
   }
 });
 
-requireUser(() => refresh().catch(console.error));
+viewMonthInput.value=viewMonth;budgetMonthInput.value=viewMonth;
+requireUser(()=>refresh().catch(console.error));

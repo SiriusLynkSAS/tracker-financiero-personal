@@ -10,10 +10,12 @@ project:
     - plan_mensual.Rmd
     - categorias.Rmd
     - recurrentes.Rmd
+    - fondo_emergencia.Rmd
     - calendario.Rmd
     - metas.Rmd
     - deudas.Rmd
     - seguros.Rmd
+    - impuestos.Rmd
     - activos.Rmd
     - contratos.Rmd
     - inversiones.Rmd
@@ -31,7 +33,7 @@ website:
   title: "Tracker Financiero Personal"
 
   page-footer:
-    center: "Tracker Financiero Personal V1.0.26"
+    center: "Tracker Financiero Personal V1.0.28"
 
 format:
   html:

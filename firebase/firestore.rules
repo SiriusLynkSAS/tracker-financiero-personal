@@ -48,7 +48,9 @@ service cloud.firestore {
         allow create,update: if isOwner(userId)
           && request.resource.data.category is string
           && request.resource.data.subcategory is string
-          && nonNegative(request.resource.data.limit);
+          && nonNegative(request.resource.data.limit)
+          && request.resource.data.month is string
+          && request.resource.data.rollover is bool;
         allow delete: if isOwner(userId);
       }
 
@@ -56,11 +58,10 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)
           && request.resource.data.month is string
-          && request.resource.data.manualItems is list
-          && request.resource.data.excludedSourceKeys is list
-          && request.resource.data.savingMode in ['auto','manual']
-          && nonNegative(request.resource.data.savingAmount);
-        allow delete: if isOwner(userId);
+          && request.resource.data.excludedSources is list
+          && request.resource.data.adjustments is list
+          && request.resource.data.notes is string;
+        allow delete: if false;
       }
 
       match /recurring/{id} {
@@ -142,6 +143,31 @@ service cloud.firestore {
           && number(request.resource.data.bankBalance)
           && number(request.resource.data.difference);
         allow delete: if false;
+      }
+
+      match /emergencyFund/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && request.resource.data.targetMonths is int
+          && request.resource.data.targetMonths >= 1
+          && request.resource.data.targetMonths <= 24
+          && nonNegative(request.resource.data.foodDailyMinimum)
+          && nonNegative(request.resource.data.transportDailyMinimum)
+          && request.resource.data.linkedAccountIds is list
+          && request.resource.data.essentialOverrides is map;
+        allow delete: if false;
+      }
+
+      match /taxPayments/{id} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && request.resource.data.period is string
+          && request.resource.data.invoiceIds is list
+          && nonNegative(request.resource.data.expectedVat)
+          && nonNegative(request.resource.data.paidVat)
+          && request.resource.data.paymentDate is string
+          && request.resource.data.status == 'paid';
+        allow update,delete: if false;
       }
 
       match /auditLog/{id} {

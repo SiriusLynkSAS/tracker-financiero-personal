@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.26
+# Tracker Financiero Personal V1.0.28
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -724,3 +724,150 @@ Después de actualizar el proyecto Firebase, publicar:
 `monthlyPlans` se incorpora al JSON de respaldo.
 
 Firebase config real preservado.
+
+
+## V1.0.27 — Paridad funcional con Android V0.2.14
+
+Base web: V1.0.26.
+Referencia Android revisada: V0.2.14.
+
+### Nuevos módulos Web
+- Fondo de emergencia.
+- IVA / Impuestos.
+
+### Fondo de emergencia
+Colección compartida:
+`users/{uid}/emergencyFund/main`
+
+Comportamiento homologado:
+- objetivo 3 / 6 / 9 / 12 meses;
+- mínimo inicial de alimentación USD 5/día;
+- mínimo inicial de transporte USD 1/día;
+- si existen al menos 90 días de historial, usa el mayor entre mínimo y promedio real;
+- recurrentes esenciales;
+- seguro de salud;
+- próxima cuota obligatoria de préstamos;
+- próxima cuota comprometida de tarjetas;
+- inclusión/exclusión manual de componentes;
+- cuentas reales vinculadas al fondo;
+- aportes y retiros como transferencias reales;
+- sugerencia al fondo del 80% del ahorro recomendado mientras la cobertura sea menor a 3 meses;
+- 60% hasta alcanzar el objetivo configurado.
+
+### IVA / Impuestos
+Colección compartida:
+`users/{uid}/taxPayments`
+
+Movimientos de ingreso ahora soportan:
+- `hasInvoice`
+- `invoiceNumber`
+- `invoiceBase`
+- `taxPeriod`
+- `taxPaymentId`
+- `vatStatus`
+
+La liquidación:
+1. toma facturas pendientes del mismo período;
+2. congela el IVA esperado;
+3. guarda el IVA realmente pagado;
+4. marca las facturas como liquidadas;
+5. crea el egreso bancario real por el IVA pagado;
+6. bloquea la eliminación de movimientos vinculados.
+
+### Plan mensual
+Se reemplaza el esquema provisional de V1.0.26 por el esquema compartido con Android:
+- `excludedSources`
+- `adjustments`
+- `manualSavings`
+- `savingsMode`
+- `notes`
+- `lastCalculation`
+
+Compatibilidad de lectura con documentos V1.0.26:
+- `excludedSourceKeys`
+- `manualItems`
+- `savingMode`
+- `savingAmount`
+- `note`
+
+También incorpora:
+- cuentas por cobrar vencibles en el mes como ingreso previsto;
+- solo cuotas pendientes de préstamos/tarjetas;
+- claves de fuente idénticas a Android;
+- ajustes de ingreso, compromiso, ahorro y reserva.
+
+### Cuentas por cobrar
+La generación automática se alinea con Android:
+- solo se generan períodos de trabajo ya cerrados;
+- no se genera por anticipado el mes de trabajo actual;
+- contratos finalizados conservan los períodos que correspondan hasta su fecha de cierre.
+
+### Metas
+- prioridad Alta / Media / Baja;
+- edición;
+- aporte mensual requerido;
+- cuenta vinculada o acumulado manual;
+- acceso al fondo de emergencia.
+
+### Dashboard
+Nueva Proyección del mes:
+- ingresos proyectados;
+- egresos registrados;
+- egresos pendientes;
+- ahorro recomendado del 10% sobre ingreso neto de IVA;
+- IVA reservado;
+- disponible proyectado.
+
+También muestra el avance del fondo de emergencia.
+
+### Firebase
+Se agregan reglas owner-only para:
+- `emergencyFund`
+- `taxPayments`
+
+Se actualiza `monthlyPlans` al mismo contrato usado por Android.
+
+Después de reemplazar esta versión, publicar las reglas:
+`firebase deploy --only firestore:rules`
+
+### Exportación
+El JSON ahora incluye:
+- `taxPayments`
+- `emergencyFund`
+
+El CSV de movimientos incluye campos tributarios.
+
+La configuración Firebase Web real se mantiene sin cambios.
+
+
+## V1.0.28 — Cierre de auditoría Web ↔ Android
+
+Correcciones aplicadas después de auditar Android V0.2.14 contra Web V1.0.27.
+
+### Presupuestos realmente mensuales
+- `month` pasa a ser obligatorio al crear/editar desde Web.
+- selector de mes visible y navegación mes anterior/actual/siguiente;
+- evita duplicar categoría + subcategoría + mes;
+- documentos legacy sin `month` solo se interpretan como presupuesto del mes calendario actual hasta que sean editados;
+- Firestore exige `month` y `rollover` en nuevas escrituras.
+
+### Rollover real y compartido
+El rollover se calcula de forma recursiva:
+`disponible = límite base + saldo positivo no usado del mes anterior`.
+El mes anterior puede, a su vez, incluir su propio rollover.
+El Plan mensual utiliza exactamente el mismo cálculo que la pantalla Presupuestos.
+Los movimientos con `splits` se imputan a su subcategoría correspondiente.
+
+### Contratos
+Al pulsar `Finalizar`, la fecha de cierre se fija en la fecha efectiva de finalización (o en la fecha de inicio si el contrato todavía no había comenzado). Ya no se conserva accidentalmente una fecha futura preexistente.
+
+### Recurrentes
+La Web ahora permite:
+- crear;
+- editar;
+- actualizar monto, cuenta, categoría, día, recordatorio y vigencia;
+- registrar ahora;
+- archivar.
+
+### Paridad
+Esta versión está diseñada para trabajar con Android V0.2.15 sobre el mismo Firebase.

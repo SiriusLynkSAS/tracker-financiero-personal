@@ -3,9 +3,36 @@ title: "Metas"
 ---
 
 ```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Metas financieras</h1>
+    <div class="tf-muted">Objetivos con prioridad, fecha y aporte mensual recomendado.</div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+</div>
 
-<div class="tf-page-header"><div><h1>Metas de ahorro</h1><div class="tf-muted">Objetivos vinculables a una cuenta o con avance manual.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div><div class="tf-card"><form id="goal-form" class="tf-form-grid"><div class="tf-field"><label>Meta</label><input id="goal-name" required></div><div class="tf-field"><label>Objetivo ($)</label><input id="goal-target" type="number" min="0" step="0.01" required></div><div class="tf-field"><label>Fecha objetivo</label><input id="goal-date" type="date"></div><div class="tf-field"><label>Cuenta vinculada</label><select id="goal-account"></select></div><div class="tf-field"><label>Acumulado manual ($)</label><input id="goal-saved" type="number" min="0" step="0.01" value="0"></div><div class="tf-field" style="display:flex;align-items:end"><button class="tf-btn tf-btn-primary">Guardar meta</button></div></form></div><div id="goal-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+<a id="goal-emergency-card" class="tf-card tf-goal-emergency-link" href="fondo_emergencia.html" hidden>
+  <div><div class="tf-section-kicker">Protección</div><strong>Fondo de emergencia</strong><div id="goal-emergency-detail" class="tf-muted"></div></div>
+  <span>→</span>
+</a>
 
+<section class="tf-card" style="margin-top:1rem">
+  <form id="goal-form" class="tf-form-grid">
+    <input id="goal-id" type="hidden">
+    <div class="tf-field"><label>Meta</label><input id="goal-name" required></div>
+    <div class="tf-field"><label>Objetivo ($)</label><input id="goal-target" type="number" min="0" step="0.01" required></div>
+    <div class="tf-field"><label>Fecha objetivo</label><input id="goal-date" type="date"></div>
+    <div class="tf-field"><label>Prioridad</label><select id="goal-priority"><option value="high">Alta</option><option value="medium" selected>Media</option><option value="low">Baja</option></select></div>
+    <div class="tf-field"><label>Cuenta vinculada</label><select id="goal-account"></select></div>
+    <div class="tf-field"><label>Acumulado manual ($)</label><input id="goal-saved" type="number" min="0" step="0.01" value="0"></div>
+    <div class="tf-span-2 tf-actions">
+      <button id="goal-submit" class="tf-btn tf-btn-primary">Guardar meta</button>
+      <button id="goal-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button>
+    </div>
+  </form>
+</section>
+
+<div id="goal-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
 
 <script type="module" src="js/goals.js"></script>
 ```

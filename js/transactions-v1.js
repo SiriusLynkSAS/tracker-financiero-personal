@@ -114,6 +114,12 @@ function toggleType() {
   document.querySelector("#transfer-fields").hidden = !isTransfer;
   document.querySelector("#category-fields").hidden = isTransfer;
   document.querySelector("#split-toggle-wrap").hidden = isTransfer;
+  const isIncome=type.value==="income";
+  document.querySelector("#invoice-toggle-wrap").hidden=!isIncome;
+  if(!isIncome){
+    document.querySelector("#tx-has-invoice").checked=false;
+  }
+  toggleInvoice();
 
   if (isTransfer) {
     document.querySelector("#tx-split-enabled").checked = false;
@@ -122,6 +128,36 @@ function toggleType() {
     fillCategories();
     refreshSplitCatalogs();
   }
+}
+
+function currentEditingTransaction(){
+  return editingId ? transactions.find(x=>x.id===editingId) : null;
+}
+
+function toggleInvoice(){
+  const isIncome=type.value==="income";
+  const checked=isIncome && document.querySelector("#tx-has-invoice").checked;
+  const settled=!!currentEditingTransaction()?.taxPaymentId;
+  document.querySelector("#invoice-panel").hidden=!checked;
+  document.querySelector("#tx-invoice-number").disabled=settled;
+  document.querySelector("#tx-vat").disabled=settled;
+  document.querySelector("#tx-has-invoice").disabled=settled;
+
+  const lock=document.querySelector("#tx-invoice-lock");
+  lock.classList.toggle("is-visible",checked&&settled);
+  lock.textContent=checked&&settled
+    ?"El IVA de esta factura ya fue liquidado. Sus datos tributarios quedan bloqueados."
+    :"";
+  updateInvoiceSummary();
+}
+
+function updateInvoiceSummary(){
+  const amount=Number(document.querySelector("#tx-amount").value||0);
+  const vat=Number(document.querySelector("#tx-vat").value||0);
+  const base=Math.max(0,amount-vat);
+  const period=String(document.querySelector("#tx-date").value||"").slice(0,7);
+  document.querySelector("#tx-invoice-summary").textContent=
+    `Base sin IVA: ${money(base)} · Período: ${period||"—"}`;
 }
 
 function splitRow(data = {}) {
@@ -271,6 +307,11 @@ function reset() {
   type.value = "expense";
   document.querySelector("#tx-amount").value = 0;
   document.querySelector("#tx-vat").value = 0;
+  document.querySelector("#tx-has-invoice").checked = false;
+  document.querySelector("#tx-invoice-number").value = "";
+  document.querySelector("#tx-has-invoice").disabled = false;
+  document.querySelector("#tx-vat").disabled = false;
+  document.querySelector("#tx-invoice-number").disabled = false;
   document.querySelector("#split-rows").innerHTML = "";
   document.querySelector("#tx-cancel").hidden = true;
   document.querySelector("#tx-submit").textContent = "Guardar movimiento";
@@ -304,16 +345,22 @@ function render() {
           ? `${tx.splits.length} divisiones`
           : tx.category || "—"
       )}</td>
-      <td>${escapeHtml(tx.description || "—")}</td>
+      <td>
+        ${escapeHtml(tx.description || "—")}
+        ${(tx.hasInvoice||Number(tx.vat||0)>0)?`
+          <div class="tf-muted tf-tx-invoice-line">
+            Factura ${escapeHtml(tx.invoiceNumber||tx.receipt||"—")} · Base ${money(tx.invoiceBase??Math.max(0,Number(tx.amount)-Number(tx.vat||0)))} · IVA ${money(tx.vat)} · ${tx.taxPaymentId?"IVA liquidado":"IVA pendiente"}
+          </div>`:""}
+      </td>
       <td>${money(tx.amount)}</td>
       <td>
         <div class="tf-actions">
-          <button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">
-            Editar
-          </button>
-          <button class="tf-btn tf-btn-danger" data-delete="${tx.id}">
-            Eliminar
-          </button>
+          ${tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA"
+            ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
+            : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
+          ${tx.taxPaymentId
+            ? `<span class="tf-pill">Vinculado</span>`
+            : `<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
         </div>
       </td>
     </tr>
@@ -355,7 +402,10 @@ type.addEventListener("change", toggleType);
 document.querySelector("#tx-category").addEventListener("change", () => fillSubs());
 filter.addEventListener("change", render);
 document.querySelector("#tx-split-enabled").addEventListener("change", toggleSplit);
-document.querySelector("#tx-amount").addEventListener("input", updateSplitTotal);
+document.querySelector("#tx-amount").addEventListener("input",()=>{updateSplitTotal();updateInvoiceSummary()});
+document.querySelector("#tx-date").addEventListener("change",updateInvoiceSummary);
+document.querySelector("#tx-vat").addEventListener("input",updateInvoiceSummary);
+document.querySelector("#tx-has-invoice").addEventListener("change",toggleInvoice);
 
 document.querySelector("#add-split").addEventListener("click", () => {
   document.querySelector("#split-rows").appendChild(splitRow());
@@ -376,11 +426,13 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
 
   const amount = Number(document.querySelector("#tx-amount").value);
-  const vat = Number(document.querySelector("#tx-vat").value || 0);
+  const hasInvoice=type.value==="income"&&document.querySelector("#tx-has-invoice").checked;
+  const vat = hasInvoice ? Number(document.querySelector("#tx-vat").value || 0) : 0;
 
   if (!(amount > 0)) return alert("El monto debe ser mayor que cero.");
-  if (vat < 0 || vat > amount) return alert("IVA inválido.");
+  if (vat < 0 || (hasInvoice && vat >= amount)) return alert("El IVA debe ser menor que el total recibido.");
 
+  const previous=currentEditingTransaction();
   const data = {
     type: type.value,
     date: document.querySelector("#tx-date").value,
@@ -388,6 +440,12 @@ form.addEventListener("submit", async e => {
     vat,
     receipt: document.querySelector("#tx-receipt").value.trim(),
     description: document.querySelector("#tx-description").value.trim(),
+    hasInvoice,
+    invoiceNumber:hasInvoice?document.querySelector("#tx-invoice-number").value.trim():"",
+    invoiceBase:hasInvoice?Math.max(0,amount-vat):0,
+    taxPeriod:hasInvoice?document.querySelector("#tx-date").value.slice(0,7):"",
+    taxPaymentId:previous?.taxPaymentId||"",
+    vatStatus:hasInvoice?(previous?.taxPaymentId?"paid":"pending"):"none",
     category:
       type.value === "transfer"
         ? ""
@@ -497,8 +555,11 @@ tbody.addEventListener("click", async e => {
     document.querySelector("#tx-date").value = tx.date;
     document.querySelector("#tx-amount").value = tx.amount;
     document.querySelector("#tx-vat").value = tx.vat || 0;
+    document.querySelector("#tx-has-invoice").checked = tx.type==="income" && (tx.hasInvoice===true || Number(tx.vat||0)>0);
+    document.querySelector("#tx-invoice-number").value = tx.invoiceNumber || tx.receipt || "";
     document.querySelector("#tx-receipt").value = tx.receipt || "";
     document.querySelector("#tx-description").value = tx.description || "";
+    toggleInvoice();
 
     if (tx.type === "transfer") {
       document.querySelector("#tx-from").value = tx.fromAccountId;
@@ -552,10 +613,14 @@ tbody.addEventListener("click", async e => {
       danger: true,
       confirmText: "Eliminar"
     })) {
-      await removeTransaction(tx.id);
-      await invalidate(accountIds, tx.date);
-      toast("Movimiento eliminado.");
-      await refresh();
+      try{
+        await removeTransaction(tx.id);
+        await invalidate(accountIds, tx.date);
+        toast("Movimiento eliminado.");
+        await refresh();
+      }catch(err){
+        toast(err?.message||"No se pudo eliminar el movimiento.");
+      }
     }
   }
 });

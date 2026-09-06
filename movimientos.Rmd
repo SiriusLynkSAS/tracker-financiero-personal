@@ -9,8 +9,17 @@ title: "Movimientos"
 <div class="tf-field"><label>Fecha</label><input id="tx-date" type="date" required></div><div class="tf-field"><label>Tipo</label><select id="tx-type"><option value="expense">Egreso</option><option value="income">Ingreso</option><option value="transfer">Transferencia</option></select></div>
 <div id="single-account-fields" class="tf-field tf-span-2"><label>Cuenta</label><select id="tx-account"></select></div><div id="transfer-fields" class="tf-span-2 tf-form-grid" hidden><div class="tf-field"><label>Desde</label><select id="tx-from"></select></div><div class="tf-field"><label>Hacia</label><select id="tx-to"></select></div></div>
 <div id="category-fields" class="tf-span-2 tf-form-grid"><div class="tf-field"><label>Categoría</label><select id="tx-category"></select></div><div class="tf-field"><label>Subcategoría</label><select id="tx-subcategory"></select></div></div>
-<div class="tf-field"><label>Monto total ($)</label><input id="tx-amount" type="number" min="0" step="0.01" value="0" required></div><div class="tf-field"><label>IVA incluido ($)</label><input id="tx-vat" type="number" min="0" step="0.01" value="0"></div>
-<div class="tf-field"><label>Comprobante / referencia</label><input id="tx-receipt"></div><div class="tf-field"><label>Descripción</label><input id="tx-description"></div>
+<div class="tf-field"><label>Monto total ($)</label><input id="tx-amount" type="number" min="0" step="0.01" value="0" required></div><div class="tf-field"><label>Comprobante / referencia</label><input id="tx-receipt"></div>
+<div id="invoice-toggle-wrap" class="tf-span-2 tf-check" hidden><input id="tx-has-invoice" type="checkbox"><label>Ingreso con factura e IVA</label></div>
+<div id="invoice-panel" class="tf-span-2 tf-subtle" hidden>
+  <div class="tf-form-grid">
+    <div class="tf-field"><label>Número de factura</label><input id="tx-invoice-number"></div>
+    <div class="tf-field"><label>IVA incluido en el total ($)</label><input id="tx-vat" type="number" min="0" step="0.01" value="0"></div>
+  </div>
+  <div id="tx-invoice-summary" class="tf-muted" style="margin-top:.55rem">Base sin IVA: $0,00</div>
+  <div id="tx-invoice-lock" class="tf-alert tf-alert-info" style="margin-top:.55rem"></div>
+</div>
+<div class="tf-field tf-span-2"><label>Descripción</label><input id="tx-description"></div>
 <div id="split-toggle-wrap" class="tf-span-2 tf-check"><input id="tx-split-enabled" type="checkbox"><label>Dividir el movimiento entre varias categorías</label></div><div id="split-panel" class="tf-span-2 tf-subtle" hidden><div id="split-rows"></div><div class="tf-actions"><button id="add-split" type="button" class="tf-btn tf-btn-secondary">Añadir división</button><span id="split-total" class="tf-muted"></span></div></div>
 <div class="tf-span-2 tf-actions"><button id="tx-submit" class="tf-btn tf-btn-primary">Guardar movimiento</button><button id="tx-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button></div></form></section>
 <section class="tf-card"><h2>Filtro</h2><div class="tf-field"><label>Cuenta</label><select id="filter-account"></select></div><p class="tf-muted">Las transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.</p></section></div>

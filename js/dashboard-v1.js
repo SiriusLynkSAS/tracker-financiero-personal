@@ -1,12 +1,14 @@
 import { requireUser } from "./guard.js";
 import {
   listAccounts,listTransactions,calculateBalances,listLiabilities,listFinancingPlans,
-  listInvestments,listAssets,listReceivables,listRecurring,listInsurance,listCategories
+  listInvestments,listAssets,listReceivables,listRecurring,listInsurance,listCategories,
+  listContracts,getEmergencyFund,syncReceivablesClosed
 } from "./data-service.js";
 import { money,sum,escapeHtml,todayISO,addDaysISO,isoFromParts,daysBetween } from "./utils.js";
 import { straightLineDepreciation } from "./finance.js";
 import { categoryStyle } from "./category-catalog.js";
 import { categoryBadge } from "./category-icons.js";
+import {monthlyProjection,emergencyFundSummary,defaultEmergencyFundConfig} from "./planning.js";
 
 let state={},assetChart=null,expenseChart=null;
 
@@ -122,10 +124,51 @@ function assetCurrentValue(a){
   if(a.marketValue!==undefined&&a.marketValue!==null&&Number(a.marketValue)!==0)return Number(a.marketValue);
   return book;
 }
+function renderPlanning(){
+  const month=todayISO().slice(0,7);
+  const p=monthlyProjection({
+    accounts:state.accounts,
+    transactions:state.txs,
+    recurring:state.recur,
+    insurance:state.ins,
+    receivables:state.recv,
+    contracts:state.contracts,
+    debts:state.debts,
+    cardPlans:state.plans,
+    month,
+    today:todayISO()
+  });
+
+  document.querySelector("#dash-projection-month").textContent=p.month;
+  document.querySelector("#dash-proj-income").textContent=money(p.projectedIncomeGross);
+  document.querySelector("#dash-proj-registered").textContent=money(p.registeredExpenses);
+  document.querySelector("#dash-proj-pending").textContent=money(p.pendingExpenses);
+  document.querySelector("#dash-proj-saving").textContent=money(p.recommendedSavings);
+  document.querySelector("#dash-proj-vat").textContent=money(p.reservedVat);
+  document.querySelector("#dash-proj-available").textContent=money(p.availableProjected);
+  document.querySelector("#dash-proj-available").classList.toggle("tf-negative",p.availableProjected<0);
+  document.querySelector("#dash-proj-detail").textContent=
+    `Recibido ${money(p.receivedIncomeGross)} · Pendiente ${money(p.pendingIncomeGross)} · el ahorro se calcula sobre ingresos sin IVA.`;
+
+  const cfg={...defaultEmergencyFundConfig(),...(state.emergencyConfig||{})};
+  const f=emergencyFundSummary({
+    config:cfg,accounts:state.accounts,transactions:state.txs,recurring:state.recur,
+    insurance:state.ins,debts:state.debts,cardPlans:state.plans,balances:state.balances,
+    projection:p,today:todayISO()
+  });
+  document.querySelector("#dash-ef-current").textContent=money(f.currentAmount);
+  document.querySelector("#dash-ef-target").textContent=money(f.targetAmount);
+  document.querySelector("#dash-ef-coverage").textContent=`Cobertura ${f.coverageMonths.toFixed(1)} de ${f.config.targetMonths} meses`;
+  document.querySelector("#dash-ef-progress").style.width=`${Math.min(100,Math.max(0,f.progress*100))}%`;
+}
+
 async function init(){
-  const [accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories]=await Promise.all([
-    listAccounts(),listTransactions(),listLiabilities(),listFinancingPlans(),listInvestments(),listAssets(),listReceivables(),listRecurring(),listInsurance(),listCategories()
+  const syncedReceivables=await syncReceivablesClosed();
+  const [accounts,txs,debts,plans,investments,assets,recur,ins,categories,contracts,emergencyConfig]=await Promise.all([
+    listAccounts(),listTransactions(),listLiabilities(),listFinancingPlans(),listInvestments(),listAssets(),
+    listRecurring(),listInsurance(),listCategories(),listContracts(),getEmergencyFund()
   ]);
+  const recv=syncedReceivables;
   const balances=calculateBalances(accounts,txs),active=accounts.filter(a=>a.active!==false);
   const liquidity=sum(active.filter(a=>a.accountType!=="credit_card"),a=>Math.max(0,balances[a.id]||0));
   const cardDebt=sum(active.filter(a=>a.accountType==="credit_card"),a=>Math.max(0,-Number(balances[a.id]||0)));
@@ -140,14 +183,14 @@ async function init(){
   const invested=sum(investments.filter(i=>i.active!==false&&i.status==="active"),i=>i.principal);
   const assetValue=sum(assets.filter(a=>a.active!==false),assetCurrentValue);
   const totalDebt=cardDebt+loanDebt,netWorth=liquidity+invested+assetValue-totalDebt;
-  state={accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories,balances,active,liquidity,cardDebt,loanDebt,totalDebt,invested,assetValue,netWorth};
+  state={accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories,contracts,emergencyConfig,balances,active,liquidity,cardDebt,loanDebt,totalDebt,invested,assetValue,netWorth};
   document.querySelector("#kpi-liquidity").textContent=money(liquidity);
   document.querySelector("#kpi-investments").textContent=money(invested);
   document.querySelector("#kpi-assets").textContent=money(assetValue);
   document.querySelector("#kpi-debt").textContent=money(totalDebt);
   document.querySelector("#kpi-networth").textContent=money(netWorth);
   document.querySelector("#kpi-receivable").textContent=money(sum(recv,r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0))));
-  renderPeriodMetrics();renderAssetChart();renderBanks();renderUpcoming();renderRecent();
+  renderPeriodMetrics();renderAssetChart();renderBanks();renderUpcoming();renderRecent();renderPlanning();
 }
 document.querySelector("#summary-period").addEventListener("change",renderPeriodMetrics);
 window.addEventListener("tf-theme-change",()=>{if(!state.txs)return;renderAssetChart();renderPeriodMetrics()});

@@ -1,0 +1,122 @@
+---
+title: "Fondo de emergencia"
+---
+
+```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Fondo de emergencia</h1>
+    <div class="tf-muted">Liquidez destinada a cubrir gastos esenciales sin depender de crédito.</div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+</div>
+
+<section class="tf-card tf-emergency-hero">
+  <div>
+    <div class="tf-section-kicker">Protección financiera</div>
+    <h2>Fondo acumulado</h2>
+    <div id="ef-current" class="tf-emergency-current">$0,00</div>
+    <div class="tf-muted">de <strong id="ef-target">$0,00</strong></div>
+  </div>
+  <div class="tf-emergency-hero-side">
+    <div class="tf-emergency-progress"><span id="ef-progress"></span></div>
+    <div class="tf-emergency-metrics">
+      <div><span>Cobertura</span><strong id="ef-coverage">0,0 meses</strong></div>
+      <div><span>Objetivo</span><strong id="ef-objective">6 meses</strong></div>
+      <div><span>Faltante</span><strong id="ef-missing">$0,00</strong></div>
+    </div>
+  </div>
+</section>
+
+<div class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <section class="tf-card">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Ahorro sugerido</div>
+        <h2>Prioridad del fondo</h2>
+      </div>
+    </div>
+    <div class="tf-emergency-saving">
+      <div><span>Recomendado este mes</span><strong id="ef-recommended">$0,00</strong></div>
+      <div><span>Sugerido al fondo</span><strong id="ef-suggested">$0,00</strong></div>
+    </div>
+    <p id="ef-saving-rule" class="tf-muted"></p>
+    <div class="tf-actions">
+      <button id="ef-contribute" class="tf-btn tf-btn-primary" type="button">Aportar</button>
+      <button id="ef-withdraw" class="tf-btn tf-btn-secondary" type="button">Retirar</button>
+    </div>
+  </section>
+
+  <section class="tf-card">
+    <h2>Objetivo y mínimos</h2>
+    <div class="tf-field">
+      <label>Meses de cobertura</label>
+      <div class="tf-chip-row" id="ef-month-options">
+        <button class="tf-btn tf-btn-secondary" type="button" data-ef-months="3">3 meses</button>
+        <button class="tf-btn tf-btn-secondary" type="button" data-ef-months="6">6 meses</button>
+        <button class="tf-btn tf-btn-secondary" type="button" data-ef-months="9">9 meses</button>
+        <button class="tf-btn tf-btn-secondary" type="button" data-ef-months="12">12 meses</button>
+      </div>
+    </div>
+    <div class="tf-form-grid" style="margin-top:.8rem">
+      <div class="tf-field">
+        <label>Alimentación mínima ($/día)</label>
+        <input id="ef-food" type="number" min="0" step="0.01">
+      </div>
+      <div class="tf-field">
+        <label>Transporte mínimo ($/día)</label>
+        <input id="ef-transport" type="number" min="0" step="0.01">
+      </div>
+    </div>
+    <button id="ef-save-parameters" class="tf-btn tf-btn-secondary" type="button" style="margin-top:.8rem">Guardar parámetros</button>
+  </section>
+</div>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div>
+      <h2>Cuentas que forman el fondo</h2>
+      <div class="tf-muted">El saldo se calcula únicamente desde cuentas reales seleccionadas. No se crea dinero virtual.</div>
+    </div>
+  </div>
+  <div id="ef-account-list" class="tf-plan-source-list"></div>
+</section>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div>
+      <h2>Gasto esencial mensual</h2>
+      <div id="ef-history-note" class="tf-muted"></div>
+    </div>
+    <strong id="ef-essential-total" class="tf-plan-section-total">$0,00</strong>
+  </div>
+  <div id="ef-components" class="tf-plan-source-list"></div>
+</section>
+
+<section class="tf-card" style="margin-top:1rem">
+  <h2>Movimientos del fondo</h2>
+  <div id="ef-transfers"></div>
+</section>
+
+<div id="ef-transfer-modal" class="tf-modal-backdrop" hidden>
+  <div class="tf-modal tf-emergency-transfer-modal" role="dialog" aria-modal="true" aria-labelledby="ef-transfer-title">
+    <div class="tf-modal-header">
+      <h2 id="ef-transfer-title">Aportar al fondo</h2>
+      <button id="ef-transfer-close" class="tf-icon-button" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <form id="ef-transfer-form">
+      <div class="tf-field"><label>Cuenta origen</label><select id="ef-transfer-from"></select></div>
+      <div class="tf-field" style="margin-top:.7rem"><label>Cuenta destino</label><select id="ef-transfer-to"></select></div>
+      <div class="tf-field" style="margin-top:.7rem"><label>Monto ($)</label><input id="ef-transfer-amount" type="number" min="0" step="0.01" required></div>
+      <div class="tf-field" style="margin-top:.7rem"><label id="ef-transfer-note-label">Nota</label><input id="ef-transfer-note"></div>
+      <div id="ef-transfer-warning" class="tf-alert tf-alert-error"></div>
+      <div class="tf-actions" style="margin-top:1rem">
+        <button class="tf-btn tf-btn-primary">Registrar transferencia</button>
+        <button id="ef-transfer-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module" src="js/emergency-fund.js"></script>
+```
