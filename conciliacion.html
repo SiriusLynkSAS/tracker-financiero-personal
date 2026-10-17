@@ -124,126 +124,23 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<div class="tf-page-header">
-  <div>
-    <h1>Conciliación bancaria</h1>
-    <div class="tf-muted">Certifica el saldo real a una fecha, resuelve diferencias y conserva una trazabilidad reversible.</div>
-  </div>
-  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
-</div>
-
-<div class="tf-grid tf-grid-2">
-  <section class="tf-card">
-    <h2 class="anchored">Conciliar cuenta</h2>
-    <form id="recn-form" class="tf-form-grid">
-      <div class="tf-field"><label>Cuenta</label><select id="recn-account"></select></div>
-      <div class="tf-field"><label>Fecha</label><input id="recn-date" type="date" required=""></div>
-      <div class="tf-field"><label>Saldo informado por banco ($)</label><input id="recn-bank-balance" type="number" step="0.01" required=""></div>
-      <div class="tf-field tf-span-2"><label>Nota</label><input id="recn-note" placeholder="Opcional"></div>
-      <div class="tf-span-2"><button class="tf-btn tf-btn-primary">Registrar conciliación</button></div>
-    </form>
-    <div id="recn-result" class="tf-subtle" style="margin-top:1rem"></div>
-  </section>
-
-  <section class="tf-card tf-recovery-card">
-    <div class="tf-section-kicker">Perdí el hilo de seguimiento</div>
-    <h2 class="anchored">Recuperar período</h2>
-    <p class="tf-muted">Usa el saldo real como fuente de verdad. Tracker crea solo la diferencia como <strong>Por clasificar</strong>.</p>
-    <form id="recover-form" class="tf-form-grid">
-      <div class="tf-field"><label>Cuenta</label><select id="recover-account"></select></div>
-      <div class="tf-field"><label>Última fecha confiable</label><input id="recover-start" type="date" required=""></div>
-      <div class="tf-field"><label>Fecha del saldo real</label><input id="recover-end" type="date" required=""></div>
-      <div class="tf-field"><label>Saldo real actual ($)</label><input id="recover-bank-balance" type="number" step="0.01" required=""></div>
-      <div class="tf-field tf-span-2"><label>Nota</label><input id="recover-note" placeholder="Ej. Semana sin registrar gastos"></div>
-      <div class="tf-span-2"><button class="tf-btn tf-btn-primary">Calcular y recuperar</button></div>
-    </form>
-    <div id="recover-preview" class="tf-subtle" style="margin-top:1rem"></div>
-  </section>
-</div>
-
-<section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Ajustes por clasificar</h2>
-      <div class="tf-muted">Reclasificar no cambia el saldo: solo divide el mismo ajuste entre categorías reales.</div>
-    </div>
-  </div>
-  <div id="recover-adjustments"></div>
-</section>
-
-<section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Historial de conciliaciones</h2>
-      <div class="tf-muted">Editar o eliminar recalcula únicamente el ajuste vinculado. Las conciliaciones posteriores quedan marcadas para revisión.</div>
-    </div>
-  </div>
-  <div class="tf-table-wrap">
-    
-<table class="tf-table tf-reconciliation-table caption-top">
+<div class="tf-page-header"><div><h1>Conciliación bancaria</h1><div class="tf-muted">Compara el saldo calculado con el saldo informado por el banco.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div><div class="tf-card"><form id="recn-form" class="tf-form-grid"><div class="tf-field"><label>Cuenta</label><select id="recn-account"></select></div><div class="tf-field"><label>Fecha</label><input id="recn-date" type="date"></div><div class="tf-field"><label>Saldo informado por banco ($)</label><input id="recn-bank-balance" type="number" step="0.01" required=""></div><div class="tf-field" style="display:flex;align-items:end"><button class="tf-btn tf-btn-primary">Conciliar</button></div></form><div id="recn-result" class="tf-subtle" style="margin-top:1rem"></div></div><div class="tf-card" style="margin-top:1rem"><div class="tf-table-wrap">
+<table class="tf-table caption-top">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th">Fecha</th>
 <th data-quarto-table-cell-role="th">Cuenta</th>
-<th data-quarto-table-cell-role="th">Antes</th>
+<th data-quarto-table-cell-role="th">Tracker</th>
 <th data-quarto-table-cell-role="th">Banco</th>
-<th data-quarto-table-cell-role="th">Ajuste</th>
-<th data-quarto-table-cell-role="th">Después</th>
+<th data-quarto-table-cell-role="th">Diferencia</th>
 <th data-quarto-table-cell-role="th">Estado</th>
-<th data-quarto-table-cell-role="th">Clasificación</th>
-<th data-quarto-table-cell-role="th"></th>
 </tr>
 </thead>
 <tbody id="recn-body">
 </tbody>
 </table>
+</div></div>
 
-  </div>
-</section>
-
-<dialog id="recn-edit-dialog" class="tf-modal-dialog">
-  <form id="recn-edit-form">
-    <div class="tf-modal-head">
-      <div><div class="tf-section-kicker">Editar conciliación</div><h2 id="recn-edit-title" class="anchored">Conciliación</h2></div>
-      <button type="button" class="tf-icon-button" data-close-edit="" aria-label="Cerrar">×</button>
-    </div>
-    <div class="tf-form-grid">
-      <div class="tf-field tf-span-2"><label>Cuenta</label><input id="recn-edit-account" disabled=""></div>
-      <div class="tf-field"><label>Fecha</label><input id="recn-edit-date" type="date" required=""></div>
-      <div class="tf-field"><label>Saldo banco ($)</label><input id="recn-edit-bank" type="number" step="0.01" required=""></div>
-      <div id="recn-edit-recovery-wrap" class="tf-field tf-span-2" hidden="">
-        <label>Última fecha confiable</label><input id="recn-edit-recovery-start" type="date">
-      </div>
-      <div class="tf-field tf-span-2"><label>Nota</label><input id="recn-edit-note"></div>
-    </div>
-    <div class="tf-alert tf-alert-info is-visible" style="margin-top:.8rem">
-      Si cambia el monto del ajuste, las clasificaciones existentes se reinician para no alterar el total conciliado.
-    </div>
-    <div class="tf-actions" style="margin-top:1rem">
-      <button type="button" class="tf-btn tf-btn-secondary" data-close-edit="">Cancelar</button>
-      <button class="tf-btn tf-btn-primary">Guardar cambios</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="recn-classify-dialog" class="tf-modal-dialog">
-  <form id="recn-classify-form">
-    <div class="tf-modal-head">
-      <div><div class="tf-section-kicker">Reclasificar ajuste</div><h2 id="recn-classify-title" class="anchored">Ajuste</h2></div>
-      <button type="button" class="tf-icon-button" data-close-classify="" aria-label="Cerrar">×</button>
-    </div>
-    <div id="recn-classify-summary" class="tf-subtle" style="margin-bottom:1rem"></div>
-    <div class="tf-form-grid">
-      <div class="tf-field"><label>Categoría</label><select id="recn-classify-category"></select></div>
-      <div class="tf-field"><label>Subcategoría</label><select id="recn-classify-subcategory"></select></div>
-      <div class="tf-field"><label>Monto a clasificar ($)</label><input id="recn-classify-amount" type="number" min="0.01" step="0.01" required=""></div>
-    </div>
-    <div class="tf-actions" style="margin-top:1rem">
-      <button type="button" class="tf-btn tf-btn-secondary" data-close-classify="">Cancelar</button>
-      <button class="tf-btn tf-btn-primary">Aplicar clasificación</button>
-    </div>
-  </form>
-</dialog>
 
 <script type="module" src="js/reconciliation.js"></script>
 
@@ -657,7 +554,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.31</p>
+<p>Tracker Financiero Personal V1.0.28</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

@@ -8,7 +8,7 @@ const isLogin = currentFile === "index";
 const pageGroup = (() => {
   const operation = ["cuentas","movimientos","categorias"];
   const planning = ["presupuestos","plan_mensual","recurrentes","fondo_emergencia","metas"];
-  const obligations = ["deudas","seguros","contratos","comisiones","impuestos"];
+  const obligations = ["deudas","seguros","contratos","impuestos"];
   const wealth = ["activos","inversiones"];
   const control = ["conciliacion","importar_exportar","reportes","calendario","auditoria"];
   if (operation.includes(currentFile)) return "operation";
@@ -37,7 +37,6 @@ const icon = name => {
     box: `<svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v10l-8 4-8-4z"/><path d="m4 7 8 4 8-4M12 11v10"/></svg>`,
     chart: `<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>`,
     briefcase: `<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18"/></svg>`,
-    trip: `<svg viewBox="0 0 24 24"><path d="M3 8h18v11H3z"/><path d="M8 8V5h8v3M3 12h18"/><path d="M10 12v2h4v-2"/></svg>`,
     check: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>`,
     upload: `<svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 15v5h16v-5"/></svg>`,
     report: `<svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v5h5M8 17v-4M12 17V9M16 17v-6"/></svg>`,
@@ -81,7 +80,6 @@ const groups = [
       ["deudas","Deudas y tarjetas","card"],
       ["seguros","Seguros","shield"],
       ["contratos","Contratos y cobros","briefcase"],
-      ["comisiones","Comisiones / Viáticos","trip"],
       ["impuestos","IVA / Impuestos","tax"]
     ]
   },
