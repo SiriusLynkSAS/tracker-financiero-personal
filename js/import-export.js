@@ -58,7 +58,7 @@ document.querySelector("#export-json").addEventListener("click",async()=>{
     ["investments",listInvestments],["reconciliations",listReconciliations],
     ["taxPayments",listTaxPayments],["emergencyFund",listEmergencyFund],
     ["businessTrips",listBusinessTrips],["tripExpenses",listTripExpenses],["tripSettlements",listTripSettlements],["auditLog",listAudit]
-  ],out={exportedAt:new Date().toISOString(),version:"1.0.28",kind:"data-export"};
+  ],out={exportedAt:new Date().toISOString(),version:"1.0.31",kind:"data-export"};
   for(const[n,fn]of names)out[n]=await fn();
   downloadText(`tracker-data-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(out,null,2),"application/json");
 });

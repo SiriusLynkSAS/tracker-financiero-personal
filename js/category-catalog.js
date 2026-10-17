@@ -31,6 +31,8 @@ export function categoryStyle(rows=[], type="expense", category="") {
 }
 export function setCategorySelect(select, rows, type, preferred="") {
   const categories=categoriesForType(rows,type);
+  if(preferred && !categories.includes(preferred)) categories.push(preferred);
+  categories.sort(compareEs);
   select.innerHTML=categories.length
     ? categories.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("")
     : `<option value="">Sin categorías configuradas</option>`;
@@ -39,6 +41,8 @@ export function setCategorySelect(select, rows, type, preferred="") {
 }
 export function setSubcategorySelect(select, rows, type, category, preferred="") {
   const subs=subcategoriesFor(rows,type,category);
+  if(preferred && !subs.includes(preferred)) subs.push(preferred);
+  subs.sort(compareEs);
   select.innerHTML=subs.length
     ? subs.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("")
     : `<option value="">Sin subcategorías configuradas</option>`;

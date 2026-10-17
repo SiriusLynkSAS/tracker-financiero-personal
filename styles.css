@@ -3424,3 +3424,47 @@ body[data-page="comisiones"]{--tf-page-accent:var(--tf-sky);--tf-page-accent-sof
 @media(max-width:1180px){.tf-trip-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:640px){.tf-trip-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.tf-trip-kpis{grid-template-columns:1fr}}
+
+
+/* =========================================================
+   V1.0.31 - CONCILIACIÓN REVERSIBLE Y PARIDAD WEB/ANDROID
+   ========================================================= */
+.tf-account-reconciliation{
+  margin-top:.75rem;
+  padding:.7rem .8rem;
+  border:1px solid var(--tf-border);
+  border-radius:14px;
+  background:var(--tf-surface-soft);
+  font-size:.78rem;
+  line-height:1.45;
+}
+.tf-account-reconciliation-ok{margin-top:.25rem;color:var(--tf-teal);font-weight:750}
+.tf-account-reconciliation-warning{margin-top:.25rem;color:var(--tf-amber);font-weight:750}
+.tf-actions-wrap{display:flex;flex-wrap:wrap;gap:.35rem}
+.tf-reconciliation-table td{vertical-align:top}
+.tf-reconciliation-adjustment{gap:1rem;align-items:center}
+.tf-modal-dialog{
+  width:min(680px,calc(100vw - 2rem));
+  max-height:calc(100vh - 2rem);
+  overflow:auto;
+  border:1px solid var(--tf-border);
+  border-radius:20px;
+  padding:1.1rem;
+  background:var(--tf-surface);
+  color:var(--tf-text);
+  box-shadow:0 24px 80px rgba(0,0,0,.28);
+}
+.tf-modal-dialog::backdrop{background:rgba(2,8,23,.58);backdrop-filter:blur(3px)}
+.tf-modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:1rem;
+  margin-bottom:1rem;
+}
+.tf-modal-head h2{margin:.15rem 0 0}
+tr.is-muted{opacity:.66}
+@media(max-width:760px){
+  .tf-reconciliation-table{min-width:1080px}
+  .tf-reconciliation-adjustment{align-items:flex-start}
+}

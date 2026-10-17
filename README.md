@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.30
+# Tracker Financiero Personal V1.0.31
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -991,3 +991,71 @@ añaden reglas owner-only para:
 
 Después de actualizar esta versión se deben publicar las reglas:
 `firebase deploy --only firestore:rules`
+
+
+## V1.0.31 — Conciliación reversible y sincronizada
+
+Web y Android usan ahora el mismo modelo de conciliación:
+
+- `trackerBalanceBefore`
+- `bankBalance`
+- `differenceBefore`
+- `adjustmentTransactionId`
+- `adjustmentAmount`
+- `trackerBalanceAfter`
+- `differenceAfter`
+- `status`
+- `classificationStatus`
+- `mode`
+- `active`
+
+Estados de conciliación:
+- `review`
+- `reopened`
+- `needs_review`
+- `reconciled`
+- `reconciled_with_adjustment`
+- `voided`
+
+Estados de clasificación del ajuste:
+- `none`
+- `unclassified`
+- `partial`
+- `classified`
+
+### Flujo
+Una conciliación normal registra primero la diferencia. Si existe diferencia,
+puede resolverse con un único movimiento de ajuste `Por clasificar`.
+
+`Recuperar período` crea ese ajuste automáticamente cuando el saldo Tracker no
+coincide con el saldo real.
+
+### Edición y reversión
+- Editar recalcula únicamente el ajuste vinculado.
+- Si cambia el monto del ajuste, su clasificación se reinicia.
+- Reabrir conserva el ajuste pero devuelve la conciliación a revisión.
+- Eliminar es una reversión lógica: la conciliación queda `voided` y su ajuste
+  se elimina del libro, devolviendo el saldo al punto previo.
+- Los demás movimientos reales no se modifican.
+- Las conciliaciones posteriores quedan `needs_review`.
+
+### Reclasificación
+El ajuste se clasifica mediante `splits`. La suma total del movimiento no
+cambia, por lo que reclasificar no modifica el saldo de la cuenta. La
+clasificación puede reiniciarse para volver todo el ajuste a `Por clasificar`
+sin alterar el saldo.
+
+### Cuentas
+Bancos y cuentas muestra:
+- saldo actual;
+- última conciliación válida;
+- saldo conciliado;
+- alerta cuando existe una conciliación posterior que requiere revisión.
+
+### Compatibilidad
+Los documentos antiguos con `trackerBalance`, `difference` e `invalidated`
+se normalizan al nuevo modelo al leerlos. Se mantienen los alias históricos
+para que versiones anteriores no pierdan compatibilidad.
+
+No se agregaron colecciones ni se modificaron Firestore Rules respecto de
+V1.0.30.

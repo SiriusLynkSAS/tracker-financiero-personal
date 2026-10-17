@@ -5,8 +5,7 @@ import {
   listCategories,
   saveTransaction,
   removeTransaction,
-  listReconciliations,
-  saveReconciliation
+  listReconciliations
 } from "./data-service.js";
 import {
   todayISO,
@@ -355,12 +354,14 @@ function render() {
       <td>${money(tx.amount)}</td>
       <td>
         <div class="tf-actions">
-          ${(tx.tripExpenseId||tx.tripSettlementId)
-            ? `<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`
-            : (tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA")
-              ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
-              : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
-          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId)
+          ${tx.reconciliationAdjustment
+            ? `<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`
+            : (tx.tripExpenseId||tx.tripSettlementId)
+              ? `<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`
+              : (tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA")
+                ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
+                : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
+          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment)
             ? `<span class="tf-pill">Vinculado</span>`
             : `<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
         </div>
@@ -371,18 +372,13 @@ function render() {
   `;
 }
 
-async function invalidate(accountIds, date) {
-  const affected = reconciliations.filter(r =>
+function affectedReconciliations(accountIds,date){
+  return reconciliations.filter(r=>
+    r.active!==false &&
     accountIds.includes(r.accountId) &&
-    r.status === "reconciled" &&
-    String(r.date) >= String(date)
+    ["reconciled","reconciled_with_adjustment"].includes(r.status) &&
+    String(r.date)>=String(date)
   );
-
-  for (const r of affected) {
-    await saveReconciliation({ ...r, status: "invalidated" }, r.id);
-  }
-
-  return affected.length;
 }
 
 async function refresh() {
@@ -526,11 +522,8 @@ form.addEventListener("submit", async e => {
       data.toAccountId
     ].filter(Boolean);
 
-    const affected = reconciliations.filter(r =>
-      accountIds.includes(r.accountId) &&
-      r.status === "reconciled" &&
-      String(r.date) >= String(old.date)
-    );
+    const impactDate = String(data.date) < String(old.date) ? data.date : old.date;
+    const affected = affectedReconciliations(accountIds, impactDate);
 
     const impact = ["Recalculará saldos y reportes."];
 
@@ -545,8 +538,6 @@ form.addEventListener("submit", async e => {
     })) return;
 
     await saveTransaction(data, editingId);
-    const impactDate = String(data.date) < String(old.date) ? data.date : old.date;
-    await invalidate([...new Set(accountIds)], impactDate);
     toast("Movimiento actualizado.");
   } else {
     await saveTransaction(data);
@@ -608,11 +599,7 @@ tbody.addEventListener("click", async e => {
       tx.toAccountId
     ].filter(Boolean);
 
-    const affected = reconciliations.filter(r =>
-      accountIds.includes(r.accountId) &&
-      r.status === "reconciled" &&
-      String(r.date) >= String(tx.date)
-    );
+    const affected = affectedReconciliations(accountIds, tx.date);
 
     const impact = [
       "El movimiento desaparecerá y los saldos se recalcularán."
@@ -631,7 +618,6 @@ tbody.addEventListener("click", async e => {
     })) {
       try{
         await removeTransaction(tx.id);
-        await invalidate(accountIds, tx.date);
         toast("Movimiento eliminado.");
         await refresh();
       }catch(err){
