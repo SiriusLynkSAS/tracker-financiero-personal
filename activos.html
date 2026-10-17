@@ -124,12 +124,42 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
+<div class="tf-page-header"><div><h1>Activos productivos</h1><div class="tf-muted">Costo puesto en operación, depreciación contable y recuperación económica mediante contratos.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
 
-<div class="tf-page-header"><div><h1>Activos productivos</h1><div class="tf-muted">Compra, transporte, mantenimiento, certificación, depreciación, valor de mercado e ingresos.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<div class="tf-grid tf-grid-2"><section class="tf-card"><h2 class="anchored">Registrar activo</h2><form id="asset-form" class="tf-form-grid"><div class="tf-field"><label>Nombre</label><input id="asset-name" required=""></div><div class="tf-field"><label>Tipo</label><select id="asset-type"><option value="equipment">Equipo</option><option value="vehicle">Vehículo</option><option value="other">Otro</option></select></div><div class="tf-field"><label>Precio compra ($)</label><input id="asset-purchase" type="number" min="0" step="0.01" required=""></div><div class="tf-field"><label>Transporte de compra ($)</label><input id="asset-purchase-transport" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Accesorios iniciales ($)</label><input id="asset-accessories" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Certificación inicial ($)</label><input id="asset-certification" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Otros costos iniciales ($)</label><input id="asset-other-initial" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Fecha compra</label><input id="asset-date" type="date"></div><div class="tf-field"><label>Valor residual ($)</label><input id="asset-residual" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Vida útil (años)</label><input id="asset-life" type="number" min="0.1" step="0.1" value="5"></div><div class="tf-field"><label>Valor mercado actual ($)</label><input id="asset-market" type="number" min="0" step="0.01" value="0"></div><div class="tf-field" style="display:flex;align-items:end"><button class="tf-btn tf-btn-primary">Guardar activo</button></div></form></section>
-<section class="tf-card"><h2 class="anchored">Registrar costo / ingreso</h2><form id="asset-event-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Activo</label><select id="event-asset"></select></div><div class="tf-field"><label>Tipo</label><select id="event-kind"><option value="cost">Costo</option><option value="revenue">Ingreso</option></select></div><div class="tf-field"><label>Concepto</label><select id="event-concept"><option value="transport">Transporte</option><option value="maintenance">Mantenimiento</option><option value="certification">Certificación / calibración</option><option value="repair">Reparación</option><option value="insurance">Seguro</option><option value="rental">Arriendo / uso productivo</option><option value="other">Otro</option></select></div><div class="tf-field"><label>Fecha</label><input id="event-date" type="date"></div><div class="tf-field"><label>Monto ($)</label><input id="event-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-field tf-span-2"><label>Detalle</label><input id="event-note"></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Registrar evento</button></div></form></section></div><div id="asset-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+<div class="tf-grid tf-grid-2">
+<section class="tf-card"><h2 class="anchored">Registrar activo</h2><form id="asset-form" class="tf-form-grid">
+<div class="tf-field"><label>Nombre</label><input id="asset-name" required=""></div>
+<div class="tf-field"><label>Tipo</label><select id="asset-type"><option value="computer">Computadora / estación de trabajo</option><option value="survey">Equipo topográfico</option><option value="equipment">Otro equipo</option><option value="vehicle">Vehículo</option><option value="other">Otro</option></select></div>
+<div class="tf-field"><label>Precio de compra ($)</label><input id="asset-purchase" type="number" min="0" step="0.01" required=""></div>
+<div class="tf-field"><label>Impuestos no recuperables ($)</label><input id="asset-taxes" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Envío / transporte inicial ($)</label><input id="asset-purchase-transport" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Seguro de transporte ($)</label><input id="asset-purchase-insurance" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Accesorios indispensables ($)</label><input id="asset-accessories" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Certificación / calibración inicial ($)</label><input id="asset-certification" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Ensamblaje / configuración inicial ($)</label><input id="asset-setup" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Otros costos iniciales ($)</label><input id="asset-other-initial" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Fecha compra</label><input id="asset-date" type="date"></div>
+<div class="tf-field"><label>Puesta en servicio</label><input id="asset-commissioning" type="date"></div>
+<div class="tf-field"><label>Valor residual ($)</label><input id="asset-residual" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Vida útil (años)</label><input id="asset-life" type="number" min="0.1" step="0.1" value="5"></div>
+<div class="tf-field"><label>Costo financiero total esperado ($)</label><input id="asset-financing" type="number" min="0" step="0.01" value="0"></div>
+<div class="tf-field"><label>Valor de mercado actual ($, opcional)</label><input id="asset-market" type="number" min="0" step="0.01"></div>
+<div class="tf-span-2"><button class="tf-btn tf-btn-primary">Guardar activo</button></div>
+</form></section>
 
+<section class="tf-card"><h2 class="anchored">Movimiento del activo</h2><form id="asset-event-form" class="tf-form-grid">
+<div class="tf-field tf-span-2"><label>Activo</label><select id="event-asset"></select></div>
+<div class="tf-field"><label>Tratamiento</label><select id="event-kind"><option value="operating_cost">Costo operativo</option><option value="capital_improvement">Mejora capitalizable</option><option value="revenue">Ingreso directo del activo</option></select></div>
+<div class="tf-field"><label>Concepto</label><select id="event-concept"><option value="maintenance">Mantenimiento</option><option value="calibration">Calibración / certificación</option><option value="repair">Reparación</option><option value="insurance">Seguro</option><option value="improvement">Mejora / ampliación</option><option value="rental">Arriendo / uso productivo</option><option value="other">Otro</option></select></div>
+<div class="tf-field"><label>Fecha</label><input id="event-date" type="date"></div>
+<div class="tf-field"><label>Monto ($)</label><input id="event-amount" type="number" min="0" step="0.01" required=""></div>
+<div class="tf-field tf-span-2"><label>Detalle</label><input id="event-note"></div>
+<div class="tf-span-2"><button class="tf-btn tf-btn-primary">Registrar movimiento</button></div>
+</form>
+<div class="tf-subtle" style="margin-top:1rem">Una mejora capitalizable aumenta la base depreciable. Mantenimiento, calibraciones periódicas y reparaciones se mantienen como costo operativo.</div>
+</section></div>
 
+<div id="asset-list" style="margin-top:1rem"></div>
 <script type="module" src="js/assets.js"></script>
 
 
@@ -542,7 +572,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.28</p>
+<p>Tracker Financiero Personal V1.0.34</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

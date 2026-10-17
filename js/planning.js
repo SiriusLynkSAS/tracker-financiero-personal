@@ -1,4 +1,6 @@
 import {sum,todayISO,isoFromParts} from "./utils.js";
+import {receivableIsEarned} from "./contract-math.js";
+import {analyticTransactions,analyticTransaction} from "./transaction-analytics.js";
 
 export function monthStart(month){ return `${month}-01`; }
 
@@ -100,8 +102,9 @@ export function monthlyCommitments({
 
   for(const r of receivables){
     const pending=pendingReceivable(r);
+    const contract=contracts.find(x=>x.id===r.contractId);
     if(r.active===false || pending<=0.009) continue;
-    if(String(r.workPeriod||"")>lastClosed) continue;
+    if(!receivableIsEarned(r,contract,today)) continue;
     if(!inMonth(r.dueDate,month)) continue;
 
     rows.push({
@@ -109,7 +112,7 @@ export function monthlyCommitments({
       kind:"income",
       source:"receivable",
       label:contractLabel(contracts,r.contractId),
-      detail:`Por cobrar · período ${r.workPeriod}`,
+      detail:`Por cobrar · período ${r.workPeriod}${r.prorated?` · ${r.workedDays}/${r.monthDays} días`:""}`,
       amount:pending,
       day:Number(String(r.dueDate||"").slice(8,10)||99),
       dueDate:r.dueDate||""
@@ -226,7 +229,7 @@ export function monthlyProjection({
     recurring,insurance,receivables,contracts,debts,cardPlans,month,today
   });
 
-  const monthTx=transactions.filter(t=>inMonth(t.date,month));
+  const monthTx=analyticTransactions(transactions.filter(t=>inMonth(t.date,month)));
   const monthIncome=monthTx.filter(t=>t.type==="income");
   const monthExpenseActivity=monthTx.filter(t=>["expense","investment_out"].includes(t.type));
 
@@ -384,7 +387,7 @@ export function budgetsForMonth({budgets=[],month,currentMonth=String(todayISO()
 }
 
 export function budgetSpentForMonth({transactions=[],category,subcategory,month}){
-  return transactions
+  return analyticTransactions(transactions)
     .filter(t=>t.type==="expense"&&inMonth(t.date,month))
     .reduce((total,t)=>{
       if(Array.isArray(t.splits)&&t.splits.length){
@@ -459,7 +462,7 @@ function automaticEssentialRecurring(row){
 
 function variableAverage(transactions,{category,subcategories,start,end}){
   const total=sum(
-    transactions.filter(tx=>
+    analyticTransactions(transactions).filter(tx=>
       tx.type==="expense" &&
       String(tx.date||"")>=start &&
       String(tx.date||"")<=end &&

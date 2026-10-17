@@ -7,6 +7,7 @@ import {
 } from "./data-service.js";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
+import {analyticTransactions} from "./transaction-analytics.js";
 import {
   monthlyCommitments,goalSavingsSources,budgetReserveSources,shiftMonth,inMonth
 } from "./planning.js";
@@ -119,7 +120,7 @@ function empty(text){ return `<div class="tf-empty tf-plan-source-empty">${escap
 
 function execution(){
   const types=new Map(accounts.map(a=>[a.id,a.accountType]));
-  const monthTx=txs.filter(t=>inMonth(t.date,selectedMonth));
+  const monthTx=analyticTransactions(txs.filter(t=>inMonth(t.date,selectedMonth)));
   const realIncome=sum(monthTx.filter(t=>t.type==="income"),t=>t.amount);
   const cashExpenses=sum(
     monthTx.filter(t=>t.type==="expense"&&types.get(t.accountId)!=="credit_card"),

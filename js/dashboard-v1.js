@@ -5,9 +5,10 @@ import {
   listContracts,getEmergencyFund,syncReceivablesClosed
 } from "./data-service.js";
 import { money,sum,escapeHtml,todayISO,addDaysISO,isoFromParts,daysBetween } from "./utils.js";
-import { straightLineDepreciation } from "./finance.js";
+import { assetDepreciation } from "./asset-math.js";
 import { categoryStyle } from "./category-catalog.js";
 import { categoryBadge } from "./category-icons.js";
+import {analyticTransactions} from "./transaction-analytics.js";
 import {monthlyProjection,emergencyFundSummary,defaultEmergencyFundConfig} from "./planning.js";
 
 let state={},assetChart=null,expenseChart=null;
@@ -44,7 +45,7 @@ function getPeriodTransactions(){
   return state.txs.filter(t=>t.date>=bounds.start&&t.date<=bounds.end);
 }
 function renderPeriodMetrics(){
-  const txs=getPeriodTransactions();
+  const txs=analyticTransactions(getPeriodTransactions());
   const income=sum(txs.filter(t=>t.type==="income"),t=>t.amount);
   const expense=sum(txs.filter(t=>t.type==="expense"),t=>t.amount);
   const flow=income-expense;
@@ -114,12 +115,13 @@ function renderUpcoming(){
   }).join("")||`<div class="tf-empty">Sin compromisos próximos.</div>`;
 }
 function renderRecent(){
-  document.querySelector("#recent-body").innerHTML=state.txs.slice(0,12).map(t=>`<tr><td>${t.date}</td><td>${escapeHtml(t.type)}</td><td>${escapeHtml(t.description||"—")}</td><td>${money(t.amount)}</td></tr>`).join("")||`<tr><td colspan="4" class="tf-empty">Sin movimientos.</td></tr>`;
+  document.querySelector("#recent-body").innerHTML=state.txs.slice(0,12).map(t=>{
+    const kind=t.reconciliationAdjustment?"Ajuste de conciliación":t.type;
+    return `<tr><td>${t.date}</td><td>${escapeHtml(kind)}</td><td>${escapeHtml(t.description||"—")}</td><td>${money(t.amount)}</td></tr>`;
+  }).join("")||`<tr><td colspan="4" class="tf-empty">Sin movimientos.</td></tr>`;
 }
 function assetCurrentValue(a){
-  const initial=Number(a.purchasePrice||0)+Number(a.purchaseTransport||0)+Number(a.initialAccessories||0)+Number(a.initialCertification||0)+Number(a.otherInitial||0);
-  const age=Math.max(0,daysBetween(a.purchaseDate||todayISO(),todayISO())/365.25);
-  const book=straightLineDepreciation({cost:initial,residual:a.residualValue,usefulLifeYears:a.usefulLifeYears,ageYears:age}).bookValue;
+  const book=assetDepreciation(a,todayISO()).bookValue;
   if(a.marketValueProvided===true)return Number(a.marketValue??0);
   if(a.marketValue!==undefined&&a.marketValue!==null&&Number(a.marketValue)!==0)return Number(a.marketValue);
   return book;

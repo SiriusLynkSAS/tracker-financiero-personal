@@ -1,6 +1,7 @@
 import { requireUser } from "./guard.js";
 import { listTransactions } from "./data-service.js";
 import { monthKey } from "./utils.js";
+import {analyticTransactions} from "./transaction-analytics.js";
 
 let transactions = [];
 let cashflowChart = null;
@@ -28,18 +29,19 @@ function palette() {
 
 function render() {
   const p = palette();
-  const months = [...new Set(transactions.map(t => monthKey(t.date)))]
+  const analytic = analyticTransactions(transactions);
+  const months = [...new Set(analytic.map(t => monthKey(t.date)))]
     .sort()
     .slice(-12);
 
   const income = months.map(m =>
-    transactions
+    analytic
       .filter(t => monthKey(t.date) === m && t.type === "income")
       .reduce((s, t) => s + Number(t.amount || 0), 0)
   );
 
   const expense = months.map(m =>
-    transactions
+    analytic
       .filter(t => monthKey(t.date) === m && t.type === "expense")
       .reduce((s, t) => s + Number(t.amount || 0), 0)
   );
@@ -88,7 +90,7 @@ function render() {
   });
 
   const cats = {};
-  for (const t of transactions.filter(t => t.type === "expense")) {
+  for (const t of analytic.filter(t => t.type === "expense")) {
     if (t.splits?.length) {
       for (const s of t.splits) {
         cats[s.category || "Sin categoría"] =
