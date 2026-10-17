@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.28
+# Tracker Financiero Personal V1.0.34
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -871,3 +871,222 @@ La Web ahora permite:
 
 ### Paridad
 Esta versión está diseñada para trabajar con Android V0.2.15 sobre el mismo Firebase.
+
+
+## V1.0.29 — Contratos: cierre mensual y prorrateo diario
+
+### Regla de devengo
+Un contrato mensual genera su cuenta por cobrar únicamente cuando el período de
+trabajo queda cerrado.
+
+- Un mes activo en curso no genera cuenta por cobrar.
+- El primer día del mes siguiente, el mes anterior queda devengado.
+- Si el contrato termina durante el mes actual, ese mes se considera cerrado
+  inmediatamente en la fecha efectiva de finalización.
+
+### Prorrateo
+Los meses parciales se calculan por días calendario inclusivos:
+
+`importe = tarifa mensual × días trabajados / días calendario del mes`
+
+Ejemplo:
+- tarifa: USD 750;
+- septiembre: 30 días;
+- finalización: 7 de septiembre;
+- días trabajados: 7;
+- cuenta por cobrar: USD 175,00.
+
+La misma regla se aplica al mes inicial cuando el contrato empieza después del
+día 1.
+
+### Reparación de períodos erróneos heredados
+`syncReceivablesClosed()` ahora reconcilia documentos ya existentes:
+
+- un período actual/futuro no devengado y sin pagos se marca `active:false`,
+  `status:"void"`;
+- al cerrar posteriormente ese período, el mismo documento puede reactivarse
+  con el cálculo correcto;
+- períodos ya pagados o parciales no se reescriben automáticamente;
+- las cuentas por cobrar anuladas dejan de mostrarse en la UI.
+
+Esto corrige filas heredadas como un cobro completo de septiembre creado antes
+de terminar septiembre.
+
+### Trazabilidad del cálculo
+Las cuentas por cobrar nuevas/actualizadas almacenan:
+- `serviceStart`
+- `serviceEnd`
+- `workedDays`
+- `monthDays`
+- `prorated`
+- `earnedAt`
+
+No se requieren cambios en Firestore Rules.
+
+
+## V1.0.30 — Comisiones / Viáticos y recuperación de períodos
+
+### Comisiones / Viáticos
+Nuevas colecciones compartidas con Android:
+- `businessTrips`
+- `tripExpenses`
+- `tripSettlements`
+
+Cada comisión mantiene separados:
+- gasto real desembolsado;
+- valor facturado;
+- valor reconocido por la entidad;
+- anticipos recibidos;
+- reembolsos recibidos;
+- devoluciones de anticipo;
+- monto reconocido aún por recuperar;
+- costo personal esperado.
+
+Los movimientos bancarios usan tipos de libro específicos:
+- `work_expense`
+- `work_reimbursement`
+- `work_advance`
+- `work_advance_return`
+
+Estos tipos sí modifican el saldo real de la cuenta, pero no se mezclan con
+ingresos ni gastos personales de los reportes.
+
+El gasto de comisión crea simultáneamente:
+1. `tripExpenses/{id}`;
+2. el movimiento bancario vinculado en `transactions/{id}`.
+
+La anulación del gasto se realiza desde Comisiones para conservar integridad.
+
+### Recuperar período perdido
+Conciliación incorpora un flujo específico para cuando se deja de registrar por
+varios días:
+
+1. cuenta;
+2. última fecha confiable;
+3. fecha del saldo real;
+4. saldo real del banco;
+5. Tracker calcula la diferencia.
+
+Si existe diferencia, se crea un único movimiento:
+- categoría `Por clasificar`;
+- subcategoría `Período perdido`;
+- `reconciliationAdjustment = true`;
+- `classificationStatus = unclassified`.
+
+No se inventan compras individuales. El movimiento puede reclasificarse
+posteriormente desde Movimientos.
+
+La conciliación guarda:
+- saldo Tracker antes del ajuste;
+- diferencia original;
+- transacción de ajuste;
+- saldo conciliado final.
+
+### Firebase
+Se amplían `transactions` para los cuatro tipos de flujo de comisión y se
+añaden reglas owner-only para:
+- `businessTrips`
+- `tripExpenses`
+- `tripSettlements`
+
+Después de actualizar esta versión se deben publicar las reglas:
+`firebase deploy --only firestore:rules`
+
+
+## V1.0.31 — Conciliación reversible y sincronizada
+
+Web y Android usan ahora el mismo modelo de conciliación:
+
+- `trackerBalanceBefore`
+- `bankBalance`
+- `differenceBefore`
+- `adjustmentTransactionId`
+- `adjustmentAmount`
+- `trackerBalanceAfter`
+- `differenceAfter`
+- `status`
+- `classificationStatus`
+- `mode`
+- `active`
+
+Estados de conciliación:
+- `review`
+- `reopened`
+- `needs_review`
+- `reconciled`
+- `reconciled_with_adjustment`
+- `voided`
+
+Estados de clasificación del ajuste:
+- `none`
+- `unclassified`
+- `partial`
+- `classified`
+
+### Flujo
+Una conciliación normal registra primero la diferencia. Si existe diferencia,
+puede resolverse con un único movimiento de ajuste `Por clasificar`.
+
+`Recuperar período` crea ese ajuste automáticamente cuando el saldo Tracker no
+coincide con el saldo real.
+
+### Edición y reversión
+- Editar recalcula únicamente el ajuste vinculado.
+- Si cambia el monto del ajuste, su clasificación se reinicia.
+- Reabrir conserva el ajuste pero devuelve la conciliación a revisión.
+- Eliminar es una reversión lógica: la conciliación queda `voided` y su ajuste
+  se elimina del libro, devolviendo el saldo al punto previo.
+- Los demás movimientos reales no se modifican.
+- Las conciliaciones posteriores quedan `needs_review`.
+
+### Reclasificación
+El ajuste se clasifica mediante `splits`. La suma total del movimiento no
+cambia, por lo que reclasificar no modifica el saldo de la cuenta. La
+clasificación puede reiniciarse para volver todo el ajuste a `Por clasificar`
+sin alterar el saldo.
+
+### Cuentas
+Bancos y cuentas muestra:
+- saldo actual;
+- última conciliación válida;
+- saldo conciliado;
+- alerta cuando existe una conciliación posterior que requiere revisión.
+
+### Compatibilidad
+Los documentos antiguos con `trackerBalance`, `difference` e `invalidated`
+se normalizan al nuevo modelo al leerlos. Se mantienen los alias históricos
+para que versiones anteriores no pierdan compatibilidad.
+
+No se agregaron colecciones ni se modificaron Firestore Rules respecto de
+V1.0.30.
+
+
+## V1.0.34 — Analítica conciliada, cierre contractual por fecha y recuperación de activos
+
+- Los ajustes de conciliación sin clasificar ya no se contabilizan como ingreso o gasto analítico. Los saldos bancarios sí conservan el ajuste completo. En clasificaciones parciales, solo las divisiones ya clasificadas participan en reportes/presupuestos.
+- Dashboard, proyección mensual, ejecución del Plan mensual, presupuestos, fondo de emergencia y reportes usan la misma vista analítica de movimientos.
+- Finalización de contratos por fecha efectiva seleccionable. Una fecha futura queda programada; al alcanzarse se cierra automáticamente. El período final se prorratea por días calendario.
+- Advertencia cuando existen períodos pagados posteriores o un período final pagado cuyo valor no puede recalcularse automáticamente.
+- Contratos admiten múltiples activos con porcentaje de atribución y un costo directo mensual adicional al transporte.
+- Activos separan costo puesto en operación, mejoras capitalizables, costos operativos, costo financiero, depreciación lineal, recuperación devengada/cobrada por contratos, pendiente de recuperar, resultado económico y ROI.
+- Compatibilidad con contratos históricos: `assetId` se interpreta como una asignación del 100% si no existe `assetAllocations`.
+- No se requieren reglas Firestore nuevas respecto de V1.0.31.
+
+
+## V1.0.34 — conciliación como corrección de saldo
+
+Los movimientos generados por conciliación (`reconciliationAdjustment = true`)
+se excluyen siempre de la analítica de ingresos y egresos, aunque la
+conciliación haya sido aprobada o el ajuste haya sido clasificado. Siguen
+modificando el saldo real de la cuenta.
+
+La clasificación del ajuste es documental: explica de dónde provino la
+diferencia, pero no lo convierte automáticamente en ingreso/gasto. Dashboard,
+Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
+
+
+## V1.0.34 — conciliación fuera de ingresos proyectados
+
+- Los ajustes de conciliación se excluyen siempre de ingresos, egresos y proyecciones.
+- Compatibilidad con movimientos heredados: además de `reconciliationAdjustment`, se reconocen por `reconciliationId` y por la descripción canónica `Ajuste de conciliación`.
+- La inferencia se aplica al cargar movimientos y en el motor analítico, evitando que una conciliación aprobada/clasificada vuelva a entrar como ingreso.
