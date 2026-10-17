@@ -355,10 +355,12 @@ function render() {
       <td>${money(tx.amount)}</td>
       <td>
         <div class="tf-actions">
-          ${tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA"
-            ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
-            : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
-          ${tx.taxPaymentId
+          ${(tx.tripExpenseId||tx.tripSettlementId)
+            ? `<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`
+            : (tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA")
+              ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
+              : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
+          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId)
             ? `<span class="tf-pill">Vinculado</span>`
             : `<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
         </div>
@@ -446,6 +448,20 @@ form.addEventListener("submit", async e => {
     taxPeriod:hasInvoice?document.querySelector("#tx-date").value.slice(0,7):"",
     taxPaymentId:previous?.taxPaymentId||"",
     vatStatus:hasInvoice?(previous?.taxPaymentId?"paid":"pending"):"none",
+    reconciliationAdjustment:previous?.reconciliationAdjustment===true,
+    classificationStatus:previous?.reconciliationAdjustment===true
+      ? (
+          document.querySelector("#tx-split-enabled").checked
+            ? (collectSplits().some(x=>x.category==="Por clasificar")?"unclassified":"classified")
+            : (document.querySelector("#tx-category").value==="Por clasificar"?"unclassified":"classified")
+        )
+      : (previous?.classificationStatus||""),
+    recoveryStart:previous?.recoveryStart||"",
+    recoveryEnd:previous?.recoveryEnd||"",
+    reconciliationId:previous?.reconciliationId||"",
+    businessTripId:previous?.businessTripId||"",
+    tripExpenseId:previous?.tripExpenseId||"",
+    tripSettlementId:previous?.tripSettlementId||"",
     category:
       type.value === "transfer"
         ? ""

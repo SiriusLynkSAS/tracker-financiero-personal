@@ -3383,3 +3383,44 @@ body[data-page="impuestos"]{--tf-page-accent:var(--tf-amber);--tf-page-accent-so
 @media(max-width:700px){
   #budget-view-month,#budget-month{width:100%}
 }
+
+
+/* =========================================================
+   V1.0.29 - CONTRATOS: CIERRE Y PRORRATEO DIARIO
+   ========================================================= */
+.tf-contract-proration{
+  margin-top:.18rem;
+  font-size:.7rem;
+  white-space:nowrap;
+}
+
+
+/* =========================================================
+   V1.0.30 - COMISIONES / VIÁTICOS + RECUPERAR PERÍODO
+   ========================================================= */
+body[data-page="comisiones"]{--tf-page-accent:var(--tf-sky);--tf-page-accent-soft:var(--tf-sky-soft)}
+
+.tf-trip-kpis{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:.75rem;
+  margin-top:1rem;
+}
+.tf-trip-kpis .tf-card{padding:.9rem;min-width:0}
+.tf-trip-kpis span{
+  display:block;color:var(--tf-muted);font-size:.72rem;font-weight:760;
+  text-transform:uppercase;letter-spacing:.035em;margin-bottom:.35rem
+}
+.tf-trip-kpis strong{font-size:1.15rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tf-trip-kpi-pending{
+  border-color:color-mix(in srgb,var(--tf-amber) 32%,var(--tf-border)) !important;
+  background:color-mix(in srgb,var(--tf-amber-soft) 55%,var(--tf-surface)) !important;
+}
+.tf-recovery-card{
+  background:
+    radial-gradient(circle at 92% 10%,color-mix(in srgb,var(--tf-amber) 9%,transparent),transparent 13rem),
+    linear-gradient(120deg,var(--tf-surface),var(--tf-surface-soft));
+}
+@media(max-width:1180px){.tf-trip-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.tf-trip-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.tf-trip-kpis{grid-template-columns:1fr}}
