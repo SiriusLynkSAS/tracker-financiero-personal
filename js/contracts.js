@@ -1,6 +1,7 @@
 import {requireUser} from "./guard.js";
 import {listContracts,saveContract,listReceivables,listAssets,listAccounts,atomicWrite,syncReceivablesClosed} from "./data-service.js";
 import {escapeHtml,money,todayISO,addMonthsISO,sum} from "./utils.js";
+import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {confirmAction,toast} from "./ui.js";
 let contracts=[],receivables=[],assets=[],accounts=[];const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
@@ -14,14 +15,50 @@ async function sync(){
 function render(){
   document.querySelector("#tariff-contract").innerHTML=contracts.filter(x=>x.active!==false).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   document.querySelector("#payment-account").innerHTML=accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");
+
+  const visibleReceivables=receivables.filter(r=>r.active!==false);
+
   list.innerHTML=contracts.filter(x=>x.active!==false).map(c=>{
-    const rr=receivables.filter(r=>r.contractId===c.id),gen=sum(rr,r=>r.amount),paid=sum(rr,r=>r.paidAmount),transport=Number(c.monthlyTransportEstimate||0)*rr.length;
-    return`<div class="tf-card"><strong>${escapeHtml(c.name)}</strong><div class="tf-muted">${escapeHtml(assetName(c.assetId))} · desde ${c.startDate} · fin ${c.endDate||"indefinido"}</div><div class="tf-detail-grid" style="margin-top:.8rem"><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Por cobrar</span><strong>${money(gen-paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Transporte estimado</span><strong>${money(transport)}</strong></div></div><div class="tf-actions"><button class="tf-btn tf-btn-secondary" data-finish="${c.id}">Finalizar</button></div></div>`;
-  }).join("")||`<div class="tf-card tf-empty">Sin contratos.</div>`;
-  tbody.innerHTML=receivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{
-    const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r);
-    return`<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${st}</span></td></tr>`;
-  }).join("")||`<tr><td colspan="8" class="tf-empty">Sin cuentas por cobrar.</td></tr>`;
+    const rr=visibleReceivables.filter(r=>r.contractId===c.id);
+    const gen=sum(rr,r=>r.amount);
+    const paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
+    const transport=sum(rr,r=>proratedMonthlyEstimate(c.monthlyTransportEstimate,r));
+
+    return`<div class="tf-card">
+      <strong>${escapeHtml(c.name)}</strong>
+      <div class="tf-muted">${escapeHtml(assetName(c.assetId))} · desde ${c.startDate} · fin ${c.endDate||"indefinido"}</div>
+      <div class="tf-detail-grid" style="margin-top:.8rem">
+        <div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Por cobrar</span><strong>${money(gen-paid)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Transporte estimado</span><strong>${money(transport)}</strong></div>
+      </div>
+      <div class="tf-actions"><button class="tf-btn tf-btn-secondary" data-finish="${c.id}">Finalizar</button></div>
+    </div>`;
+  }).join("")||`<div class="tf-card tf-empty">Sin contratos activos.</div>`;
+
+  tbody.innerHTML=visibleReceivables
+    .sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod))
+    .map(r=>{
+      const c=contracts.find(x=>x.id===r.contractId);
+      const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0));
+      const st=statusOf(r);
+      const statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st;
+      const periodDetail=r.prorated
+        ? `<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`
+        : "";
+
+      return`<tr>
+        <td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td>
+        <td>${escapeHtml(c?.name||"—")}</td>
+        <td>${r.workPeriod}${periodDetail}</td>
+        <td>${money(r.amount)}</td>
+        <td>${money(r.paidAmount)}</td>
+        <td>${money(pending)}</td>
+        <td>${r.dueDate}</td>
+        <td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td>
+      </tr>`;
+    }).join("")||`<tr><td colspan="8" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
   [contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);
@@ -32,8 +69,27 @@ document.querySelector("#contract-start").value=todayISO();document.querySelecto
 
 document.querySelector("#contract-form").addEventListener("submit",async e=>{
   e.preventDefault();
-  await saveContract({name:document.querySelector("#contract-name").value.trim(),assetId:document.querySelector("#contract-asset").value||null,startDate:document.querySelector("#contract-start").value,endDate:document.querySelector("#contract-end").value||null,paymentLagMonths:Number(document.querySelector("#contract-lag").value||0),paymentDay:Number(document.querySelector("#contract-pay-day").value||1),initialMonthlyRate:Number(document.querySelector("#contract-rate").value),monthlyTransportEstimate:Number(document.querySelector("#contract-transport").value||0),tariffPeriods:[],active:true});
-  e.target.reset();document.querySelector("#contract-start").value=todayISO();toast("Contrato guardado.");await refresh();
+  const start=document.querySelector("#contract-start").value;
+  const end=document.querySelector("#contract-end").value||null;
+  if(!start){toast("Ingresa la fecha de inicio.");return}
+  if(end&&end<start){toast("La fecha de fin no puede ser anterior al inicio.");return}
+
+  await saveContract({
+    name:document.querySelector("#contract-name").value.trim(),
+    assetId:document.querySelector("#contract-asset").value||null,
+    startDate:start,
+    endDate:end,
+    paymentLagMonths:Number(document.querySelector("#contract-lag").value||0),
+    paymentDay:Number(document.querySelector("#contract-pay-day").value||1),
+    initialMonthlyRate:Number(document.querySelector("#contract-rate").value),
+    monthlyTransportEstimate:Number(document.querySelector("#contract-transport").value||0),
+    tariffPeriods:[],
+    active:true
+  });
+  e.target.reset();
+  document.querySelector("#contract-start").value=todayISO();
+  toast("Contrato guardado.");
+  await refresh();
 });
 
 document.querySelector("#tariff-form").addEventListener("submit",async e=>{
@@ -43,7 +99,26 @@ document.querySelector("#tariff-form").addEventListener("submit",async e=>{
   if(!await confirmAction({title:"Agregar nueva tarifa",message:`Desde ${t.effectiveFrom}: ${money(t.amount)}`,impact:[`Se recalcularán ${affected.length} período(s) todavía no pagados.`,"Los períodos pagados o parciales quedan congelados."]}))return;
   const updatedContract={...c,tariffPeriods:[...(c.tariffPeriods||[]),t]};
   const ops=[{collection:"contracts",id:c.id,action:"update",auditType:"contract",data:updatedContract}];
-  for(const r of affected)ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,amount:tariffFor(updatedContract,r.workPeriod),status:"pending"}});
+  for(const r of affected){
+    const calc=contractPeriodCalculation(updatedContract,r.workPeriod);
+    ops.push({
+      collection:"receivables",
+      id:r.id,
+      action:"update",
+      auditType:"receivable",
+      data:{
+        ...r,
+        amount:calc?.amount??r.amount,
+        serviceStart:calc?.serviceStart??r.serviceStart,
+        serviceEnd:calc?.serviceEnd??r.serviceEnd,
+        workedDays:calc?.workedDays??r.workedDays,
+        monthDays:calc?.monthDays??r.monthDays,
+        prorated:calc?.prorated??r.prorated,
+        earnedAt:calc?.earnedAt??r.earnedAt,
+        status:"pending"
+      }
+    });
+  }
   await atomicWrite(ops);toast("Tarifa y períodos futuros actualizados.");await refresh();
 });
 
@@ -68,6 +143,19 @@ document.querySelector("#allocate-payment").addEventListener("click",async()=>{
 list.addEventListener("click",async e=>{
   const b=e.target.closest("[data-finish]");if(!b)return;
   const c=contracts.find(x=>x.id===b.dataset.finish);
-  if(await confirmAction({title:"Finalizar contrato",message:"Los períodos ya generados permanecen por cobrar.",impact:["La fecha de fin se fijará en la fecha efectiva de cierre.","No se generarán períodos posteriores al cierre."],confirmText:"Finalizar"})){const effectiveEnd=todayISO()<String(c.startDate||"")?String(c.startDate):todayISO();await saveContract({...c,endDate:effectiveEnd,active:false},c.id);await refresh()}
+  if(await confirmAction({
+    title:"Finalizar contrato",
+    message:"El mes actual se cerrará proporcionalmente a los días trabajados.",
+    impact:[
+      "Los períodos completos ya generados permanecen por cobrar.",
+      "El período del mes de finalización se calculará por días calendario trabajados.",
+      "No se generarán períodos posteriores al cierre."
+    ],
+    confirmText:"Finalizar"
+  })){
+    const effectiveEnd=todayISO()<String(c.startDate||"")?String(c.startDate):todayISO();
+    await saveContract({...c,endDate:effectiveEnd,active:false},c.id);
+    await refresh();
+  }
 });
 requireUser(()=>refresh().catch(console.error));
