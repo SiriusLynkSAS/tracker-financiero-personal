@@ -1,5 +1,4 @@
 import {sum,todayISO,isoFromParts} from "./utils.js";
-import {receivableIsEarned} from "./contract-math.js";
 
 export function monthStart(month){ return `${month}-01`; }
 
@@ -101,9 +100,8 @@ export function monthlyCommitments({
 
   for(const r of receivables){
     const pending=pendingReceivable(r);
-    const contract=contracts.find(x=>x.id===r.contractId);
     if(r.active===false || pending<=0.009) continue;
-    if(!receivableIsEarned(r,contract,today)) continue;
+    if(String(r.workPeriod||"")>lastClosed) continue;
     if(!inMonth(r.dueDate,month)) continue;
 
     rows.push({
@@ -111,7 +109,7 @@ export function monthlyCommitments({
       kind:"income",
       source:"receivable",
       label:contractLabel(contracts,r.contractId),
-      detail:`Por cobrar · período ${r.workPeriod}${r.prorated?` · ${r.workedDays}/${r.monthDays} días`:""}`,
+      detail:`Por cobrar · período ${r.workPeriod}`,
       amount:pending,
       day:Number(String(r.dueDate||"").slice(8,10)||99),
       dueDate:r.dueDate||""

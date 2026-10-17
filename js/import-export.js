@@ -2,7 +2,7 @@ import {requireUser} from "./guard.js";
 import {
   listAccounts,listTransactions,listBudgets,listMonthlyPlans,listCategories,listRecurring,listGoals,listLiabilities,
   listFinancingPlans,listInsurance,listAssets,listContracts,listReceivables,listInvestments,
-  listReconciliations,listAudit,listTaxPayments,listEmergencyFund,listBusinessTrips,listTripExpenses,listTripSettlements,saveTransaction
+  listReconciliations,listAudit,listTaxPayments,listEmergencyFund,saveTransaction
 } from "./data-service.js";
 import {escapeHtml,csvEscape,downloadText,isoFromParts} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
@@ -56,14 +56,13 @@ document.querySelector("#export-json").addEventListener("click",async()=>{
     ["recurring",listRecurring],["goals",listGoals],["liabilities",listLiabilities],["financingPlans",listFinancingPlans],
     ["insurance",listInsurance],["assets",listAssets],["contracts",listContracts],["receivables",listReceivables],
     ["investments",listInvestments],["reconciliations",listReconciliations],
-    ["taxPayments",listTaxPayments],["emergencyFund",listEmergencyFund],
-    ["businessTrips",listBusinessTrips],["tripExpenses",listTripExpenses],["tripSettlements",listTripSettlements],["auditLog",listAudit]
-  ],out={exportedAt:new Date().toISOString(),version:"1.0.31",kind:"data-export"};
+    ["taxPayments",listTaxPayments],["emergencyFund",listEmergencyFund],["auditLog",listAudit]
+  ],out={exportedAt:new Date().toISOString(),version:"1.0.28",kind:"data-export"};
   for(const[n,fn]of names)out[n]=await fn();
   downloadText(`tracker-data-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(out,null,2),"application/json");
 });
 document.querySelector("#export-csv").addEventListener("click",async()=>{
-  const tx=await listTransactions(),cols=["date","type","amount","vat","hasInvoice","invoiceNumber","invoiceBase","taxPeriod","vatStatus","taxPaymentId","category","subcategory","description","receipt","accountId","fromAccountId","toAccountId","businessTripId","tripExpenseId","tripSettlementId","reconciliationAdjustment","classificationStatus","recoveryStart","recoveryEnd"];
+  const tx=await listTransactions(),cols=["date","type","amount","vat","hasInvoice","invoiceNumber","invoiceBase","taxPeriod","vatStatus","taxPaymentId","category","subcategory","description","receipt","accountId","fromAccountId","toAccountId"];
   const text=[cols.join(","),...tx.map(r=>cols.map(c=>csvEscape(r[c])).join(","))].join("\n");
   downloadText(`movimientos-${new Date().toISOString().slice(0,10)}.csv`,text,"text/csv");
 });

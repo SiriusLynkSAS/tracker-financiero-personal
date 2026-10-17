@@ -25,7 +25,7 @@ service cloud.firestore {
       match /transactions/{id} {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)
-          && request.resource.data.type in ['income','expense','transfer','investment_out','investment_return','work_expense','work_reimbursement','work_advance','work_advance_return']
+          && request.resource.data.type in ['income','expense','transfer','investment_out','investment_return']
           && request.resource.data.date is string
           && positive(request.resource.data.amount)
           && nonNegative(request.resource.data.vat);
@@ -105,41 +105,6 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId) && nonNegative(request.resource.data.purchasePrice);
         allow delete: if false;
-      }
-
-      match /businessTrips/{id} {
-        allow read: if isOwner(userId);
-        allow create,update: if isOwner(userId)
-          && request.resource.data.name is string
-          && request.resource.data.startDate is string
-          && request.resource.data.fundingMode in ['own_funds','advance']
-          && request.resource.data.status in ['planned','in_progress','submitted','partial','closed'];
-        allow delete: if false;
-      }
-
-      match /tripExpenses/{id} {
-        allow read: if isOwner(userId);
-        allow create,update: if isOwner(userId)
-          && request.resource.data.tripId is string
-          && request.resource.data.date is string
-          && positive(request.resource.data.amountPaid)
-          && nonNegative(request.resource.data.invoiceAmount)
-          && nonNegative(request.resource.data.recognizedAmount)
-          && request.resource.data.accountId is string
-          && request.resource.data.transactionId is string;
-        allow delete: if false;
-      }
-
-      match /tripSettlements/{id} {
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId)
-          && request.resource.data.tripId is string
-          && request.resource.data.date is string
-          && request.resource.data.kind in ['reimbursement','advance','advance_return']
-          && positive(request.resource.data.amount)
-          && request.resource.data.accountId is string
-          && request.resource.data.transactionId is string;
-        allow update,delete: if false;
       }
 
       match /contracts/{id} {

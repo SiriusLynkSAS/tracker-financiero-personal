@@ -18,7 +18,6 @@ project:
     - impuestos.Rmd
     - activos.Rmd
     - contratos.Rmd
-    - comisiones.Rmd
     - inversiones.Rmd
     - conciliacion.Rmd
     - importar_exportar.Rmd
@@ -34,7 +33,7 @@ website:
   title: "Tracker Financiero Personal"
 
   page-footer:
-    center: "Tracker Financiero Personal V1.0.31"
+    center: "Tracker Financiero Personal V1.0.28"
 
 format:
   html:
