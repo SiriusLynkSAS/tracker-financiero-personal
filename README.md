@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.36
+# Tracker Financiero Personal V1.0.37
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1113,3 +1113,13 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Si una tarjeta tiene deuda pero no tiene `financingPlans`, se muestra igualmente en Deudas y tarjetas.
 - Los planes de financiamiento permanecen como desglose; ya no son la única condición para que una deuda de tarjeta sea visible.
 - El saldo informado por acreedor tiene prioridad como saldo de referencia también en Resumen, manteniendo paridad con el módulo Deudas.
+
+
+## V1.0.37 — Recuperación y visibilidad de deudas existentes
+
+- El módulo Deudas muestra todos los documentos de `liabilities`: activos y archivados.
+- Los registros archivados pueden reactivarse directamente.
+- Adaptador defensivo para esquemas antiguos: nombres, saldo, principal, plazo, tasa y fechas anteriores.
+- Un registro legado defectuoso ya no impide renderizar toda la lista.
+- El módulo muestra cuántos documentos fueron leídos de Firebase para verificar la carga real.
+- La carga de tarjetas/cuentas/movimientos ya no bloquea la visualización de préstamos si uno de esos módulos falla.

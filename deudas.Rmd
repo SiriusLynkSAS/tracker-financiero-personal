@@ -91,6 +91,7 @@ title: "Deudas y tarjetas"
 </form>
 <div id="plan-preview-box" class="tf-subtle" style="margin-top:1rem"></div>
 </section></div>
+<div id="debt-load-status" class="tf-subtle" style="margin-top:1rem">Cargando registros de deuda…</div>
 <section class="tf-module-section tf-module-loans" style="margin-top:1.4rem">
   <div class="tf-section-heading">
     <div>
@@ -99,6 +100,11 @@ title: "Deudas y tarjetas"
     </div>
   </div>
   <div id="debt-list" class="tf-grid tf-grid-3"></div>
+</section>
+
+<section id="archived-debt-section" class="tf-module-section" style="margin-top:1.2rem" hidden>
+  <div class="tf-section-heading"><div><h2>Deudas archivadas</h2><div class="tf-muted">Registros históricos que siguen almacenados en Firebase. Puedes reactivarlos sin crear una deuda nueva.</div></div></div>
+  <div id="archived-debt-list" class="tf-grid tf-grid-3"></div>
 </section>
 
 <div id="debt-schedule-card" class="tf-card tf-schedule-card tf-loan-schedule" style="margin-top:1rem" hidden>

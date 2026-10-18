@@ -229,6 +229,7 @@ export const archiveGoal=id=>archiveEntity("goals",id,{auditType:"goal"});
 export const listLiabilities=()=>listEntities("liabilities");
 export const saveLiability=(d,id=null)=>saveEntity("liabilities",d,id,{auditType:"liability"});
 export const archiveLiability=id=>archiveEntity("liabilities",id,{auditType:"liability"});
+export const reactivateLiability=id=>reactivateEntity("liabilities",id,{auditType:"liability"});
 export const listFinancingPlans=()=>listEntities("financingPlans");
 export const saveFinancingPlan=(d,id=null)=>saveEntity("financingPlans",d,id,{auditType:"financingPlan"});
 export const archiveFinancingPlan=id=>archiveEntity("financingPlans",id,{auditType:"financingPlan"});

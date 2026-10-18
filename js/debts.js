@@ -1,7 +1,7 @@
 
 import {requireUser} from "./guard.js";
 import {
-  listLiabilities,saveLiability,archiveLiability,
+  listLiabilities,saveLiability,archiveLiability,reactivateLiability,
   listFinancingPlans,archiveFinancingPlan,
   listAccounts,listTransactions,calculateBalances,atomicWrite
 } from "./data-service.js";
@@ -40,30 +40,90 @@ function accountLabel(id){
 }
 
 function normalizeLegacyDebt(row){
-  const mode=row?.mode || "manual";
-  const term=Math.max(
-    0,
-    Number(row?.termMonths ?? row?.installmentCount ?? row?.schedule?.length ?? 0)
+  const raw=row||{};
+  const text=(...values)=>{
+    for(const value of values){
+      if(value===null||value===undefined) continue;
+      const s=String(value).trim();
+      if(s) return s;
+    }
+    return "";
+  };
+  const num=(...values)=>{
+    for(const value of values){
+      if(value===null||value===undefined||value==="") continue;
+      const n=Number(value);
+      if(Number.isFinite(n)) return n;
+    }
+    return 0;
+  };
+  const nullableNum=(...values)=>{
+    for(const value of values){
+      if(value===null||value===undefined||value==="") continue;
+      const n=Number(value);
+      if(Number.isFinite(n)) return n;
+    }
+    return null;
+  };
+  const safeDate=(value)=>{
+    const s=text(value);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if(/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    return "";
+  };
+  const mode=text(raw.mode,raw.balanceMode,"manual");
+  const schedule=Array.isArray(raw.schedule)
+    ? raw.schedule.map((x,i)=>({
+        ...x,
+        n:Math.max(1,num(x?.n,x?.number,i+1)),
+        dueDate:safeDate(x?.dueDate||x?.date),
+        status:text(x?.status,"pending"),
+        payment:num(x?.payment,x?.installmentAmount),
+        paidAmount:num(x?.paidAmount),
+        paidDate:safeDate(x?.paidDate)||null
+      }))
+    : [];
+  const term=Math.max(1,num(raw.termMonths,raw.installmentCount,raw.term,schedule.length,1));
+  const reported=nullableNum(
+    raw.bankReportedBalance,raw.currentManualBalance,raw.currentBalance,
+    raw.pendingBalance,raw.balance,raw.outstandingBalance
   );
-  const schedule=Array.isArray(row?.schedule) ? row.schedule : [];
+  const original=Math.max(0,num(raw.originalPrincipal,raw.principal,raw.originalAmount,raw.amount));
+  const paidStored=nullableNum(raw.paidThroughInstallment);
+  const currentStored=nullableNum(raw.currentInstallment);
+
   return {
-    ...row,
-    liabilityType:row?.liabilityType || "loan",
-    mode,
-    active:row?.active!==false,
+    ...raw,
+    id:text(raw.id),
+    creditor:text(raw.creditor,raw.lender,raw.bank,raw.name,"Acreedor sin nombre"),
+    concept:text(raw.concept,raw.description,raw.title,"Deuda"),
+    liabilityType:text(raw.liabilityType,"loan"),
+    mode:["calculated","manual","imported"].includes(mode)?mode:"manual",
+    scheduleSource:text(
+      raw.scheduleSource,
+      mode==="calculated"?"calculated":mode==="imported"?"bank_reported":"manual_tracking"
+    ),
+    amortizationMethod:text(
+      raw.amortizationMethod,
+      mode==="calculated"?"french":mode==="imported"?"fixed_installment":"manual_tracking"
+    ),
+    originalPrincipal:original,
+    currentManualBalance:mode==="calculated"?nullableNum(raw.currentManualBalance):reported,
+    bankReportedBalance:reported,
+    calculatedBalance:nullableNum(raw.calculatedBalance),
+    bankInstallment:Math.max(0,num(raw.bankInstallment,raw.installmentAmount,raw.monthlyPayment)),
+    annualRate:Math.max(0,num(raw.annualRate,raw.rate)),
+    rateType:text(raw.rateType,"nominal"),
     termMonths:term,
+    firstPaymentDate:safeDate(raw.firstPaymentDate||raw.firstDueDate||raw.startDate),
+    paidThroughInstallment:paidStored!==null
+      ? Math.max(0,paidStored)
+      : (schedule.length?undefined:Math.max(0,(currentStored??0)-1)),
+    currentInstallment:currentStored!==null?Math.max(0,currentStored):undefined,
+    reminderDaysBefore:Math.max(0,num(raw.reminderDaysBefore)),
     schedule,
-    bankReportedBalance:
-      row?.bankReportedBalance ??
-      row?.currentManualBalance ??
-      null,
-    paidThroughInstallment:
-      row?.paidThroughInstallment ??
-      (
-        schedule.length
-          ? undefined
-          : Math.max(0,Number(row?.currentInstallment||0)-1)
-      )
+    status:text(raw.status,"active"),
+    active:raw.active!==false
   };
 }
 
@@ -557,28 +617,36 @@ function theoreticalLoanPending(d){
 }
 
 function effectiveDebtSchedule(debt){
-  if(Array.isArray(debt?.schedule) && debt.schedule.length){
-    return debt.schedule;
-  }
+  try{
+    if(Array.isArray(debt?.schedule) && debt.schedule.length){
+      return debt.schedule;
+    }
 
-  const term=Math.max(0,Number(debt?.termMonths||0));
-  if(!term) return [];
+    const term=Math.max(0,Number(debt?.termMonths||0));
+    if(!term) return [];
+    const first=/^\d{4}-\d{2}-\d{2}$/.test(String(debt?.firstPaymentDate||""))
+      ? debt.firstPaymentDate
+      : todayISO();
 
-  if(debt?.mode==="calculated" && ["german","french"].includes(debt?.amortizationMethod)){
-    return makeSchedule(debt.amortizationMethod,{
-      principal:Number(debt.originalPrincipal||0),
-      rate:Number(debt.annualRate||0),
+    if(debt?.mode==="calculated" && ["german","french"].includes(debt?.amortizationMethod)){
+      return makeSchedule(debt.amortizationMethod,{
+        principal:Number(debt.originalPrincipal||0),
+        rate:Number(debt.annualRate||0),
+        term,
+        rateType:debt.rateType||"nominal",
+        first
+      });
+    }
+
+    return trackingSchedule({
       term,
-      rateType:debt.rateType||"nominal",
-      first:debt.firstPaymentDate||todayISO()
+      first,
+      payment:Number(debt?.bankInstallment||0)
     });
+  }catch(error){
+    console.warn("No se pudo reconstruir el cronograma legado",debt?.id,error);
+    return [];
   }
-
-  return trackingSchedule({
-    term,
-    first:debt?.firstPaymentDate||todayISO(),
-    payment:Number(debt?.bankInstallment||0)
-  });
 }
 
 function actualDebtPaidThrough(schedule=[]){
@@ -957,95 +1025,65 @@ function nextInstallmentCardHTML(debt){
   `;
 }
 
+function debtCardHTML(d,{archived=false}={}){
+  try{
+    const originalPrincipal=Number(d.originalPrincipal||0);
+    const pending=loanPending(d);
+    const capitalAmortized=loanPaid(d);
+    const theoretical=theoreticalLoanPending(d);
+    const reported=d.bankReportedBalance!==null&&d.bankReportedBalance!==undefined
+      ? Number(d.bankReportedBalance)
+      : (d.currentManualBalance!==null&&d.currentManualBalance!==undefined?Number(d.currentManualBalance):null);
+    const duplicates=duplicateDebtCount(d);
+    const schedule=effectiveDebtSchedule(d);
+    const term=Number(d.termMonths||schedule.length||0);
+    const paid=paidThroughInstallment({...d,schedule});
+    const next=schedule.length?nextInstallmentCardHTML({...d,schedule}):`<div class="tf-subtle" style="margin-top:.8rem">Cronograma aún no reconstruido. Puedes abrir <strong>Editar</strong> para completar la primera cuota y el plazo.</div>`;
+
+    return `<div class="tf-card tf-loan-card tf-debt-card-shell${archived?' tf-card-muted':''}">
+      <div class="tf-card-context tf-card-context-loan">${archived?'Préstamo archivado':'Préstamo'}</div>
+      <div class="tf-debt-card-header"><div class="tf-debt-card-title-group">
+        <strong class="tf-debt-card-title">${escapeHtml(d.creditor||'Acreedor sin nombre')}</strong>
+        <div class="tf-debt-card-subtitle">${escapeHtml(d.concept||'Deuda')}</div>
+      </div></div>
+      ${duplicates>1&&!archived?`<div class="tf-subtle" style="margin-top:.75rem;border-left:3px solid var(--tf-amber,#d99a00);padding:.65rem .8rem"><strong>Posible duplicado:</strong> existen ${duplicates} registros activos con el mismo acreedor y concepto.</div>`:""}
+      <div class="tf-detail-grid tf-loan-summary-grid tf-debt-metrics tf-debt-metrics-dual" style="margin-top:.95rem">
+        <div class="tf-metric tf-debt-metric-card tf-debt-metric-loan"><span class="tf-metric-label">Capital original</span><strong class="tf-metric-amount">${money(originalPrincipal)}</strong></div>
+        <div class="tf-metric tf-debt-metric-card tf-debt-metric-paid"><span class="tf-metric-label">Capital amortizado</span><strong class="tf-metric-amount">${money(capitalAmortized)}</strong></div>
+      </div>
+      ${next}
+      <div class="tf-debt-hero tf-debt-hero-loan"><span class="tf-debt-hero-label">Saldo pendiente de referencia</span><div class="tf-debt-hero-amount">${money(pending)}</div></div>
+      ${theoretical!==null&&reported!==null?`<div class="tf-subtle" style="margin-top:.7rem">Saldo teórico: <strong>${money(theoretical)}</strong> · Saldo informado: <strong>${money(reported)}</strong> · Diferencia: <strong>${money(reported-theoretical)}</strong></div>`:""}
+      <div class="tf-debt-inline-meta"><span>${debtModeLabel(d.mode)}</span><span>${Number(d.annualRate||0)}%</span><span>pagado ${paid}/${term||'—'}</span><span>ID ${escapeHtml(d.id||'—')}</span></div>
+      <div class="tf-actions tf-debt-card-actions" style="margin-top:.9rem">
+        ${archived
+          ? `<button class="tf-btn tf-btn-primary" data-debt-reactivate="${escapeHtml(d.id)}">Reactivar</button><button class="tf-btn tf-btn-secondary" data-debt-schedule="${escapeHtml(d.id)}">Ver cronograma</button>`
+          : `<button class="tf-btn tf-btn-primary" data-debt-edit="${escapeHtml(d.id)}">Editar</button><button class="tf-btn tf-btn-secondary" data-debt-schedule="${escapeHtml(d.id)}">Ver cronograma</button><button class="tf-btn tf-btn-secondary tf-btn-archive" data-debt-archive="${escapeHtml(d.id)}">Archivar</button>`}
+      </div>
+    </div>`;
+  }catch(error){
+    console.error("Error al mostrar deuda",d?.id,error);
+    return `<div class="tf-card"><div class="tf-card-context tf-card-context-loan">Registro legado</div><strong>${escapeHtml(d?.creditor||'Deuda existente')}</strong><div class="tf-muted">${escapeHtml(d?.concept||'')}</div><div class="tf-debt-hero tf-debt-hero-loan" style="margin-top:.8rem"><span class="tf-debt-hero-label">Saldo disponible</span><div class="tf-debt-hero-amount">${money(d?.bankReportedBalance??d?.currentManualBalance??d?.calculatedBalance??d?.originalPrincipal??0)}</div></div><div class="tf-subtle">Este registro existe en Firebase pero usa un formato anterior. ID ${escapeHtml(d?.id||'—')}.</div><div class="tf-actions" style="margin-top:.8rem">${d?.active===false?`<button class="tf-btn tf-btn-primary" data-debt-reactivate="${escapeHtml(d?.id||'')}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-debt-edit="${escapeHtml(d?.id||'')}">Editar y actualizar formato</button>`}</div></div>`;
+  }
+}
+
 function render(){
-  debtList.innerHTML=debts
-    .filter(x=>x.active!==false)
-    .map(d=>{
-      const originalPrincipal=Number(d.originalPrincipal ?? 0);
-      const pending=loanPending(d);
-      const capitalAmortized=loanPaid(d);
-      const theoretical=theoreticalLoanPending(d);
-      const reported=
-        d.bankReportedBalance!==null && d.bankReportedBalance!==undefined
-          ? Number(d.bankReportedBalance)
-          : (
-              d.mode!=="calculated" &&
-              d.currentManualBalance!==null &&
-              d.currentManualBalance!==undefined
-                ? Number(d.currentManualBalance)
-                : null
-            );
-      const duplicates=duplicateDebtCount(d);
-      const schedule=effectiveDebtSchedule(d);
+  const activeDebts=debts.filter(x=>x.active!==false);
+  const archivedDebts=debts.filter(x=>x.active===false);
+  debtList.innerHTML=
+    activeDebts.map(d=>debtCardHTML(d)).join("") ||
+    `<div class="tf-card tf-empty">Sin préstamos activos.${archivedDebts.length?` Hay ${archivedDebts.length} registro(s) archivado(s) debajo.`:""}</div>`;
 
-      return `
-        <div class="tf-card tf-loan-card tf-debt-card-shell">
-          <div class="tf-card-context tf-card-context-loan">Préstamo</div>
-
-          <div class="tf-debt-card-header">
-            <div class="tf-debt-card-title-group">
-              <strong class="tf-debt-card-title">${escapeHtml(d.creditor)}</strong>
-              <div class="tf-debt-card-subtitle">${escapeHtml(d.concept)}</div>
-            </div>
-          </div>
-
-          ${duplicates>1 ? `
-            <div class="tf-subtle" style="margin-top:.75rem;border-left:3px solid var(--tf-amber,#d99a00);padding:.65rem .8rem">
-              <strong>Posible duplicado:</strong> existen ${duplicates} registros activos con el mismo acreedor y concepto.
-              Conserva el correcto y archiva los demás.
-            </div>` : ""}
-
-          <div class="tf-detail-grid tf-loan-summary-grid tf-debt-metrics tf-debt-metrics-dual" style="margin-top:.95rem">
-            <div class="tf-metric tf-debt-metric-card tf-debt-metric-loan">
-              <span class="tf-metric-label">Capital original</span>
-              <strong class="tf-metric-amount">${money(originalPrincipal)}</strong>
-            </div>
-            <div class="tf-metric tf-debt-metric-card tf-debt-metric-paid">
-              <span class="tf-metric-label">Capital amortizado</span>
-              <strong class="tf-metric-amount">${money(capitalAmortized)}</strong>
-            </div>
-          </div>
-
-          ${schedule.length ? nextInstallmentCardHTML(d) : ""}
-
-          <div class="tf-debt-hero tf-debt-hero-loan">
-            <span class="tf-debt-hero-label">Saldo pendiente de referencia</span>
-            <div class="tf-debt-hero-amount">${money(pending)}</div>
-          </div>
-
-          ${theoretical!==null && reported!==null ? `
-            <div class="tf-subtle" style="margin-top:.7rem">
-              Saldo teórico: <strong>${money(theoretical)}</strong> ·
-              Saldo informado: <strong>${money(reported)}</strong> ·
-              Diferencia: <strong>${money(reported-theoretical)}</strong>
-            </div>` : ""}
-
-          <div class="tf-debt-inline-meta">
-            <span>${debtModeLabel(d.mode)}</span>
-            <span>${d.annualRate||0}%</span>
-            <span>
-              ${debtIsFullyPaid({...d,schedule})
-                ? `Cronograma ${d.termMonths||schedule.length}/${d.termMonths||schedule.length||"—"}`
-                : `pagado ${paidThroughInstallment(d)}/${d.termMonths||schedule.length||"—"}`
-              }
-            </span>
-          </div>
-
-          <div class="tf-actions tf-debt-card-actions" style="margin-top:.9rem">
-            <button class="tf-btn tf-btn-primary" data-debt-edit="${d.id}">
-              Editar
-            </button>
-            <button class="tf-btn tf-btn-secondary" data-debt-schedule="${d.id}">
-              Ver cronograma
-            </button>
-            <button class="tf-btn tf-btn-secondary tf-btn-archive" data-debt-archive="${d.id}">
-              Archivar
-            </button>
-          </div>
-        </div>
-      `;
-    }).join("") ||
-    `<div class="tf-card tf-empty">Sin préstamos o deudas activas.</div>`;
+  const archivedWrap=document.querySelector("#archived-debt-section");
+  const archivedList=document.querySelector("#archived-debt-list");
+  if(archivedWrap&&archivedList){
+    archivedWrap.hidden=!archivedDebts.length;
+    archivedList.innerHTML=archivedDebts.map(d=>debtCardHTML(d,{archived:true})).join("");
+  }
+  const loadStatus=document.querySelector("#debt-load-status");
+  if(loadStatus){
+    loadStatus.textContent=`Firebase: ${debts.length} registro(s) de deuda leídos · ${activeDebts.length} activo(s) · ${archivedDebts.length} archivado(s)`;
+  }
 
   renderDebtOverview();
 
@@ -1510,17 +1548,22 @@ async function payCardInstallment(n){
 }
 
 async function refresh(){
-  const [rawDebts,loadedPlans,loadedAccounts,loadedTransactions]=await Promise.all([
-    listLiabilities(),
-    listFinancingPlans(),
-    listAccounts({includeArchived:false}),
-    listTransactions()
+  const rawDebts=await listLiabilities();
+  const [loadedPlans,loadedAccounts,loadedTransactions]=await Promise.all([
+    listFinancingPlans().catch(error=>{console.warn("Planes no disponibles",error);return [];}),
+    listAccounts({includeArchived:false}).catch(error=>{console.warn("Cuentas no disponibles",error);return [];}),
+    listTransactions().catch(error=>{console.warn("Movimientos no disponibles",error);return [];})
   ]);
 
-  debts=rawDebts.map(normalizeLegacyDebt);
-  plans=loadedPlans;
-  accounts=loadedAccounts;
-  transactions=loadedTransactions;
+  debts=(rawDebts||[]).map(row=>{
+    try{return normalizeLegacyDebt(row);}catch(error){
+      console.error("No se pudo normalizar deuda",row?.id,error);
+      return {...row,id:String(row?.id||""),creditor:String(row?.creditor||"Deuda existente"),concept:String(row?.concept||"Registro legado"),active:row?.active!==false};
+    }
+  });
+  plans=loadedPlans||[];
+  accounts=loadedAccounts||[];
+  transactions=loadedTransactions||[];
   balances=calculateBalances(accounts,transactions);
 
   const cards=accounts.filter(a=>a.accountType==="credit_card");
@@ -1988,6 +2031,7 @@ document.addEventListener("click",async e=>{
   const ds=e.target.closest("[data-debt-schedule]");
   const pa=e.target.closest("[data-plan-archive]");
   const da=e.target.closest("[data-debt-archive]");
+  const dr=e.target.closest("[data-debt-reactivate]");
 
   if(pe){
     const debt=debts.find(x=>x.id===pe.dataset.debtEdit);
@@ -2022,6 +2066,16 @@ document.addEventListener("click",async e=>{
     document.querySelector("#card-schedule-card").hidden=true;
     selectedCardPlanId=null;
     await refresh();
+  }
+
+  if(dr&&await confirmAction({
+    title:"Reactivar préstamo/deuda",
+    message:"El registro volverá a la lista de deudas activas.",
+    confirmText:"Reactivar"
+  })){
+    await reactivateLiability(dr.dataset.debtReactivate);
+    await refresh();
+    return;
   }
 
   if(da&&await confirmAction({
