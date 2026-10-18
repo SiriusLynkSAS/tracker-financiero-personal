@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.37
+# Tracker Financiero Personal V1.0.38
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1105,7 +1105,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los registros antiguos sin cronograma pueden visualizar un cronograma derivado al abrirlos, usando sus campos históricos.
 
 
-## V1.0.36 — Paridad Resumen / Deudas
+## V1.0.38 — Paridad Resumen / Deudas
 
 - `Deudas y tarjetas` y `Resumen` usan la misma base para préstamos activos.
 - Los registros históricos de `liabilities` se normalizan en memoria como préstamos aunque no tengan `liabilityType`.
@@ -1115,7 +1115,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - El saldo informado por acreedor tiene prioridad como saldo de referencia también en Resumen, manteniendo paridad con el módulo Deudas.
 
 
-## V1.0.37 — Recuperación y visibilidad de deudas existentes
+## V1.0.38 — Recuperación y visibilidad de deudas existentes
 
 - El módulo Deudas muestra todos los documentos de `liabilities`: activos y archivados.
 - Los registros archivados pueden reactivarse directamente.

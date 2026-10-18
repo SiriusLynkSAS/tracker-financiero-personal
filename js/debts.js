@@ -1253,7 +1253,7 @@ function showDebtSchedule(debt){
     .scrollIntoView({behavior:"smooth",block:"start"});
 }
 
-async async function payDebtInstallment(n){
+async function payDebtInstallment(n){
   const debt=debts.find(x=>x.id===selectedDebtId);
   if(!debt) return;
 
