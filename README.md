@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.35
+# Tracker Financiero Personal V1.0.36
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1103,3 +1103,13 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - “Pagado” en tarjetas de préstamo pasa a “Capital amortizado”.
 - Pagos históricos se representan como estado del cronograma y no generan transacciones bancarias retroactivas.
 - Los registros antiguos sin cronograma pueden visualizar un cronograma derivado al abrirlos, usando sus campos históricos.
+
+
+## V1.0.36 — Paridad Resumen / Deudas
+
+- `Deudas y tarjetas` y `Resumen` usan la misma base para préstamos activos.
+- Los registros históricos de `liabilities` se normalizan en memoria como préstamos aunque no tengan `liabilityType`.
+- La deuda de tarjeta se toma del saldo real de cada cuenta de crédito, igual que en Resumen.
+- Si una tarjeta tiene deuda pero no tiene `financingPlans`, se muestra igualmente en Deudas y tarjetas.
+- Los planes de financiamiento permanecen como desglose; ya no son la única condición para que una deuda de tarjeta sea visible.
+- El saldo informado por acreedor tiene prioridad como saldo de referencia también en Resumen, manteniendo paridad con el módulo Deudas.

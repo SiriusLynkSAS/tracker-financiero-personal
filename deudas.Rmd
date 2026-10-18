@@ -4,14 +4,14 @@ title: "Deudas y tarjetas"
 
 ```{=html}
 
-<div class="tf-page-header"><div><h1>Deudas y tarjetas</h1><div class="tf-muted">Préstamos y tarjetas se gestionan por separado para evitar mezclar acreedores, saldos y pagos.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<div class="tf-page-header"><div><h1>Deudas y tarjetas</h1><div class="tf-muted">Préstamos y tarjetas se gestionan por separado. Los totales usan la misma información que Resumen: obligaciones activas y saldos reales de las tarjetas.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
 <div class="tf-grid tf-grid-3 tf-debt-overview" style="margin-bottom:1rem">
   <div class="tf-card">
     <div class="tf-kpi-label">Préstamos pendientes</div>
     <div id="overview-loans-pending" class="tf-kpi-value tf-negative">$0,00</div>
   </div>
   <div class="tf-card">
-    <div class="tf-kpi-label">Planes de tarjeta pendientes</div>
+    <div class="tf-kpi-label">Deuda real en tarjetas</div>
     <div id="overview-cards-pending" class="tf-kpi-value tf-negative">$0,00</div>
   </div>
   <div class="tf-card">
