@@ -176,11 +176,13 @@ async function init(){
   const cardDebt=sum(active.filter(a=>a.accountType==="credit_card"),a=>Math.max(0,-Number(balances[a.id]||0)));
   const loanDebt=sum(
     debts.filter(d=>d.active!==false),
-    d=>Number(
-      d.mode==="calculated"
-        ? (d.calculatedBalance ?? d.originalPrincipal ?? 0)
-        : (d.currentManualBalance ?? d.bankReportedBalance ?? d.originalPrincipal ?? 0)
-    )
+    d=>Math.max(0,Number(
+      d.bankReportedBalance ??
+      d.currentManualBalance ??
+      d.calculatedBalance ??
+      d.originalPrincipal ??
+      0
+    ))
   );
   const invested=sum(investments.filter(i=>i.active!==false&&i.status==="active"),i=>i.principal);
   const assetValue=sum(assets.filter(a=>a.active!==false),assetCurrentValue);

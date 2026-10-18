@@ -3,7 +3,7 @@ import {requireUser} from "./guard.js";
 import {
   listLiabilities,saveLiability,archiveLiability,
   listFinancingPlans,archiveFinancingPlan,
-  listAccounts,atomicWrite
+  listAccounts,listTransactions,calculateBalances,atomicWrite
 } from "./data-service.js";
 import {
   germanSchedule,frenchSchedule,fixedInstallmentSchedule,
@@ -15,6 +15,8 @@ import {confirmAction,toast} from "./ui.js";
 let debts=[];
 let plans=[];
 let accounts=[];
+let transactions=[];
+let balances={};
 let previewSchedule=[];
 let selectedDebtId=null;
 let selectedCardPlanId=null;
@@ -35,6 +37,44 @@ function fmt(v){
 function accountLabel(id){
   const a=accounts.find(x=>x.id===id);
   return a ? `${a.bank} · ${a.alias}` : "Tarjeta no disponible";
+}
+
+function normalizeLegacyDebt(row){
+  const mode=row?.mode || "manual";
+  const term=Math.max(
+    0,
+    Number(row?.termMonths ?? row?.installmentCount ?? row?.schedule?.length ?? 0)
+  );
+  const schedule=Array.isArray(row?.schedule) ? row.schedule : [];
+  return {
+    ...row,
+    liabilityType:row?.liabilityType || "loan",
+    mode,
+    active:row?.active!==false,
+    termMonths:term,
+    schedule,
+    bankReportedBalance:
+      row?.bankReportedBalance ??
+      row?.currentManualBalance ??
+      null,
+    paidThroughInstallment:
+      row?.paidThroughInstallment ??
+      (
+        schedule.length
+          ? undefined
+          : Math.max(0,Number(row?.currentInstallment||0)-1)
+      )
+  };
+}
+
+function creditCardDebtRows(){
+  return accounts
+    .filter(a=>a.active!==false && a.accountType==="credit_card")
+    .map(a=>({
+      ...a,
+      debt:Math.max(0,-Number(balances[a.id]||0))
+    }))
+    .filter(a=>a.debt>0.009);
 }
 
 function loanPending(d){
@@ -439,9 +479,9 @@ function renderDebtOverview(){
     .filter(x=>x.active!==false)
     .reduce((s,d)=>s+loanPending(d),0);
 
-  const cardsPending=plans
-    .filter(x=>x.active!==false)
-    .reduce((s,p)=>s+planTotals(p).pending,0);
+  // Misma fuente que Resumen: el saldo real de las cuentas de crédito.
+  const cardsPending=creditCardDebtRows()
+    .reduce((s,a)=>s+Number(a.debt||0),0);
 
   document.querySelector("#overview-loans-pending").textContent=money(loansPending);
   document.querySelector("#overview-cards-pending").textContent=money(cardsPending);
@@ -1009,7 +1049,37 @@ function render(){
 
   renderDebtOverview();
 
-  planList.innerHTML=plans
+  const cardAccountCards=creditCardDebtRows().map(a=>{
+    const linkedPlans=plans.filter(p=>p.active!==false && p.parentId===a.id);
+    const plannedPending=linkedPlans.reduce((s,p)=>s+planTotals(p).pending,0);
+    return `
+      <div class="tf-card tf-credit-plan-card tf-debt-card-shell">
+        <div class="tf-card-context tf-card-context-card">Tarjeta · saldo real</div>
+        <div class="tf-debt-card-header">
+          <div class="tf-debt-card-title-group">
+            <strong class="tf-debt-card-title">${escapeHtml(a.bank)}</strong>
+            <div class="tf-debt-card-subtitle">${escapeHtml(a.alias||"Tarjeta de crédito")}</div>
+          </div>
+        </div>
+        <div class="tf-debt-hero tf-debt-hero-card" style="margin-top:.95rem">
+          <span class="tf-debt-hero-label">Deuda real de la tarjeta</span>
+          <div class="tf-debt-hero-amount">${money(a.debt)}</div>
+        </div>
+        <div class="tf-subtle" style="margin-top:.7rem">
+          ${linkedPlans.length
+            ? `${linkedPlans.length} plan(es) registrado(s) · saldo pendiente de planes ${money(plannedPending)}`
+            : `No hay planes de financiamiento registrados. El saldo proviene directamente de los movimientos de esta cuenta.`
+          }
+        </div>
+        <div class="tf-debt-inline-meta">
+          <span>Saldo de cuenta</span>
+          <span>${linkedPlans.length ? "Con planes" : "Sin plan asociado"}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  const financingPlanCards=plans
     .filter(x=>x.active!==false)
     .map(p=>{
       const totals=planTotals(p);
@@ -1066,8 +1136,12 @@ function render(){
           </div>
         </div>
       `;
-    }).join("") ||
-    `<div class="tf-card tf-empty">Sin planes de tarjeta activos.</div>`;
+    }).join("");
+
+  planList.innerHTML=
+    cardAccountCards +
+    financingPlanCards ||
+    `<div class="tf-card tf-empty">Sin deuda real en tarjetas ni planes de financiamiento activos.</div>`;
 }
 
 /* ---------------- PRÉSTAMOS ---------------- */
@@ -1436,11 +1510,18 @@ async function payCardInstallment(n){
 }
 
 async function refresh(){
-  [debts,plans,accounts]=await Promise.all([
+  const [rawDebts,loadedPlans,loadedAccounts,loadedTransactions]=await Promise.all([
     listLiabilities(),
     listFinancingPlans(),
-    listAccounts({includeArchived:false})
+    listAccounts({includeArchived:false}),
+    listTransactions()
   ]);
+
+  debts=rawDebts.map(normalizeLegacyDebt);
+  plans=loadedPlans;
+  accounts=loadedAccounts;
+  transactions=loadedTransactions;
+  balances=calculateBalances(accounts,transactions);
 
   const cards=accounts.filter(a=>a.accountType==="credit_card");
   const banks=accounts.filter(a=>a.accountType!=="credit_card");
