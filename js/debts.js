@@ -21,6 +21,7 @@ let selectedCardPlanId=null;
 let editingDebtId=null;
 let editingCardPlanId=null;
 let planPreviewSchedule=[];
+let debtSaving=false;
 
 const debtList=document.querySelector("#debt-list");
 const planList=document.querySelector("#plan-list");
@@ -37,24 +38,35 @@ function accountLabel(id){
 }
 
 function loanPending(d){
+  const reported =
+    d.bankReportedBalance !== null && d.bankReportedBalance !== undefined
+      ? Number(d.bankReportedBalance)
+      : (
+          d.mode!=="calculated" &&
+          d.currentManualBalance !== null &&
+          d.currentManualBalance !== undefined
+            ? Number(d.currentManualBalance)
+            : null
+        );
+
+  if(reported!==null && Number.isFinite(reported)){
+    return Math.max(0,reported);
+  }
+
   if(d.mode==="calculated"){
-    return Number(
+    return Math.max(0,Number(
       d.calculatedBalance ??
       calculatedBalanceAfterPaidThrough(
-        d.schedule||[],
+        effectiveDebtSchedule(d),
         paidThroughInstallment(d),
         d.originalPrincipal
       ) ??
       d.originalPrincipal ??
       0
-    );
+    ));
   }
 
-  return Number(
-    d.currentManualBalance ??
-    d.originalPrincipal ??
-    0
-  );
+  return Math.max(0,Number(d.originalPrincipal||0));
 }
 
 function loanPaid(d){
@@ -231,7 +243,7 @@ function renderPlanNextInstallmentSummary(next=null){
     </div>
     <div class="tf-next-installment-item tf-next-installment-total">
       <span>Total cuota</span>
-      <strong>${money(next.payment)}</strong>
+      <strong>${Number(next.payment||0)>0 ? money(next.payment) : "—"}</strong>
     </div>
   `;
 }
@@ -466,45 +478,138 @@ function makeSchedule(method,p){
   return [];
 }
 
+
+function trackingSchedule({term,first,payment=0}){
+  const n=Math.max(1,Number(term||1));
+  const amount=Math.max(0,Number(payment||0));
+  const start=first||todayISO();
+
+  return Array.from({length:n},(_,i)=>({
+    n:i+1,
+    dueDate:addMonthsISO(start,i),
+    openingBalance:null,
+    principal:null,
+    interest:null,
+    payment:amount,
+    closingBalance:null,
+    status:"pending",
+    paidAmount:0,
+    paidDate:null,
+    historicalPayment:false,
+    bankReported:true,
+    trackingOnly:true
+  }));
+}
+
+function theoreticalLoanPending(d){
+  if(d.mode!=="calculated") return null;
+  const schedule=effectiveDebtSchedule(d);
+  return Math.max(0,Number(
+    d.calculatedBalance ??
+    calculatedBalanceAfterPaidThrough(
+      schedule,
+      paidThroughInstallment(d),
+      d.originalPrincipal
+    ) ??
+    d.originalPrincipal ??
+    0
+  ));
+}
+
+function effectiveDebtSchedule(debt){
+  if(Array.isArray(debt?.schedule) && debt.schedule.length){
+    return debt.schedule;
+  }
+
+  const term=Math.max(0,Number(debt?.termMonths||0));
+  if(!term) return [];
+
+  if(debt?.mode==="calculated" && ["german","french"].includes(debt?.amortizationMethod)){
+    return makeSchedule(debt.amortizationMethod,{
+      principal:Number(debt.originalPrincipal||0),
+      rate:Number(debt.annualRate||0),
+      term,
+      rateType:debt.rateType||"nominal",
+      first:debt.firstPaymentDate||todayISO()
+    });
+  }
+
+  return trackingSchedule({
+    term,
+    first:debt?.firstPaymentDate||todayISO(),
+    payment:Number(debt?.bankInstallment||0)
+  });
+}
+
+function actualDebtPaidThrough(schedule=[]){
+  return schedule
+    .filter(x=>x.status==="paid" && !!x.paidDate)
+    .reduce((m,x)=>Math.max(m,Number(x.n||0)),0);
+}
+
+function preserveActualDebtPayments(newSchedule=[],oldSchedule=[]){
+  const actualByN=new Map(
+    oldSchedule
+      .filter(x=>x.status==="paid" && !!x.paidDate)
+      .map(x=>[Number(x.n),x])
+  );
+
+  return newSchedule.map(row=>{
+    const old=actualByN.get(Number(row.n));
+    if(!old) return row;
+    return {
+      ...row,
+      status:"paid",
+      paidAmount:Number(old.paidAmount ?? old.payment ?? row.payment ?? 0),
+      paidDate:old.paidDate,
+      historicalPayment:false
+    };
+  });
+}
+
+function debtModeLabel(mode){
+  if(mode==="calculated") return "Calculado por Tracker";
+  if(mode==="manual") return "Saldo reportado + seguimiento";
+  if(mode==="imported") return "Cronograma reportado";
+  return mode||"Deuda";
+}
+
+function duplicateDebtCount(debt){
+  const key=(v)=>`${String(v.creditor||"").trim().toLowerCase()}|${String(v.concept||"").trim().toLowerCase()}`;
+  const target=key(debt);
+  return debts.filter(x=>x.active!==false && key(x)===target).length;
+}
+
 function syncDebtMode(){
   const mode=document.querySelector("#debt-mode").value;
   const method=document.querySelector("#debt-method");
+  const methodWrap=document.querySelector("#debt-method-wrap");
   const calcWrap=document.querySelector("#debt-calculated-balance-wrap");
   const nextWrap=document.querySelector("#debt-next-installment-wrap");
-  const manualWrap=document.querySelector("#debt-manual-balance-wrap");
+  const reportedWrap=document.querySelector("#debt-reported-balance-wrap");
+  const bankPaymentWrap=document.querySelector("#debt-bank-installment-wrap");
   const installment=document.querySelector("#debt-current-installment");
   const installmentLabel=document.querySelector("#debt-installment-label");
   const installmentHelp=document.querySelector("#debt-installment-help");
 
-  if(mode==="calculated"){
-    method.disabled=false;
-    if(!["german","french"].includes(method.value)){
-      method.value="french";
-    }
-    [...method.options].forEach(o=>{
-      o.disabled=o.value==="manual";
-    });
+  const calculated=mode==="calculated";
 
-    calcWrap.hidden=false;
-    nextWrap.hidden=false;
-    manualWrap.hidden=true;
-    installment.disabled=false;
-    installmentLabel.textContent="Pagado hasta la cuota";
-    installmentHelp.textContent=
-      "0 = ninguna pagada. El saldo pendiente se calcula después de la cuota seleccionada.";
-  }else{
-    method.value="manual";
-    method.disabled=true;
-
-    calcWrap.hidden=true;
-    nextWrap.hidden=true;
-    manualWrap.hidden=false;
-    installment.disabled=true;
-    installment.value=0;
-    installmentLabel.textContent="Pagado hasta la cuota";
-    installmentHelp.textContent=
-      "No aplica en modo manual/importado.";
+  methodWrap.hidden=!calculated;
+  method.disabled=!calculated;
+  if(calculated && !["german","french"].includes(method.value)){
+    method.value="french";
   }
+
+  calcWrap.hidden=!calculated;
+  nextWrap.hidden=false;
+  reportedWrap.hidden=false;
+  bankPaymentWrap.hidden=calculated;
+  installment.disabled=false;
+
+  installmentLabel.textContent="Pagado hasta la cuota";
+  installmentHelp.textContent=calculated
+    ? "0 = ninguna pagada. El saldo teórico se calcula después de la cuota seleccionada."
+    : "Indica cuántas cuotas históricas ya fueron pagadas. El saldo reportado sigue siendo la referencia del acreedor.";
 }
 
 function renderNextInstallmentSummary(next=null){
@@ -535,122 +640,123 @@ function renderNextInstallmentSummary(next=null){
     </div>
     <div class="tf-next-installment-item tf-next-installment-total">
       <span>Total cuota</span>
-      <strong>${money(next.payment)}</strong>
+      <strong>${Number(next.payment||0)>0 ? money(next.payment) : "—"}</strong>
     </div>
   `;
 }
 
 function previewDebt(){
-  const mode=document.querySelector("#debt-mode").value;
+  const values=debtFormValues();
+  const term=Number(values.termMonths||0);
+  const paidThrough=Math.max(0,Number(values.paidThroughInstallment||0));
 
-  if(mode!=="calculated"){
-    document.querySelector("#debt-preview-box").textContent=
-      "Modo manual/importado: el saldo pendiente se introduce manualmente.";
-    document.querySelector("#debt-calculated-balance").value="—";
-    renderNextInstallmentSummary(null);
-    previewSchedule=[];
+  if(term<1){
+    toast("El plazo original debe ser al menos 1 cuota.");
     return;
   }
-
-  const method=document.querySelector("#debt-method").value;
-
-  if(!["german","french"].includes(method)){
-    toast("Selecciona sistema Alemán o Francés.");
-    return;
-  }
-
-  const principal=Number(document.querySelector("#debt-principal").value);
-  const term=Number(document.querySelector("#debt-term").value);
-  const paidThrough=Math.max(
-    0,
-    Number(document.querySelector("#debt-current-installment").value||0)
-  );
-
   if(paidThrough>term){
     toast(`La cuota pagada (${paidThrough}) no puede superar el plazo (${term}).`);
     return;
   }
 
-  const p={
-    principal,
-    rate:Number(document.querySelector("#debt-rate").value),
-    term,
-    rateType:document.querySelector("#debt-rate-type").value,
-    first:document.querySelector("#debt-first").value||todayISO()
-  };
+  let baseSchedule=[];
+  if(values.mode==="calculated"){
+    if(!["german","french"].includes(values.amortizationMethod)){
+      toast("Selecciona sistema Alemán o Francés.");
+      return;
+    }
+    baseSchedule=makeSchedule(values.amortizationMethod,{
+      principal:values.originalPrincipal,
+      rate:values.annualRate,
+      term,
+      rateType:values.rateType,
+      first:values.firstPaymentDate||todayISO()
+    });
+  }else{
+    if(values.mode==="imported" && !(values.bankInstallment>0)){
+      toast("Para un cronograma reportado ingresa la cuota informada por el acreedor.");
+      return;
+    }
+    baseSchedule=trackingSchedule({
+      term,
+      first:values.firstPaymentDate||todayISO(),
+      payment:values.bankInstallment
+    });
+  }
 
-  const baseSchedule=makeSchedule(method,p);
-  previewSchedule=markPaidThrough(
-    baseSchedule,
-    paidThrough,
-    {historical:true}
-  );
-
-  const pendingBalance=calculatedBalanceAfterPaidThrough(
-    previewSchedule,
-    paidThrough,
-    principal
-  );
-
+  previewSchedule=markPaidThrough(baseSchedule,paidThrough,{historical:true});
   const next=previewSchedule.find(x=>x.status!=="paid")||null;
-  const t=scheduleTotals(previewSchedule);
-
   renderNextInstallmentSummary(next);
 
-  document.querySelector("#debt-calculated-balance").value=
-    money(pendingBalance);
-
-  document.querySelector("#debt-preview-box").innerHTML=
-    `<strong>Saldo pendiente:</strong> ${money(pendingBalance)} · `+
-    `<strong>Pagado hasta cuota:</strong> ${paidThrough}/${term} · `+
-    `${next ? `<strong>Próxima cuota:</strong> ${next.n}` : "<strong>Préstamo liquidado</strong>"} · `+
-    `intereses totales ${money(t.interest)} · total ${money(t.payment)}`;
+  if(values.mode==="calculated"){
+    const theoretical=calculatedBalanceAfterPaidThrough(
+      previewSchedule,paidThrough,values.originalPrincipal
+    );
+    document.querySelector("#debt-calculated-balance").value=money(theoretical);
+    const reported=values.bankReportedBalance;
+    const comparison=
+      reported===null
+        ? ""
+        : ` · <strong>Saldo acreedor:</strong> ${money(reported)} · `+
+          `<strong>Diferencia:</strong> ${money(reported-theoretical)}`;
+    const totals=scheduleTotals(previewSchedule);
+    document.querySelector("#debt-preview-box").innerHTML=
+      `<strong>Saldo teórico:</strong> ${money(theoretical)}${comparison} · `+
+      `<strong>Pagado hasta:</strong> ${paidThrough}/${term} · `+
+      `${next ? `<strong>Próxima cuota:</strong> ${next.n}` : "<strong>Préstamo liquidado</strong>"} · `+
+      `intereses teóricos ${money(totals.interest)}`;
+  }else{
+    document.querySelector("#debt-calculated-balance").value="—";
+    document.querySelector("#debt-preview-box").innerHTML=
+      `<strong>Saldo reportado:</strong> ${values.bankReportedBalance===null?"—":money(values.bankReportedBalance)} · `+
+      `<strong>Pagado hasta:</strong> ${paidThrough}/${term} · `+
+      `${next ? `<strong>Próxima cuota:</strong> ${next.n}` : "<strong>Fin del cronograma</strong>"} · `+
+      `<strong>Cuota informada:</strong> ${values.bankInstallment>0?money(values.bankInstallment):"—"}`;
+  }
 }
 
 
 function debtFormValues(){
   const mode=document.querySelector("#debt-mode").value;
-  const manualRaw=document.querySelector("#debt-current").value;
+  const reportedRaw=document.querySelector("#debt-current").value;
+  const bankReportedBalance=
+    reportedRaw==="" ? null : Number(reportedRaw);
 
   return {
     creditor:document.querySelector("#debt-creditor").value.trim(),
     concept:document.querySelector("#debt-concept").value.trim(),
     mode,
+    scheduleSource:
+      mode==="calculated" ? "calculated" :
+      mode==="imported" ? "bank_reported" : "manual_tracking",
     amortizationMethod:
       mode==="calculated"
         ? document.querySelector("#debt-method").value
-        : "manual",
+        : (mode==="imported" ? "fixed_installment" : "manual_tracking"),
     originalPrincipal:Number(document.querySelector("#debt-principal").value),
-
     currentManualBalance:
-      mode==="calculated"
-        ? null
-        : (manualRaw==="" ? null : Number(manualRaw)),
-
+      mode==="calculated" ? null : bankReportedBalance,
+    bankReportedBalance,
+    bankInstallment:Math.max(
+      0,Number(document.querySelector("#debt-bank-installment").value||0)
+    ),
     annualRate:Number(document.querySelector("#debt-rate").value||0),
     rateType:document.querySelector("#debt-rate-type").value,
     termMonths:Number(document.querySelector("#debt-term").value),
     firstPaymentDate:document.querySelector("#debt-first").value,
-
-    paidThroughInstallment:
-      mode==="calculated"
-        ? Math.max(0,Number(document.querySelector("#debt-current-installment").value||0))
-        : 0,
-
+    paidThroughInstallment:Math.max(
+      0,Number(document.querySelector("#debt-current-installment").value||0)
+    ),
     reminderDaysBefore:Number(document.querySelector("#debt-reminder").value||0)
   };
 }
 
 function financialDebtChanged(oldData,newData){
   const keys=[
-    "mode","amortizationMethod","originalPrincipal","annualRate",
-    "rateType","termMonths","firstPaymentDate","paidThroughInstallment"
+    "mode","scheduleSource","amortizationMethod","originalPrincipal",
+    "bankReportedBalance","bankInstallment","annualRate","rateType",
+    "termMonths","firstPaymentDate","paidThroughInstallment"
   ];
-
-  if(newData.mode!=="calculated"){
-    keys.push("currentManualBalance");
-  }
-
   return keys.some(
     k=>String(oldData?.[k]??"")!==String(newData?.[k]??"")
   );
@@ -671,13 +777,18 @@ function mergePaidSchedule(oldSchedule=[],newSchedule=[]){
 
 function resetDebtForm(){
   editingDebtId=null;
+  debtSaving=false;
   document.querySelector("#debt-form").reset();
   document.querySelector("#debt-first").value=addMonthsISO(todayISO(),1);
   document.querySelector("#debt-current-installment").value=0;
+  document.querySelector("#debt-bank-installment").value=0;
+  document.querySelector("#debt-current").value="";
   document.querySelector("#debt-calculated-balance").value="$0,00";
   document.querySelector("#debt-next-installment-summary").innerHTML=
-    `<div class="tf-next-installment-empty">Pulsa <strong>Calcular</strong> para obtener la siguiente cuota.</div>`;
-  document.querySelector("#debt-submit").textContent="Guardar deuda";
+    `<div class="tf-next-installment-empty">Pulsa <strong>Calcular</strong> para obtener el cronograma.</div>`;
+  const submit=document.querySelector("#debt-submit");
+  submit.textContent="Guardar deuda";
+  submit.disabled=false;
   document.querySelector("#debt-cancel-edit").hidden=true;
   document.querySelector("#debt-edit-status").hidden=true;
   document.querySelector("#debt-edit-status").textContent="";
@@ -693,30 +804,29 @@ function startDebtEdit(debt){
   document.querySelector("#debt-concept").value=debt.concept||"";
   document.querySelector("#debt-mode").value=debt.mode||"manual";
   document.querySelector("#debt-method").value=
-    debt.amortizationMethod||(
-      debt.mode==="calculated" ? "french" : "manual"
-    );
-  document.querySelector("#debt-principal").value=
-    Number(debt.originalPrincipal??0);
+    ["german","french"].includes(debt.amortizationMethod)
+      ? debt.amortizationMethod
+      : "french";
+  document.querySelector("#debt-principal").value=Number(debt.originalPrincipal??0);
+
+  const reported=
+    debt.bankReportedBalance ??
+    debt.currentManualBalance ??
+    null;
   document.querySelector("#debt-current").value=
-    debt.mode==="calculated"
-      ? ""
-      : (
-          debt.currentManualBalance===null||debt.currentManualBalance===undefined
-            ? ""
-            : Number(debt.currentManualBalance)
-        );
+    reported===null||reported===undefined ? "" : Number(reported);
+
+  document.querySelector("#debt-bank-installment").value=
+    Number(debt.bankInstallment||0);
 
   document.querySelector("#debt-calculated-balance").value=
     debt.mode==="calculated"
-      ? money(loanPending(debt))
+      ? money(theoreticalLoanPending(debt)??loanPending(debt))
       : "—";
-  document.querySelector("#debt-rate").value=
-    Number(debt.annualRate??0);
-  document.querySelector("#debt-rate-type").value=
-    debt.rateType||"nominal";
+  document.querySelector("#debt-rate").value=Number(debt.annualRate??0);
+  document.querySelector("#debt-rate-type").value=debt.rateType||"nominal";
   document.querySelector("#debt-term").value=
-    Number(debt.termMonths??1);
+    Number(debt.termMonths ?? effectiveDebtSchedule(debt).length ?? 1);
   document.querySelector("#debt-first").value=
     debt.firstPaymentDate||addMonthsISO(todayISO(),1);
   document.querySelector("#debt-current-installment").value=
@@ -732,30 +842,25 @@ function startDebtEdit(debt){
   const status=document.querySelector("#debt-edit-status");
   status.hidden=false;
   status.innerHTML=
-    `<strong>Editando:</strong> ${escapeHtml(debt.creditor)} · `+
-    `${escapeHtml(debt.concept)}. `+
-    `Los pagos históricos ya registrados se conservarán.`;
+    `<strong>Editando el registro existente:</strong> ${escapeHtml(debt.creditor)} · `+
+    `${escapeHtml(debt.concept)}. ID ${escapeHtml(debt.id)}. `+
+    `Guardar actualizará este mismo registro; no creará una deuda nueva.`;
 
-  if(debt.mode==="calculated"){
-    previewSchedule=markPaidThrough(
-      [...(debt.schedule||[])],
-      paidThroughInstallment(debt),
-      {historical:true}
-    );
-    const totals=scheduleTotals(previewSchedule);
-    const paidThrough=paidThroughInstallment(debt);
-    const next=previewSchedule.find(x=>x.status!=="paid")||null;
-    renderNextInstallmentSummary(next);
-    document.querySelector("#debt-preview-box").innerHTML=
-      `Saldo pendiente <strong>${money(loanPending(debt))}</strong> · `+
-      `pagado hasta cuota <strong>${paidThrough}/${debt.termMonths||previewSchedule.length}</strong> · `+
-      `intereses totales <strong>${money(totals.interest)}</strong>`;
-  }else{
-    previewSchedule=[];
-    renderNextInstallmentSummary(null);
-    document.querySelector("#debt-preview-box").textContent=
-      "Modo manual/importado: el saldo informado prevalece.";
-  }
+  previewSchedule=markPaidThrough(
+    [...effectiveDebtSchedule(debt)],
+    paidThroughInstallment(debt),
+    {historical:true}
+  );
+  const next=previewSchedule.find(x=>x.status!=="paid")||null;
+  renderNextInstallmentSummary(next);
+
+  const theoretical=theoreticalLoanPending(debt);
+  const reportedBalance=loanPending(debt);
+  document.querySelector("#debt-preview-box").innerHTML=
+    `<strong>Saldo usado:</strong> ${money(reportedBalance)} · `+
+    `${theoretical!==null ? `<strong>Saldo teórico:</strong> ${money(theoretical)} · ` : ""}`+
+    `<strong>Pagado hasta:</strong> ${paidThroughInstallment(debt)}/${debt.termMonths||previewSchedule.length||"—"} · `+
+    `${next ? `<strong>Próxima cuota:</strong> ${next.n}` : "<strong>Sin cuotas futuras</strong>"}`;
 
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -764,11 +869,10 @@ function startDebtEdit(debt){
 function nextInstallmentForDebt(debt){
   const paidThrough=paidThroughInstallment(debt);
   const schedule=markPaidThrough(
-    [...(debt.schedule||[])],
+    [...effectiveDebtSchedule(debt)],
     paidThrough,
     {historical:true}
   );
-
   return schedule.find(x=>x.status!=="paid") || null;
 }
 
@@ -806,7 +910,7 @@ function nextInstallmentCardHTML(debt){
         </div>
         <div class="tf-next-payment-metric tf-next-payment-total tf-next-payment-total-wide">
           <span>Total cuota</span>
-          <strong>${money(next.payment)}</strong>
+          <strong>${Number(next.payment||0)>0 ? money(next.payment) : "—"}</strong>
         </div>
       </div>
     </div>
@@ -819,7 +923,20 @@ function render(){
     .map(d=>{
       const originalPrincipal=Number(d.originalPrincipal ?? 0);
       const pending=loanPending(d);
-      const paid=loanPaid(d);
+      const capitalAmortized=loanPaid(d);
+      const theoretical=theoreticalLoanPending(d);
+      const reported=
+        d.bankReportedBalance!==null && d.bankReportedBalance!==undefined
+          ? Number(d.bankReportedBalance)
+          : (
+              d.mode!=="calculated" &&
+              d.currentManualBalance!==null &&
+              d.currentManualBalance!==undefined
+                ? Number(d.currentManualBalance)
+                : null
+            );
+      const duplicates=duplicateDebtCount(d);
+      const schedule=effectiveDebtSchedule(d);
 
       return `
         <div class="tf-card tf-loan-card tf-debt-card-shell">
@@ -832,31 +949,44 @@ function render(){
             </div>
           </div>
 
+          ${duplicates>1 ? `
+            <div class="tf-subtle" style="margin-top:.75rem;border-left:3px solid var(--tf-amber,#d99a00);padding:.65rem .8rem">
+              <strong>Posible duplicado:</strong> existen ${duplicates} registros activos con el mismo acreedor y concepto.
+              Conserva el correcto y archiva los demás.
+            </div>` : ""}
+
           <div class="tf-detail-grid tf-loan-summary-grid tf-debt-metrics tf-debt-metrics-dual" style="margin-top:.95rem">
             <div class="tf-metric tf-debt-metric-card tf-debt-metric-loan">
-              <span class="tf-metric-label">Préstamo</span>
+              <span class="tf-metric-label">Capital original</span>
               <strong class="tf-metric-amount">${money(originalPrincipal)}</strong>
             </div>
             <div class="tf-metric tf-debt-metric-card tf-debt-metric-paid">
-              <span class="tf-metric-label">Pagado</span>
-              <strong class="tf-metric-amount">${money(paid)}</strong>
+              <span class="tf-metric-label">Capital amortizado</span>
+              <strong class="tf-metric-amount">${money(capitalAmortized)}</strong>
             </div>
           </div>
 
-          ${d.mode==="calculated" ? nextInstallmentCardHTML(d) : ""}
+          ${schedule.length ? nextInstallmentCardHTML(d) : ""}
 
           <div class="tf-debt-hero tf-debt-hero-loan">
-            <span class="tf-debt-hero-label">Saldo pendiente</span>
+            <span class="tf-debt-hero-label">Saldo pendiente de referencia</span>
             <div class="tf-debt-hero-amount">${money(pending)}</div>
           </div>
 
+          ${theoretical!==null && reported!==null ? `
+            <div class="tf-subtle" style="margin-top:.7rem">
+              Saldo teórico: <strong>${money(theoretical)}</strong> ·
+              Saldo informado: <strong>${money(reported)}</strong> ·
+              Diferencia: <strong>${money(reported-theoretical)}</strong>
+            </div>` : ""}
+
           <div class="tf-debt-inline-meta">
-            <span>${d.mode==="calculated" ? "Calculado" : d.mode==="manual" ? "Manual" : "Importado"}</span>
+            <span>${debtModeLabel(d.mode)}</span>
             <span>${d.annualRate||0}%</span>
             <span>
-              ${debtIsFullyPaid(d)
-                ? `Liquidado · ${d.termMonths||d.schedule?.length||0}/${d.termMonths||d.schedule?.length||"—"}`
-                : `pagado ${paidThroughInstallment(d)}/${d.termMonths||"—"}`
+              ${debtIsFullyPaid({...d,schedule})
+                ? `Cronograma ${d.termMonths||schedule.length}/${d.termMonths||schedule.length||"—"}`
+                : `pagado ${paidThroughInstallment(d)}/${d.termMonths||schedule.length||"—"}`
               }
             </span>
           </div>
@@ -954,34 +1084,30 @@ function showDebtSchedule(debt){
   document.querySelector("#debt-schedule-title").textContent=
     `${debt.creditor} · ${debt.concept}`;
 
-  document.querySelector("#debt-schedule-meta").textContent=
-    `Acreedor: ${debt.creditor} · ${debt.annualRate||0}% · `+
-    `${debt.amortizationMethod||"manual"} · `+
-    `${debtIsFullyPaid(debt)
-      ? "deuda liquidada"
-      : `pagado hasta ${paidThroughInstallment(debt)}/${debt.termMonths||"—"} · próxima ${nextInstallmentNumber(debt)||"—"}`
-    }`;
-
-  const schedule=debt.schedule||[];
-
+  const base=effectiveDebtSchedule(debt);
   const paidThrough=paidThroughInstallment(debt);
-  const effectiveSchedule=markPaidThrough(
-    schedule,
-    paidThrough,
-    {historical:true}
-  );
-  const nextPending=effectiveSchedule.find(
-    x=>x.status!=="paid"
-  ) || null;
+  const effectiveSchedule=markPaidThrough(base,paidThrough,{historical:true});
+  const nextPending=effectiveSchedule.find(x=>x.status!=="paid")||null;
+  const theoretical=theoreticalLoanPending(debt);
+  const reported=loanPending(debt);
+
+  document.querySelector("#debt-schedule-meta").textContent=
+    `${debtModeLabel(debt.mode)} · `+
+    `inicio ${debt.firstPaymentDate||"—"} · `+
+    `pagado hasta ${paidThrough}/${debt.termMonths||effectiveSchedule.length||"—"} · `+
+    `${nextPending ? `próxima ${nextPending.n}` : "sin cuotas futuras"} · `+
+    `saldo referencia ${money(reported)}`+
+    `${theoretical!==null ? ` · teórico ${money(theoretical)}` : ""}`;
 
   debtScheduleBody.innerHTML=effectiveSchedule.length
     ? effectiveSchedule.map(s=>{
         const isPaid=s.status==="paid";
-        const isHistorical=!!s.historicalPayment;
+        const isHistorical=!!s.historicalPayment && !s.paidDate;
         const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
         const statusLabel=isPaid
           ? (isHistorical ? "Pagada (hist.)" : "Pagada")
           : isNext ? "Por pagar" : "Pendiente";
+        const payment=Number(s.payment||0)>0 ? money(s.payment) : "—";
 
         return `
           <tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}">
@@ -989,7 +1115,7 @@ function showDebtSchedule(debt){
             <td>${s.dueDate}</td>
             <td>${fmt(s.principal)}</td>
             <td>${fmt(s.interest)}</td>
-            <td>${money(s.payment)}</td>
+            <td>${payment}</td>
             <td>${fmt(s.closingBalance)}</td>
             <td>
               <span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">
@@ -1009,34 +1135,25 @@ function showDebtSchedule(debt){
           </tr>
         `;
       }).join("")
-    : `<tr>
-         <td colspan="8" class="tf-empty">
-           Esta deuda usa saldo manual/importado y no tiene cronograma calculado.
-         </td>
-       </tr>`;
+    : `<tr><td colspan="8" class="tf-empty">Completa plazo y primera cuota para construir el seguimiento histórico.</td></tr>`;
 
   document.querySelector("#debt-schedule-card")
     .scrollIntoView({behavior:"smooth",block:"start"});
 }
 
-async function payDebtInstallment(n){
+async async function payDebtInstallment(n){
   const debt=debts.find(x=>x.id===selectedDebtId);
   if(!debt) return;
 
-  const rawSchedule=debt.schedule||[];
+  const rawSchedule=effectiveDebtSchedule(debt);
   const currentPaidThrough=paidThroughInstallment(debt);
   const scheduleBefore=markPaidThrough(
-    rawSchedule,
-    currentPaidThrough,
-    {historical:true}
+    rawSchedule,currentPaidThrough,{historical:true}
   );
 
-  const nextPending=scheduleBefore.find(
-    x=>x.status!=="paid"
-  ) || null;
-
+  const nextPending=scheduleBefore.find(x=>x.status!=="paid")||null;
   if(!nextPending){
-    toast("Todas las cuotas de este préstamo ya están pagadas.");
+    toast("Todas las cuotas de este préstamo ya están registradas como pagadas.");
     return;
   }
 
@@ -1045,19 +1162,19 @@ async function payDebtInstallment(n){
     return;
   }
 
-  const installment=scheduleBefore.find(
-    x=>Number(x.n)===Number(n)
-  );
+  const installment=scheduleBefore.find(x=>Number(x.n)===Number(n));
   if(!installment) return;
 
   if(!await confirmAction({
     title:"Marcar cuota del préstamo como pagada",
-    message:`${debt.creditor} · cuota ${n} · ${money(installment.payment)}`,
+    message:`${debt.creditor} · cuota ${n} · ${Number(installment.payment||0)>0?money(installment.payment):"monto no informado"}`,
     impact:[
       `La cuota ${n} pasará a estado Pagada.`,
-      "El saldo pendiente se recalculará con el saldo de cierre de esta cuota.",
-      "La cuota actual avanzará automáticamente a la siguiente pendiente.",
-      "El cronograma se actualizará inmediatamente."
+      debt.mode==="calculated"
+        ? "El saldo teórico se recalculará con el saldo de cierre de la cuota."
+        : "El saldo reportado por el acreedor no se modificará automáticamente.",
+      "La siguiente cuota avanzará automáticamente.",
+      "No se crea una transacción bancaria retroactiva."
     ]
   })) return;
 
@@ -1067,56 +1184,55 @@ async function payDebtInstallment(n){
           ...x,
           status:"paid",
           paidAmount:Number(x.payment||0),
-          paidDate:todayISO()
+          paidDate:todayISO(),
+          historicalPayment:false
         }
       : x
   );
 
-  // Saldo financiero: se toma después de la CUOTA QUE ACABA DE PAGARSE,
-  // no después de la próxima cuota.
-  const paidRow=schedule.find(x=>Number(x.n)===Number(n));
-  const calculatedBalance=Number(
-    paidRow?.closingBalance ??
-    debt.calculatedBalance ??
-    debt.originalPrincipal ??
-    0
-  );
-
   const newPaidThrough=Number(n);
   const newNextPending=schedule.find(x=>x.status!=="paid")||null;
+  const paidRow=schedule.find(x=>Number(x.n)===Number(n));
 
-  await saveLiability({
+  const updated={
     ...debt,
     schedule,
     paidThroughInstallment:newPaidThrough,
     currentInstallment:newNextPending
       ? Number(newNextPending.n)
-      : Number(debt.termMonths || schedule.length || n),
-    calculatedBalance,
-    currentManualBalance:null,
-    status:newNextPending ? (debt.status||"active") : "paid_off",
-    paidOffDate:newNextPending ? (debt.paidOffDate||null) : todayISO()
-  },debt.id);
+      : Number(debt.termMonths||schedule.length||n),
+    calculatedBalance:
+      debt.mode==="calculated"
+        ? Number(paidRow?.closingBalance ?? debt.calculatedBalance ?? debt.originalPrincipal ?? 0)
+        : null,
+    currentManualBalance:
+      debt.mode==="calculated" ? null : (debt.currentManualBalance ?? debt.bankReportedBalance ?? null),
+    bankReportedBalance:debt.bankReportedBalance ?? debt.currentManualBalance ?? null,
+    status:
+      (!newNextPending && loanPending(debt)<=0.009)
+        ? "paid_off"
+        : "active",
+    paidOffDate:
+      (!newNextPending && loanPending(debt)<=0.009)
+        ? todayISO()
+        : (debt.paidOffDate||null)
+  };
+
+  await saveLiability(updated,debt.id);
 
   toast(
     newNextPending
-      ? `Cuota ${n} pagada. Próxima cuota: ${newNextPending.n}.`
-      : `Cuota ${n} pagada. Préstamo liquidado.`
+      ? `Cuota ${n} registrada. Próxima cuota: ${newNextPending.n}.`
+      : `Cuota ${n} registrada. No quedan cuotas en el cronograma.`
   );
 
   await refresh();
 
-  const updated=debts.find(x=>x.id===debt.id);
-  if(updated){
-    showDebtSchedule(updated);
-
-    if(editingDebtId===updated.id){
-      document.querySelector("#debt-current-installment").value=
-        Number(paidThroughInstallment(updated));
-      document.querySelector("#debt-calculated-balance").value=
-        money(loanPending(updated));
-      const next=(updated.schedule||[]).find(x=>x.status!=="paid")||null;
-      renderNextInstallmentSummary(next);
+  const latest=debts.find(x=>x.id===debt.id);
+  if(latest){
+    showDebtSchedule(latest);
+    if(editingDebtId===latest.id){
+      startDebtEdit(latest);
     }
   }
 }
@@ -1398,147 +1514,165 @@ syncDebtMode();
 togglePlanType();
 togglePlanMethod();
 
+
 document.querySelector("#debt-form").addEventListener("submit",async e=>{
   e.preventDefault();
+  if(debtSaving) return;
 
   const values=debtFormValues();
+  const submit=document.querySelector("#debt-submit");
 
   if(!values.creditor||!values.concept){
     toast("Acreedor y concepto son obligatorios.");
     return;
   }
-
   if(!(values.originalPrincipal>=0)){
     toast("El capital original no es válido.");
     return;
   }
+  if(!(values.termMonths>=1)){
+    toast("El plazo original debe ser al menos 1 cuota.");
+    return;
+  }
+  if(values.paidThroughInstallment>values.termMonths){
+    toast(`Pagado hasta (${values.paidThroughInstallment}) no puede superar el plazo (${values.termMonths}).`);
+    return;
+  }
+  if(values.mode!=="calculated" && (values.bankReportedBalance===null || values.bankReportedBalance<0)){
+    toast("Ingresa el saldo actual informado por el acreedor.");
+    return;
+  }
+  if(values.mode==="imported" && !(values.bankInstallment>0)){
+    toast("Ingresa la cuota informada para el cronograma reportado.");
+    return;
+  }
 
-  let schedule=[];
-  let calculatedBalance=null;
+  if(!editingDebtId){
+    const norm=s=>String(s||"").trim().toLowerCase();
+    const duplicate=debts.find(x=>
+      x.active!==false &&
+      norm(x.creditor)===norm(values.creditor) &&
+      norm(x.concept)===norm(values.concept)
+    );
+    if(duplicate){
+      toast("Ya existe una deuda activa con el mismo acreedor y concepto. Usa Editar en ese registro para evitar duplicados.");
+      startDebtEdit(duplicate);
+      return;
+    }
+  }
 
+  let baseSchedule=[];
   if(values.mode==="calculated"){
     if(!["german","french"].includes(values.amortizationMethod)){
       toast("Selecciona sistema Alemán o Francés.");
       return;
     }
-
-    if(values.paidThroughInstallment>values.termMonths){
-      toast(
-        `La cuota pagada (${values.paidThroughInstallment}) no puede superar `+
-        `el plazo (${values.termMonths}).`
-      );
-      return;
-    }
-
-    const baseSchedule=makeSchedule(
-      values.amortizationMethod,
-      {
-        principal:values.originalPrincipal,
-        rate:values.annualRate,
-        term:values.termMonths,
-        rateType:values.rateType,
-        first:values.firstPaymentDate
-      }
-    );
-
-    // La selección del formulario es la fuente explícita:
-    // todas las cuotas <= selección quedan pagadas.
-    schedule=markPaidThrough(
-      baseSchedule,
-      values.paidThroughInstallment,
-      {historical:true}
-    );
-
-    calculatedBalance=calculatedBalanceAfterPaidThrough(
-      schedule,
-      values.paidThroughInstallment,
-      values.originalPrincipal
-    );
+    baseSchedule=makeSchedule(values.amortizationMethod,{
+      principal:values.originalPrincipal,
+      rate:values.annualRate,
+      term:values.termMonths,
+      rateType:values.rateType,
+      first:values.firstPaymentDate
+    });
+  }else{
+    baseSchedule=trackingSchedule({
+      term:values.termMonths,
+      first:values.firstPaymentDate,
+      payment:values.bankInstallment
+    });
   }
 
-  const oldForMigration=editingDebtId
+  let schedule=markPaidThrough(
+    baseSchedule,
+    values.paidThroughInstallment,
+    {historical:true}
+  );
+
+  const oldDebt=editingDebtId
     ? debts.find(x=>x.id===editingDebtId)
     : null;
 
+  if(oldDebt){
+    const actual=actualDebtPaidThrough(oldDebt.schedule||[]);
+    if(values.paidThroughInstallment<actual){
+      toast(`No puedes reducir "Pagado hasta" por debajo de la cuota ${actual}, porque tiene un pago real registrado.`);
+      return;
+    }
+    schedule=preserveActualDebtPayments(schedule,oldDebt.schedule||[]);
+  }
+
   const nextPending=schedule.find(x=>x.status!=="paid")||null;
+  const calculatedBalance=
+    values.mode==="calculated"
+      ? calculatedBalanceAfterPaidThrough(
+          schedule,
+          values.paidThroughInstallment,
+          values.originalPrincipal
+        )
+      : null;
 
   const data={
     ...values,
     currentManualBalance:
-      values.mode==="calculated"
-        ? null
-        : values.currentManualBalance,
+      values.mode==="calculated" ? null : values.bankReportedBalance,
     calculatedBalance,
     schedule,
     currentInstallment:
-      values.mode==="calculated"
-        ? (
-            nextPending
-              ? Number(nextPending.n)
-              : Number(values.termMonths||schedule.length||0)
-          )
-        : 0,
+      nextPending
+        ? Number(nextPending.n)
+        : Number(values.termMonths||schedule.length||0),
     status:
-      values.mode==="calculated" && !nextPending && schedule.length
+      (!nextPending && (
+        values.bankReportedBalance!==null
+          ? values.bankReportedBalance<=0.009
+          : Number(calculatedBalance||0)<=0.009
+      ))
         ? "paid_off"
         : "active",
     active:true,
     liabilityType:"loan"
   };
 
-  if(editingDebtId){
-    const oldDebt=debts.find(x=>x.id===editingDebtId);
-    if(!oldDebt){
-      toast("No se encontró la deuda que intentas editar.");
-      resetDebtForm();
-      return;
-    }
-
-    const financialChange=financialDebtChanged(oldDebt,data);
-    const paidCount=Number(data.paidThroughInstallment||0);
-
-    if(financialChange){
-      if(data.mode==="calculated" && data.termMonths<paidCount){
-        toast(
-          `El nuevo plazo (${data.termMonths}) no puede ser menor que `+
-          `las ${paidCount} cuotas seleccionadas como pagadas.`
-        );
-        return;
-      }
-
-      if(!await confirmAction({
-        title:"Actualizar datos financieros de la deuda",
-        message:`${oldDebt.creditor} · ${oldDebt.concept}`,
-        impact:[
-          `Las cuotas 1–${data.paidThroughInstallment||0} quedarán marcadas como pagadas.`,
-          "Las cuotas posteriores se recalcularán con los nuevos datos.",
-          "El saldo pendiente puede cambiar.",
-          "La auditoría guardará el cambio."
-        ],
-        confirmText:"Recalcular y actualizar"
-      })) return;
-    }
-
-    await saveLiability(
-      {
-        ...oldDebt,
-        ...data
-      },
-      editingDebtId
-    );
-
-    toast(
-      financialChange
-        ? "Deuda actualizada: cuotas pagadas y saldo recalculados."
-        : "Deuda actualizada."
-    );
-  }else{
-    await saveLiability(data);
-    toast("Préstamo/deuda guardado.");
+  if(editingDebtId && !oldDebt){
+    toast("No se encontró la deuda que intentas editar.");
+    resetDebtForm();
+    return;
   }
 
-  resetDebtForm();
-  await refresh();
+  if(oldDebt && financialDebtChanged(oldDebt,data)){
+    if(!await confirmAction({
+      title:"Actualizar el registro existente",
+      message:`${oldDebt.creditor} · ${oldDebt.concept}`,
+      impact:[
+        `Se actualizará el documento existente ${oldDebt.id}.`,
+        `Las cuotas 1–${data.paidThroughInstallment||0} quedarán como historial pagado.`,
+        "Las cuotas futuras se reconstruirán con los datos actuales.",
+        data.mode==="calculated"
+          ? "El saldo teórico se recalculará; el saldo informado se conservará como referencia separada."
+          : "El saldo informado seguirá siendo la referencia y el cronograma servirá para seguimiento.",
+        "No se creará una segunda deuda."
+      ],
+      confirmText:"Actualizar deuda"
+    })) return;
+  }
+
+  debtSaving=true;
+  submit.disabled=true;
+  try{
+    if(editingDebtId){
+      await saveLiability({...oldDebt,...data},editingDebtId);
+      toast("Deuda actualizada en el mismo registro.");
+    }else{
+      await saveLiability(data);
+      toast("Préstamo/deuda guardado.");
+    }
+
+    resetDebtForm();
+    await refresh();
+  }finally{
+    debtSaving=false;
+    submit.disabled=false;
+  }
 });
 
 document.querySelector("#plan-form").addEventListener("submit",async e=>{

@@ -140,8 +140,10 @@ ul.task-list li input[type="checkbox"] {
   </div>
 </div>
 <div class="tf-grid tf-grid-2"><section class="tf-card"><h2 class="anchored">Calculadora / nueva deuda</h2><form id="debt-form" class="tf-form-grid">
-<div class="tf-field"><label>Acreedor</label><input id="debt-creditor" required=""></div><div class="tf-field"><label>Concepto</label><input id="debt-concept" required=""></div><div class="tf-field"><label>Modo</label><select id="debt-mode"><option value="calculated">Calculada</option><option value="manual">Saldo manual</option><option value="imported">Importada</option></select></div><div class="tf-field"><label>Sistema</label><select id="debt-method"><option value="german">Alemán</option><option value="french">Francés</option><option value="manual">Manual</option></select></div>
+<div class="tf-field"><label>Acreedor</label><input id="debt-creditor" required=""></div><div class="tf-field"><label>Concepto</label><input id="debt-concept" required=""></div><div class="tf-field"><label>Origen del seguimiento</label><select id="debt-mode"><option value="calculated">Calculado por Tracker</option><option value="manual">Saldo reportado + seguimiento</option><option value="imported">Cronograma reportado</option></select></div><div class="tf-field" id="debt-method-wrap"><label>Sistema de amortización</label><select id="debt-method"><option value="german">Alemán</option><option value="french">Francés</option></select></div>
 <div class="tf-field"><label>Capital original ($)</label><input id="debt-principal" type="number" min="0" step="0.01" value="10000"></div>
+<div class="tf-field" id="debt-reported-balance-wrap"><label>Saldo informado por acreedor ($)</label><input id="debt-current" type="number" min="0" step="0.01" placeholder="Opcional si Tracker calcula"><small>En seguimiento manual/reportado es el saldo de referencia. En modo calculado permite comparar el saldo real con el cronograma teórico.</small></div>
+<div class="tf-field" id="debt-bank-installment-wrap"><label>Cuota informada ($)</label><input id="debt-bank-installment" type="number" min="0" step="0.01" value="0"><small>Para cronogramas reportados. En seguimiento manual puede dejarse en 0 si el monto no se conoce.</small></div>
 <div class="tf-field tf-span-2" id="debt-next-installment-wrap">
   <label>Siguiente cuota</label>
   <div id="debt-next-installment-summary" class="tf-next-installment-summary">
@@ -154,18 +156,13 @@ ul.task-list li input[type="checkbox"] {
   <input id="debt-calculated-balance" type="text" readonly="" value="$0,00">
   <small>Solo lectura. Se actualiza al pulsar <strong>Calcular</strong> según el cronograma y la cuota pagada seleccionada.</small>
 </div>
-<div class="tf-field" id="debt-manual-balance-wrap" hidden="">
-  <label>Saldo actual pendiente ($)</label>
-  <input id="debt-current" type="number" min="0" step="0.01" placeholder="0,00">
-  <small>Disponible únicamente en modo manual/importado.</small>
-</div>
 <div class="tf-field"><label>Tasa anual (%)</label><input id="debt-rate" type="number" min="0" step="0.01" value="4.99"></div><div class="tf-field"><label>Tipo de tasa</label><select id="debt-rate-type"><option value="nominal">Nominal anual</option><option value="effective">Efectiva anual</option></select></div>
-<div class="tf-field"><label>Plazo (meses)</label><input id="debt-term" type="number" min="1" value="36"></div>
+<div class="tf-field"><label>Plazo original (cuotas mensuales)</label><input id="debt-term" type="number" min="1" value="36"></div>
 <div class="tf-field"><label>Primera cuota</label><input id="debt-first" type="date"></div>
 <div class="tf-field">
   <label id="debt-installment-label">Pagado hasta la cuota</label>
   <input id="debt-current-installment" type="number" min="0" value="0">
-  <small id="debt-installment-help">0 = ninguna pagada. Ej.: 16 marca como pagadas las cuotas 1–16 y calcula el saldo después de la cuota 16.</small>
+  <small id="debt-installment-help">0 = ninguna pagada. Para deudas históricas indica la última cuota ya pagada; no se crean transacciones bancarias retroactivas.</small>
 </div>
 <div class="tf-field"><label>Recordar (días antes)</label><input id="debt-reminder" type="number" min="0" max="30" value="3"></div>
 <div class="tf-span-2 tf-actions">
@@ -218,7 +215,7 @@ ul.task-list li input[type="checkbox"] {
   <div class="tf-section-heading">
     <div>
       <h2 class="anchored">Préstamos y otras deudas</h2>
-      <div class="tf-muted">Obligaciones con acreedores. Esta sección no utiliza información de tarjetas de crédito.</div>
+      <div class="tf-muted">Obligaciones con acreedores. Las deudas históricas pueden conservar saldo reportado y cronograma de seguimiento sin inventar movimientos bancarios pasados.</div>
     </div>
   </div>
   <div id="debt-list" class="tf-grid tf-grid-3"></div>
@@ -716,7 +713,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.34</p>
+<p>Tracker Financiero Personal V1.0.35</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
