@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.34
+# Tracker Financiero Personal V1.0.35
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1090,3 +1090,16 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los ajustes de conciliación se excluyen siempre de ingresos, egresos y proyecciones.
 - Compatibilidad con movimientos heredados: además de `reconciliationAdjustment`, se reconocen por `reconciliationId` y por la descripción canónica `Ajuste de conciliación`.
 - La inferencia se aplica al cargar movimientos y en el motor analítico, evitando que una conciliación aprobada/clasificada vuelva a entrar como ingreso.
+
+
+## V1.0.35 — Deudas históricas y seguimiento unificado
+
+- Edición de préstamos reforzada para actualizar siempre el mismo documento por ID.
+- Bloqueo de doble guardado y prevención de duplicados activos por acreedor + concepto.
+- Deudas manuales/importadas conservan plazo original, primera cuota, pagado hasta y cronograma visible.
+- Modo manual: saldo reportado + cronograma de seguimiento, con cuota informada opcional.
+- Modo importado/reportado: cronograma mensual con cuota informada por acreedor.
+- El saldo informado puede coexistir con el saldo teórico en deudas calculadas y se muestra la diferencia.
+- “Pagado” en tarjetas de préstamo pasa a “Capital amortizado”.
+- Pagos históricos se representan como estado del cronograma y no generan transacciones bancarias retroactivas.
+- Los registros antiguos sin cronograma pueden visualizar un cronograma derivado al abrirlos, usando sus campos históricos.
