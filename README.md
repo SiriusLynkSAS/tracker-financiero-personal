@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.38
+# Tracker Financiero Personal V1.0.39
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1123,3 +1123,13 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Un registro legado defectuoso ya no impide renderizar toda la lista.
 - El módulo muestra cuántos documentos fueron leídos de Firebase para verificar la carga real.
 - La carga de tarjetas/cuentas/movimientos ya no bloquea la visualización de préstamos si uno de esos módulos falla.
+
+
+## V1.0.39 — Pagos reales y dinámicos de deudas
+
+- El cronograma permanece como expectativa y cada cuota puede registrar el pago realmente realizado.
+- Cada pago guarda fecha, monto, capital, interés, otros cargos, nota y saldo informado después del pago.
+- Soporta pagos parciales: una cuota puede recibir varios pagos sin avanzar a la siguiente hasta marcarla como completada.
+- Permite crear un egreso en Movimientos, vincular un egreso existente o registrar el pago sin movimiento bancario.
+- Los movimientos vinculados a una deuda quedan protegidos contra edición/eliminación directa.
+- Las cuotas históricas anteriores al uso de Tracker permanecen como historial y no crean movimientos retroactivos.

@@ -33,6 +33,24 @@ export function inMonth(date,month){
   return String(date||"").slice(0,7)===month;
 }
 
+function debtPaymentRegisteredAmount(row,month){
+  const payments=Array.isArray(row?.payments)?row.payments:[];
+  if(payments.length){
+    return payments
+      .filter(x=>!x.transactionId && inMonth(x.date,month))
+      .reduce((s,x)=>s+Number(x.amount||0),0);
+  }
+  return row?.status==="paid" && inMonth(row?.paidDate,month)
+    ? Number(row?.paidAmount||0)>0?Number(row.paidAmount):Number(row?.payment||0)
+    : 0;
+}
+
+function debtInstallmentRemaining(row){
+  const expected=Number(row?.payment||0);
+  const paid=Number(row?.paidAmount||0);
+  return expected>0?Math.max(0,expected-paid):0;
+}
+
 export function normalizeText(value){
   return String(value??"")
     .trim()
@@ -124,13 +142,15 @@ export function monthlyCommitments({
     if(debt.active===false || liabilityType!=="loan" || debt.status==="paid_off") continue;
     for(const row of debt.schedule||[]){
       if(row.status==="paid" || !inMonth(row.dueDate,month)) continue;
+      const remaining=debtInstallmentRemaining(row);
+      if(!(remaining>0)) continue;
       rows.push({
         key:`liability:${debt.id}:installment:${row.n}`,
         kind:"expense",
         source:"loan",
         label:debt.creditor||debt.concept||"Préstamo",
         detail:`Cuota ${row.n} · ${row.dueDate}`,
-        amount:Number(row.payment||0),
+        amount:remaining,
         day:Number(String(row.dueDate||"").slice(8,10)||99),
         dueDate:row.dueDate||""
       });
@@ -285,10 +305,8 @@ export function monthlyProjection({
   );
 
   const loanPayments=sum(
-    debts.flatMap(d=>d.schedule||[]).filter(row=>
-      row.status==="paid" && inMonth(row.paidDate,month)
-    ),
-    row=>Number(row.paidAmount||0)>0?row.paidAmount:row.payment
+    debts.flatMap(d=>d.schedule||[]),
+    row=>debtPaymentRegisteredAmount(row,month)
   );
 
   const registeredExpenses=cashExpenses+cardPayments+loanPayments;
@@ -590,7 +608,7 @@ export function emergencyFundSummary({
     if(debt.active===false || (debt.liabilityType||"loan")!=="loan" || debt.status==="paid_off") continue;
     const row=(debt.schedule||[]).find(x=>x.status!=="paid");
     if(!row) continue;
-    const amount=Number(row.payment||row.paidAmount||0);
+    const amount=debtInstallmentRemaining(row);
     if(!(amount>0)) continue;
     const key=`loan:${debt.id}`;
     components.push({

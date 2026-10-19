@@ -29,9 +29,49 @@ const debtList=document.querySelector("#debt-list");
 const planList=document.querySelector("#plan-list");
 const debtScheduleBody=document.querySelector("#debt-schedule-body");
 const cardScheduleBody=document.querySelector("#card-schedule-body");
+const debtPaymentPanel=document.querySelector("#debt-payment-panel");
+const debtPaymentForm=document.querySelector("#debt-payment-form");
+let debtPaymentInstallment=null;
 
 function fmt(v){
   return v===null||v===undefined?"—":money(v);
+}
+
+function paymentId(){
+  return (globalThis.crypto?.randomUUID?.() || `pay-${Date.now()}-${Math.random().toString(36).slice(2,9)}`);
+}
+
+function transactionId(){
+  return (globalThis.crypto?.randomUUID?.() || `tx-${Date.now()}-${Math.random().toString(36).slice(2,9)}`);
+}
+
+function paymentTotal(row){
+  const payments=Array.isArray(row?.payments)?row.payments:[];
+  return payments.reduce((s,p)=>s+Number(p.amount||0),0);
+}
+
+function paymentCapital(row){
+  const payments=Array.isArray(row?.payments)?row.payments:[];
+  return payments.reduce((s,p)=>s+Number(p.capital||0),0);
+}
+
+function lastPaymentDate(row){
+  const dates=(row?.payments||[]).map(p=>p.date).filter(Boolean).sort();
+  return dates.length?dates[dates.length-1]:(row?.paidDate||null);
+}
+
+function availableDebtPaymentTransactions(){
+  return transactions
+    .filter(t=>
+      t.type==="expense" &&
+      !t.debtPaymentId &&
+      !t.liabilityId &&
+      !t.taxPaymentId &&
+      !t.tripExpenseId &&
+      !t.tripSettlementId &&
+      !t.reconciliationAdjustment
+    )
+    .slice(0,120);
 }
 
 function accountLabel(id){
@@ -73,15 +113,37 @@ function normalizeLegacyDebt(row){
   };
   const mode=text(raw.mode,raw.balanceMode,"manual");
   const schedule=Array.isArray(raw.schedule)
-    ? raw.schedule.map((x,i)=>({
-        ...x,
-        n:Math.max(1,num(x?.n,x?.number,i+1)),
-        dueDate:safeDate(x?.dueDate||x?.date),
-        status:text(x?.status,"pending"),
-        payment:num(x?.payment,x?.installmentAmount),
-        paidAmount:num(x?.paidAmount),
-        paidDate:safeDate(x?.paidDate)||null
-      }))
+    ? raw.schedule.map((x,i)=>{
+        const payments=Array.isArray(x?.payments)
+          ? x.payments.map((p,j)=>({
+              ...p,
+              id:text(p?.id,`legacy-${i+1}-${j+1}`),
+              date:safeDate(p?.date)||safeDate(x?.paidDate)||"",
+              amount:Math.max(0,num(p?.amount)),
+              capital:Math.max(0,num(p?.capital)),
+              interest:Math.max(0,num(p?.interest)),
+              fees:Math.max(0,num(p?.fees)),
+              reportedBalanceAfter:nullableNum(p?.reportedBalanceAfter),
+              accountId:text(p?.accountId),
+              transactionId:text(p?.transactionId),
+              note:text(p?.note),
+              closesInstallment:p?.closesInstallment!==false
+            }))
+          : [];
+        const paymentTotal=payments.reduce((s,p)=>s+Number(p.amount||0),0);
+        return {
+          ...x,
+          n:Math.max(1,num(x?.n,x?.number,i+1)),
+          dueDate:safeDate(x?.dueDate||x?.date),
+          status:text(x?.status,paymentTotal>0?"partial":"pending"),
+          payment:num(x?.payment,x?.installmentAmount),
+          paidAmount:paymentTotal>0?paymentTotal:num(x?.paidAmount),
+          paidDate:payments.length
+            ? (payments.map(p=>p.date).filter(Boolean).sort().slice(-1)[0]||null)
+            : (safeDate(x?.paidDate)||null),
+          payments
+        };
+      })
     : [];
   const term=Math.max(1,num(raw.termMonths,raw.installmentCount,raw.term,schedule.length,1));
   const reported=nullableNum(
@@ -218,16 +280,30 @@ function markPaidThrough(schedule=[],paidThrough=0,{historical=true}={}){
   const limit=Math.max(0,Number(paidThrough||0));
 
   return schedule.map(row=>{
+    const payments=Array.isArray(row.payments)?row.payments:[];
+    const actualPaid=payments.reduce((s,p)=>s+Number(p.amount||0),0);
     const shouldBePaid=Number(row.n)<=limit;
 
     if(shouldBePaid){
       return {
         ...row,
         status:"paid",
-        paidAmount:Number(row.payment||0),
-        paidDate:row.paidDate||null,
+        paidAmount:actualPaid>0?actualPaid:Number(row.paidAmount||row.payment||0),
+        paidDate:lastPaymentDate(row),
         historicalPayment:
-          row.paidDate ? !!row.historicalPayment : historical
+          payments.length ? false : (row.paidDate ? !!row.historicalPayment : historical),
+        payments
+      };
+    }
+
+    if(actualPaid>0){
+      return {
+        ...row,
+        status:"partial",
+        paidAmount:actualPaid,
+        paidDate:lastPaymentDate(row),
+        historicalPayment:false,
+        payments
       };
     }
 
@@ -236,7 +312,8 @@ function markPaidThrough(schedule=[],paidThrough=0,{historical=true}={}){
       status:"pending",
       paidAmount:0,
       paidDate:null,
-      historicalPayment:false
+      historicalPayment:false,
+      payments
     };
   });
 }
@@ -1184,11 +1261,14 @@ function render(){
 
 /* ---------------- PRÉSTAMOS ---------------- */
 
+
 function showDebtSchedule(debt){
   if(!debt) return;
 
   selectedDebtId=debt.id;
   selectedCardPlanId=null;
+  debtPaymentInstallment=null;
+  if(debtPaymentPanel) debtPaymentPanel.hidden=true;
 
   document.querySelector("#card-schedule-card").hidden=true;
   document.querySelector("#debt-schedule-card").hidden=false;
@@ -1207,39 +1287,54 @@ function showDebtSchedule(debt){
     `${debtModeLabel(debt.mode)} · `+
     `inicio ${debt.firstPaymentDate||"—"} · `+
     `pagado hasta ${paidThrough}/${debt.termMonths||effectiveSchedule.length||"—"} · `+
-    `${nextPending ? `próxima ${nextPending.n}` : "sin cuotas futuras"} · `+
+    `${nextPending ? `cuota actual ${nextPending.n}` : "sin cuotas futuras"} · `+
     `saldo referencia ${money(reported)}`+
     `${theoretical!==null ? ` · teórico ${money(theoretical)}` : ""}`;
 
   debtScheduleBody.innerHTML=effectiveSchedule.length
     ? effectiveSchedule.map(s=>{
         const isPaid=s.status==="paid";
-        const isHistorical=!!s.historicalPayment && !s.paidDate;
+        const isPartial=s.status==="partial";
+        const isHistorical=!!s.historicalPayment && !s.paidDate && !(s.payments||[]).length;
         const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
+        const actual=paymentTotal(s)>0?paymentTotal(s):Number(s.paidAmount||0);
+        const expected=Number(s.payment||0);
+        const remaining=expected>0?Math.max(0,expected-actual):null;
         const statusLabel=isPaid
           ? (isHistorical ? "Pagada (hist.)" : "Pagada")
+          : isPartial ? "Pago parcial"
           : isNext ? "Por pagar" : "Pendiente";
-        const payment=Number(s.payment||0)>0 ? money(s.payment) : "—";
+        const payment=expected>0 ? money(expected) : "—";
+        const history=(s.payments||[]).length
+          ? `<div class="tf-muted" style="margin-top:.25rem">${(s.payments||[]).map(p=>
+              `${escapeHtml(p.date||"")} · ${money(p.amount)}${p.transactionId?" · movimiento vinculado":""}`
+            ).join("<br>")}</div>`
+          : "";
 
         return `
           <tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}">
             <td>${s.n}</td>
-            <td>${s.dueDate}</td>
+            <td>${escapeHtml(s.dueDate||"")}</td>
             <td>${fmt(s.principal)}</td>
             <td>${fmt(s.interest)}</td>
             <td>${payment}</td>
+            <td>
+              ${actual>0?money(actual):"—"}
+              ${remaining!==null&&remaining>0.009?`<div class="tf-muted">resta ${money(remaining)}</div>`:""}
+              ${history}
+            </td>
             <td>${fmt(s.closingBalance)}</td>
             <td>
-              <span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">
+              <span class="tf-pill ${isPaid?"tf-pill-ok":isPartial?"tf-pill-warn":"tf-pill-warn"}">
                 ${statusLabel}
               </span>
             </td>
             <td>
               ${isPaid
-                ? `<span class="tf-installment-paid-mark">✓ Pagada</span>`
+                ? `<span class="tf-installment-paid-mark">✓ ${isHistorical?"Histórica":"Pagada"}</span>`
                 : isNext
                   ? `<button class="tf-btn tf-btn-primary" data-pay-debt="${s.n}">
-                       Marcar pagada
+                       Registrar pago
                      </button>`
                   : `<span class="tf-muted tf-installment-waiting">Después de cuota ${nextPending?.n||"—"}</span>`
               }
@@ -1247,109 +1342,314 @@ function showDebtSchedule(debt){
           </tr>
         `;
       }).join("")
-    : `<tr><td colspan="8" class="tf-empty">Completa plazo y primera cuota para construir el seguimiento histórico.</td></tr>`;
+    : `<tr><td colspan="9" class="tf-empty">Completa plazo y primera cuota para construir el seguimiento histórico.</td></tr>`;
 
   document.querySelector("#debt-schedule-card")
     .scrollIntoView({behavior:"smooth",block:"start"});
 }
 
-async function payDebtInstallment(n){
+function renderDebtPaymentTransactions(){
+  const select=document.querySelector("#debt-payment-existing");
+  if(!select) return;
+  const rows=availableDebtPaymentTransactions();
+  select.innerHTML=
+    `<option value="">Selecciona un movimiento</option>`+
+    rows.map(t=>{
+      const a=accounts.find(x=>x.id===t.accountId);
+      const label=`${t.date} · ${money(t.amount)} · ${t.description||t.category||"Egreso"} · ${a?`${a.bank} ${a.alias}`:"cuenta"}`;
+      return `<option value="${escapeHtml(t.id)}">${escapeHtml(label)}</option>`;
+    }).join("");
+}
+
+function syncDebtPaymentMovementMode(){
+  const mode=document.querySelector("#debt-payment-movement-mode")?.value||"create";
+  const accountWrap=document.querySelector("#debt-payment-account-wrap");
+  const existingWrap=document.querySelector("#debt-payment-existing-wrap");
+  if(accountWrap) accountWrap.hidden=mode!=="create";
+  if(existingWrap) existingWrap.hidden=mode!=="existing";
+}
+
+function openDebtPayment(n){
   const debt=debts.find(x=>x.id===selectedDebtId);
   if(!debt) return;
 
-  const rawSchedule=effectiveDebtSchedule(debt);
-  const currentPaidThrough=paidThroughInstallment(debt);
+  const schedule=markPaidThrough(
+    effectiveDebtSchedule(debt),
+    paidThroughInstallment(debt),
+    {historical:true}
+  );
+  const next=schedule.find(x=>x.status!=="paid")||null;
+  const row=schedule.find(x=>Number(x.n)===Number(n));
+  if(!row || !next || Number(row.n)!==Number(next.n)){
+    toast(next?`Primero debes registrar la cuota ${next.n}.`:"No existen cuotas pendientes.");
+    return;
+  }
+
+  debtPaymentInstallment=Number(n);
+  const actual=paymentTotal(row);
+  const expected=Number(row.payment||0);
+  const remaining=expected>0?Math.max(0,expected-actual):0;
+
+  document.querySelector("#debt-payment-title").textContent=
+    `${debt.creditor} · cuota ${n}`;
+  document.querySelector("#debt-payment-date").value=todayISO();
+  document.querySelector("#debt-payment-amount").value=
+    (remaining>0?remaining:expected>0?expected:0).toFixed(2);
+  document.querySelector("#debt-payment-capital").value=
+    Number(row.principal||0).toFixed(2);
+  document.querySelector("#debt-payment-interest").value=
+    Number(row.interest||0).toFixed(2);
+  document.querySelector("#debt-payment-fees").value="0.00";
+  document.querySelector("#debt-payment-balance").value="";
+  document.querySelector("#debt-payment-note").value="";
+  document.querySelector("#debt-payment-close").checked=
+    expected<=0 || remaining<=0 || (remaining>0 && Math.abs(remaining-expected)<0.01);
+  document.querySelector("#debt-payment-movement-mode").value="create";
+
+  const activeAccounts=accounts.filter(a=>a.active!==false);
+  const accountSelect=document.querySelector("#debt-payment-account");
+  accountSelect.innerHTML=activeAccounts.map(a=>
+    `<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`
+  ).join("");
+
+  renderDebtPaymentTransactions();
+  syncDebtPaymentMovementMode();
+  debtPaymentPanel.hidden=false;
+  debtPaymentPanel.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+async function registerDebtPayment(){
+  const debt=debts.find(x=>x.id===selectedDebtId);
+  const n=Number(debtPaymentInstallment||0);
+  if(!debt||!n) return;
+
+  const date=document.querySelector("#debt-payment-date").value;
+  const amount=Number(document.querySelector("#debt-payment-amount").value||0);
+  const capital=Number(document.querySelector("#debt-payment-capital").value||0);
+  const interest=Number(document.querySelector("#debt-payment-interest").value||0);
+  const fees=Number(document.querySelector("#debt-payment-fees").value||0);
+  const balanceRaw=document.querySelector("#debt-payment-balance").value;
+  const reportedBalanceAfter=balanceRaw===""?null:Number(balanceRaw);
+  const note=document.querySelector("#debt-payment-note").value.trim();
+  const closesInstallment=document.querySelector("#debt-payment-close").checked;
+  const movementMode=document.querySelector("#debt-payment-movement-mode").value;
+  const accountId=document.querySelector("#debt-payment-account").value;
+  const existingTransactionId=document.querySelector("#debt-payment-existing").value;
+
+  if(!date || !(amount>0)){
+    toast("Ingresa fecha y monto realmente pagado.");
+    return;
+  }
+  if([capital,interest,fees].some(x=>x<0)){
+    toast("Capital, interés y otros cargos no pueden ser negativos.");
+    return;
+  }
+  const breakdown=capital+interest+fees;
+  if(breakdown>0 && Math.abs(breakdown-amount)>0.02){
+    toast("Si ingresas el desglose, capital + interés + otros cargos debe coincidir con el pago real.");
+    return;
+  }
+  if(reportedBalanceAfter!==null && reportedBalanceAfter<0){
+    toast("El saldo informado después del pago no puede ser negativo.");
+    return;
+  }
+
   const scheduleBefore=markPaidThrough(
-    rawSchedule,currentPaidThrough,{historical:true}
+    effectiveDebtSchedule(debt),
+    paidThroughInstallment(debt),
+    {historical:true}
   );
-
-  const nextPending=scheduleBefore.find(x=>x.status!=="paid")||null;
-  if(!nextPending){
-    toast("Todas las cuotas de este préstamo ya están registradas como pagadas.");
+  const next=scheduleBefore.find(x=>x.status!=="paid")||null;
+  const row=scheduleBefore.find(x=>Number(x.n)===n);
+  if(!row||!next||Number(next.n)!==n){
+    toast(next?`La cuota vigente ahora es ${next.n}.`:"No existen cuotas pendientes.");
     return;
   }
 
-  if(Number(n)!==Number(nextPending.n)){
-    toast(`Primero debes registrar la cuota ${nextPending.n}.`);
-    return;
+  let linkedTx=null;
+  let txId="";
+  if(movementMode==="create"){
+    if(!accountId){
+      toast("Selecciona la cuenta desde la que salió el pago.");
+      return;
+    }
+    txId=transactionId();
+  }else if(movementMode==="existing"){
+    linkedTx=transactions.find(x=>x.id===existingTransactionId);
+    if(!linkedTx){
+      toast("Selecciona un movimiento existente.");
+      return;
+    }
+    if(linkedTx.type!=="expense" || Math.abs(Number(linkedTx.amount||0)-amount)>0.02){
+      toast("El movimiento existente debe ser un egreso por el mismo monto del pago.");
+      return;
+    }
+    if(linkedTx.debtPaymentId||linkedTx.liabilityId){
+      toast("Ese movimiento ya está vinculado a una deuda.");
+      return;
+    }
+    txId=linkedTx.id;
   }
 
-  const installment=scheduleBefore.find(x=>Number(x.n)===Number(n));
-  if(!installment) return;
+  const id=paymentId();
+  const oldPayments=Array.isArray(row.payments)?row.payments:[];
+  const payment={
+    id,date,amount,capital,interest,fees,
+    reportedBalanceAfter,
+    accountId:movementMode==="create"?accountId:(linkedTx?.accountId||""),
+    transactionId:txId,
+    note,
+    closesInstallment
+  };
+  const payments=[...oldPayments,payment];
+  const totalPaid=payments.reduce((s,p)=>s+Number(p.amount||0),0);
+  const lastDate=payments.map(p=>p.date).filter(Boolean).sort().slice(-1)[0]||date;
 
-  if(!await confirmAction({
-    title:"Marcar cuota del préstamo como pagada",
-    message:`${debt.creditor} · cuota ${n} · ${Number(installment.payment||0)>0?money(installment.payment):"monto no informado"}`,
-    impact:[
-      `La cuota ${n} pasará a estado Pagada.`,
-      debt.mode==="calculated"
-        ? "El saldo teórico se recalculará con el saldo de cierre de la cuota."
-        : "El saldo reportado por el acreedor no se modificará automáticamente.",
-      "La siguiente cuota avanzará automáticamente.",
-      "No se crea una transacción bancaria retroactiva."
-    ]
-  })) return;
+  const schedule=scheduleBefore.map(x=>{
+    if(Number(x.n)!==n) return x;
+    return {
+      ...x,
+      payments,
+      paidAmount:totalPaid,
+      paidDate:lastDate,
+      historicalPayment:false,
+      status:closesInstallment?"paid":"partial"
+    };
+  });
 
-  const schedule=scheduleBefore.map(x=>
-    Number(x.n)===Number(n)
-      ? {
-          ...x,
-          status:"paid",
-          paidAmount:Number(x.payment||0),
-          paidDate:todayISO(),
-          historicalPayment:false
-        }
-      : x
+  const previousReference=loanPending(debt);
+  let newReported=debt.bankReportedBalance ?? debt.currentManualBalance ?? null;
+  let balanceEstimated=false;
+  if(reportedBalanceAfter!==null){
+    newReported=reportedBalanceAfter;
+  }else if(capital>0){
+    newReported=Math.max(0,previousReference-capital);
+    balanceEstimated=true;
+  }
+
+  const paidRow=schedule.find(x=>Number(x.n)===n);
+  const theoreticalBefore=Number(
+    row.openingBalance ??
+    debt.calculatedBalance ??
+    theoreticalLoanPending(debt) ??
+    debt.originalPrincipal ??
+    0
   );
+  const newCalculated=debt.mode==="calculated"
+    ? Math.max(
+        0,
+        capital>0
+          ? theoreticalBefore-capital
+          : (closesInstallment
+              ? Number(row.closingBalance ?? debt.calculatedBalance ?? theoreticalBefore)
+              : theoreticalBefore)
+      )
+    : null;
 
-  const newPaidThrough=Number(n);
-  const newNextPending=schedule.find(x=>x.status!=="paid")||null;
-  const paidRow=schedule.find(x=>Number(x.n)===Number(n));
+  const oldPaidThrough=paidThroughInstallment(debt);
+  const newPaidThrough=closesInstallment?Math.max(oldPaidThrough,n):oldPaidThrough;
+  const effectiveAfter=markPaidThrough(schedule,newPaidThrough,{historical:true});
+  const newNext=effectiveAfter.find(x=>x.status!=="paid")||null;
+  const referenceAfter=newReported!==null?newReported:(newCalculated??previousReference);
 
   const updated={
     ...debt,
     schedule,
     paidThroughInstallment:newPaidThrough,
-    currentInstallment:newNextPending
-      ? Number(newNextPending.n)
-      : Number(debt.termMonths||schedule.length||n),
-    calculatedBalance:
-      debt.mode==="calculated"
-        ? Number(paidRow?.closingBalance ?? debt.calculatedBalance ?? debt.originalPrincipal ?? 0)
-        : null,
-    currentManualBalance:
-      debt.mode==="calculated" ? null : (debt.currentManualBalance ?? debt.bankReportedBalance ?? null),
-    bankReportedBalance:debt.bankReportedBalance ?? debt.currentManualBalance ?? null,
-    status:
-      (!newNextPending && loanPending(debt)<=0.009)
-        ? "paid_off"
-        : "active",
-    paidOffDate:
-      (!newNextPending && loanPending(debt)<=0.009)
-        ? todayISO()
-        : (debt.paidOffDate||null)
+    currentInstallment:newNext?Number(newNext.n):Number(debt.termMonths||schedule.length||n),
+    calculatedBalance:newCalculated,
+    currentManualBalance:debt.mode==="calculated"?null:newReported,
+    bankReportedBalance:newReported,
+    balanceNeedsUpdate:newReported===null,
+    balanceEstimated,
+    status:(!newNext || referenceAfter<=0.009) && referenceAfter<=0.009 ? "paid_off" : "active",
+    paidOffDate:((!newNext || referenceAfter<=0.009) && referenceAfter<=0.009)?date:(debt.paidOffDate||null)
   };
 
-  await saveLiability(updated,debt.id);
+  const ops=[{
+    collection:"liabilities",
+    id:debt.id,
+    action:"update",
+    auditType:"liability",
+    note:`Pago real cuota ${n}`,
+    data:updated
+  }];
 
-  toast(
-    newNextPending
-      ? `Cuota ${n} registrada. Próxima cuota: ${newNextPending.n}.`
-      : `Cuota ${n} registrada. No quedan cuotas en el cronograma.`
-  );
-
-  await refresh();
-
-  const latest=debts.find(x=>x.id===debt.id);
-  if(latest){
-    showDebtSchedule(latest);
-    if(editingDebtId===latest.id){
-      startDebtEdit(latest);
-    }
+  if(movementMode==="create"){
+    ops.push({
+      collection:"transactions",
+      id:txId,
+      action:"create",
+      auditType:"transaction",
+      note:`Pago de deuda ${debt.creditor}`,
+      data:{
+        type:"expense",
+        date,
+        amount,
+        vat:0,
+        receipt:"",
+        description:`Pago deuda: ${debt.creditor} · ${debt.concept} · cuota ${n}`,
+        category:"Deudas",
+        subcategory:"Pago de préstamo",
+        accountId,
+        fromAccountId:null,
+        toAccountId:null,
+        splits:[],
+        liabilityId:debt.id,
+        debtPaymentId:id,
+        installmentNumber:n
+      }
+    });
+  }else if(movementMode==="existing"){
+    ops.push({
+      collection:"transactions",
+      id:linkedTx.id,
+      action:"update",
+      auditType:"transaction",
+      note:`Vinculado a pago de deuda ${debt.creditor}`,
+      data:{
+        ...linkedTx,
+        liabilityId:debt.id,
+        debtPaymentId:id,
+        installmentNumber:n
+      }
+    });
   }
+
+  if(!await confirmAction({
+    title:closesInstallment?"Registrar pago y cerrar cuota":"Registrar pago parcial",
+    message:`${debt.creditor} · cuota ${n} · ${money(amount)}`,
+    impact:[
+      `Se guardará el pago real del ${date}.`,
+      breakdown>0
+        ? `Desglose: capital ${money(capital)}, interés ${money(interest)}, otros ${money(fees)}.`
+        : "El desglose capital/interés queda sin especificar.",
+      reportedBalanceAfter!==null
+        ? `Saldo informado después del pago: ${money(reportedBalanceAfter)}.`
+        : capital>0
+          ? `El saldo de referencia se estimará restando ${money(capital)} de capital.`
+          : "El saldo de referencia no se recalculará hasta que informes capital o saldo posterior.",
+      movementMode==="create"
+        ? "Se creará un egreso vinculado en Movimientos."
+        : movementMode==="existing"
+          ? "Se vinculará el movimiento existente seleccionado."
+          : "No se creará ni modificará ningún movimiento bancario.",
+      closesInstallment
+        ? "La siguiente cuota quedará habilitada."
+        : "La cuota permanecerá abierta como pago parcial."
+    ],
+    confirmText:"Registrar pago"
+  })) return;
+
+  await atomicWrite(ops);
+  toast(closesInstallment?`Pago registrado. ${newNext?`Próxima cuota: ${newNext.n}.`:"Préstamo sin cuotas pendientes."}`:"Pago parcial registrado.");
+  debtPaymentPanel.hidden=true;
+  debtPaymentInstallment=null;
+  await refresh();
+  const latest=debts.find(x=>x.id===debt.id);
+  if(latest) showDebtSchedule(latest);
 }
 
-/* ---------------- TARJETAS ---------------- */
 
 function showCardSchedule(plan){
   if(!plan) return;
@@ -1584,6 +1884,14 @@ async function refresh(){
       `<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`
     ).join("");
 
+  const debtPaymentAccount=document.querySelector("#debt-payment-account");
+  if(debtPaymentAccount){
+    debtPaymentAccount.innerHTML=accounts.filter(a=>a.active!==false).map(a=>
+      `<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`
+    ).join("");
+  }
+  renderDebtPaymentTransactions();
+
   render();
 }
 
@@ -1616,7 +1924,24 @@ document.querySelector("#plan-method").addEventListener("change",togglePlanMetho
 
 document.querySelector("#debt-schedule-close").addEventListener("click",()=>{
   selectedDebtId=null;
+  debtPaymentInstallment=null;
+  if(debtPaymentPanel) debtPaymentPanel.hidden=true;
   document.querySelector("#debt-schedule-card").hidden=true;
+});
+document.querySelector("#debt-payment-cancel")?.addEventListener("click",()=>{
+  debtPaymentInstallment=null;
+  debtPaymentPanel.hidden=true;
+});
+document.querySelector("#debt-payment-movement-mode")?.addEventListener("change",syncDebtPaymentMovementMode);
+document.querySelector("#debt-payment-existing")?.addEventListener("change",()=>{
+  const tx=transactions.find(x=>x.id===document.querySelector("#debt-payment-existing").value);
+  if(!tx) return;
+  document.querySelector("#debt-payment-date").value=tx.date||todayISO();
+  document.querySelector("#debt-payment-amount").value=Number(tx.amount||0).toFixed(2);
+});
+debtPaymentForm?.addEventListener("submit",async e=>{
+  e.preventDefault();
+  await registerDebtPayment();
 });
 
 document.querySelector("#card-schedule-close").addEventListener("click",()=>{
@@ -2090,10 +2415,10 @@ document.addEventListener("click",async e=>{
   }
 });
 
-debtScheduleBody.addEventListener("click",async e=>{
+debtScheduleBody.addEventListener("click",e=>{
   const b=e.target.closest("[data-pay-debt]");
   if(!b) return;
-  await payDebtInstallment(Number(b.dataset.payDebt));
+  openDebtPayment(Number(b.dataset.payDebt));
 });
 
 cardScheduleBody.addEventListener("click",async e=>{

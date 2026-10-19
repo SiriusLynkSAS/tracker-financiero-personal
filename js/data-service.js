@@ -204,6 +204,9 @@ export async function removeTransaction(id){
   if(row?.reconciliationAdjustment){
     throw new Error("Este movimiento pertenece a una conciliación. Modifícalo o reviértelo desde Conciliación.");
   }
+  if(row?.debtPaymentId || row?.liabilityId){
+    throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
+  }
   await deleteEntity("transactions",id,{auditType:"transaction"});
   const accountIds=[...new Set([row?.accountId,row?.fromAccountId,row?.toAccountId].filter(Boolean))];
   if(accountIds.length && row?.date){
