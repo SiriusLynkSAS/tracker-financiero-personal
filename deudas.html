@@ -245,7 +245,8 @@ ul.task-list li input[type="checkbox"] {
 <th data-quarto-table-cell-role="th">Fecha</th>
 <th data-quarto-table-cell-role="th">Capital</th>
 <th data-quarto-table-cell-role="th">Interés</th>
-<th data-quarto-table-cell-role="th">Cuota</th>
+<th data-quarto-table-cell-role="th">Esperado</th>
+<th data-quarto-table-cell-role="th">Pagado real</th>
 <th data-quarto-table-cell-role="th">Saldo</th>
 <th data-quarto-table-cell-role="th">Estado</th>
 <th data-quarto-table-cell-role="th"></th>
@@ -255,6 +256,33 @@ ul.task-list li input[type="checkbox"] {
 </tbody>
 </table>
 
+  </div>
+
+  <div id="debt-payment-panel" class="tf-card" style="margin-top:1rem" hidden="">
+    <div class="tf-section-heading">
+      <div>
+        <div class="tf-section-kicker">Pago real</div>
+        <h3 id="debt-payment-title" class="anchored">Registrar pago</h3>
+        <div class="tf-muted">Registra lo efectivamente pagado. El cronograma esperado se conserva para comparar.</div>
+      </div>
+    </div>
+    <form id="debt-payment-form" class="tf-form-grid">
+      <div class="tf-field"><label>Fecha del pago</label><input id="debt-payment-date" type="date" required=""></div>
+      <div class="tf-field"><label>Monto realmente pagado ($)</label><input id="debt-payment-amount" type="number" min="0.01" step="0.01" required=""></div>
+      <div class="tf-field"><label>Capital aplicado ($)</label><input id="debt-payment-capital" type="number" min="0" step="0.01" value="0"></div>
+      <div class="tf-field"><label>Interés pagado ($)</label><input id="debt-payment-interest" type="number" min="0" step="0.01" value="0"></div>
+      <div class="tf-field"><label>Otros cargos / seguro ($)</label><input id="debt-payment-fees" type="number" min="0" step="0.01" value="0"></div>
+      <div class="tf-field"><label>Saldo informado después del pago ($)</label><input id="debt-payment-balance" type="number" min="0" step="0.01" placeholder="Recomendado"><small>Si lo deja vacío y registra capital, Tracker estimará el nuevo saldo restando ese capital.</small></div>
+      <div class="tf-field"><label>Movimiento</label><select id="debt-payment-movement-mode"><option value="create">Crear egreso en Movimientos</option><option value="existing">Vincular movimiento existente</option><option value="none">No crear movimiento</option></select></div>
+      <div class="tf-field" id="debt-payment-account-wrap"><label>Cuenta origen</label><select id="debt-payment-account"></select></div>
+      <div class="tf-field tf-span-2" id="debt-payment-existing-wrap" hidden=""><label>Movimiento existente</label><select id="debt-payment-existing"></select><small>Solo se muestran egresos que todavía no están vinculados a otra deuda o proceso.</small></div>
+      <div class="tf-field tf-span-2"><label>Nota</label><textarea id="debt-payment-note" rows="2" placeholder="Seguro, comisión, abono extraordinario, etc."></textarea></div>
+      <label class="tf-check tf-span-2"><input id="debt-payment-close" type="checkbox" checked=""> Este pago completa la cuota y habilita la siguiente</label>
+      <div class="tf-actions tf-span-2">
+        <button class="tf-btn tf-btn-primary" type="submit">Registrar pago</button>
+        <button class="tf-btn tf-btn-secondary" type="button" id="debt-payment-cancel">Cancelar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -719,7 +747,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.38</p>
+<p>Tracker Financiero Personal V1.0.39</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

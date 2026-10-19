@@ -131,8 +131,8 @@ function execution(){
     t=>t.amount
   );
   const loanPayments=sum(
-    debts.flatMap(d=>d.schedule||[]).filter(r=>r.status==="paid"&&inMonth(r.paidDate,selectedMonth)),
-    r=>Number(r.paidAmount||0)>0?r.paidAmount:r.payment
+    debts.flatMap(d=>d.schedule||[]),
+    r=>unlinkedDebtPaidInMonth(r,selectedMonth)
   );
   return {
     realIncome,cashExpenses,cardPayments,loanPayments,

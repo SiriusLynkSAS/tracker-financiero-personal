@@ -356,12 +356,14 @@ function render() {
         <div class="tf-actions">
           ${tx.reconciliationAdjustment
             ? `<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`
+            : (tx.debtPaymentId||tx.liabilityId)
+              ? `<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`
             : (tx.tripExpenseId||tx.tripSettlementId)
               ? `<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`
               : (tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA")
                 ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
                 : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
-          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment)
+          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId)
             ? `<span class="tf-pill">Vinculado</span>`
             : `<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
         </div>
@@ -458,6 +460,8 @@ form.addEventListener("submit", async e => {
     businessTripId:previous?.businessTripId||"",
     tripExpenseId:previous?.tripExpenseId||"",
     tripSettlementId:previous?.tripSettlementId||"",
+    liabilityId:previous?.liabilityId||"",
+    debtPaymentId:previous?.debtPaymentId||"",
     category:
       type.value === "transfer"
         ? ""
