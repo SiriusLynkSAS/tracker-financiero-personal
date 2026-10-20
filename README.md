@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.39
+# Tracker Financiero Personal V1.0.40
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1133,3 +1133,15 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Permite crear un egreso en Movimientos, vincular un egreso existente o registrar el pago sin movimiento bancario.
 - Los movimientos vinculados a una deuda quedan protegidos contra edición/eliminación directa.
 - Las cuotas históricas anteriores al uso de Tracker permanecen como historial y no crean movimientos retroactivos.
+
+
+## V1.0.40 — Movimientos: registro rápido + detalles opcionales
+
+- Formulario principal reducido a tipo, monto, cuenta, categoría/subcategoría, descripción y fecha.
+- Factura, IVA, referencia y splits pasan a “Más detalles”.
+- Monto nuevo vacío; campos monetarios usan entrada decimal y seleccionan el valor completo al enfocar.
+- Selector de tipo mediante botones Gasto / Ingreso / Transferencia.
+- Cuenta usada recientemente se recuerda localmente para el próximo movimiento.
+- Atajos Hoy / Ayer para fecha.
+- Los selectores quitan el foco de campos de texto para evitar mantener teclados abiertos en dispositivos táctiles.
+- Botón Guardar permanece accesible y muestra el monto actual.

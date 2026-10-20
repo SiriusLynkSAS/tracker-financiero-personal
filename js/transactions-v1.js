@@ -33,6 +33,10 @@ const form = document.querySelector("#tx-form");
 const tbody = document.querySelector("#tx-body");
 const type = document.querySelector("#tx-type");
 const filter = document.querySelector("#filter-account");
+const moreDetails = document.querySelector("#tx-more-details");
+const categoryDialog = document.querySelector("#tx-category-dialog");
+const categoryDialogBody = document.querySelector("#tx-category-dialog-body");
+const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 
 function activeAccounts() {
   return accounts.filter(a => a.active !== false);
@@ -47,6 +51,12 @@ function accountName(id) {
   return a ? accountLabel(a) : "Cuenta archivada";
 }
 
+function parseDecimalInput(value){
+  const normalized=String(value??"").trim().replace(",",".");
+  const n=Number(normalized);
+  return Number.isFinite(n)?n:0;
+}
+
 function fillAccounts() {
   const options = activeAccounts().map(a =>
     `<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`
@@ -55,6 +65,12 @@ function fillAccounts() {
   ["tx-account", "tx-from", "tx-to"].forEach(id => {
     document.querySelector(`#${id}`).innerHTML = options;
   });
+
+  const remembered = localStorage.getItem(LAST_ACCOUNT_KEY);
+  if (!editingId && remembered && activeAccounts().some(a => a.id === remembered)) {
+    document.querySelector("#tx-account").value = remembered;
+    document.querySelector("#tx-from").value = remembered;
+  }
 
   filter.innerHTML =
     `<option value="all">Todas las cuentas</option>` +
@@ -91,6 +107,7 @@ function fillCategories(preferredCategory = "", preferredSubcategory = "") {
     category,
     preferredSubcategory
   );
+  syncCategoryPickerLabel();
 }
 
 function fillSubs(preferred = "") {
@@ -104,10 +121,70 @@ function fillSubs(preferred = "") {
     category,
     preferred
   );
+  syncCategoryPickerLabel();
+}
+
+function syncCategoryPickerLabel(){
+  const button=document.querySelector("#tx-category-picker");
+  if(!button) return;
+  const category=document.querySelector("#tx-category").value;
+  const subcategory=document.querySelector("#tx-subcategory").value;
+  button.textContent=category
+    ? `${category}${subcategory?` · ${subcategory}`:""}`
+    : "Seleccionar categoría y subcategoría";
+  button.classList.toggle("has-value",!!category&&!!subcategory);
+}
+
+function renderCategoryDialog(category=null){
+  if(!categoryDialogBody) return;
+  const catType=currentCategoryType();
+  if(!category){
+    document.querySelector("#tx-category-dialog-title").textContent="Seleccionar categoría";
+    const rows=categoriesForType(categories,catType);
+    categoryDialogBody.innerHTML=rows.map(name=>
+      `<button type="button" class="tf-tx-category-option" data-category-choice="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+    ).join("") || `<div class="tf-empty">No hay categorías configuradas.</div>`;
+  }else{
+    document.querySelector("#tx-category-dialog-title").textContent=category;
+    const rows=subcategoriesFor(categories,catType,category);
+    categoryDialogBody.innerHTML=
+      `<button type="button" class="tf-tx-category-back" data-category-back>← Categorías</button>`+
+      rows.map(name=>
+        `<button type="button" class="tf-tx-category-option" data-subcategory-choice="${escapeHtml(name)}">${escapeHtml(name)}</button>`
+      ).join("");
+  }
+}
+
+function openCategoryDialog(){
+  blurEditorText();
+  renderCategoryDialog();
+  if(categoryDialog?.showModal) categoryDialog.showModal();
+}
+
+function syncTypeButtons(){
+  document.querySelectorAll("[data-tx-type]").forEach(button => {
+    const selected = button.dataset.txType === type.value;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function updateSaveButton(){
+  const amount = parseDecimalInput(document.querySelector("#tx-amount").value);
+  const action = editingId ? "Actualizar" : "Guardar";
+  document.querySelector("#tx-submit").textContent = amount > 0
+    ? `${action} ${money(amount)}`
+    : `${action} movimiento`;
+}
+
+function blurEditorText(){
+  const active = document.activeElement;
+  if (active && ["INPUT","TEXTAREA"].includes(active.tagName)) active.blur();
 }
 
 function toggleType() {
   const isTransfer = type.value === "transfer";
+  syncTypeButtons();
 
   document.querySelector("#single-account-fields").hidden = isTransfer;
   document.querySelector("#transfer-fields").hidden = !isTransfer;
@@ -125,6 +202,11 @@ function toggleType() {
     toggleSplit();
   } else {
     fillCategories();
+    if(!editingId){
+      document.querySelector("#tx-category").value="";
+      document.querySelector("#tx-subcategory").value="";
+      syncCategoryPickerLabel();
+    }
     refreshSplitCatalogs();
   }
 }
@@ -151,8 +233,8 @@ function toggleInvoice(){
 }
 
 function updateInvoiceSummary(){
-  const amount=Number(document.querySelector("#tx-amount").value||0);
-  const vat=Number(document.querySelector("#tx-vat").value||0);
+  const amount=parseDecimalInput(document.querySelector("#tx-amount").value);
+  const vat=parseDecimalInput(document.querySelector("#tx-vat").value);
   const base=Math.max(0,amount-vat);
   const period=String(document.querySelector("#tx-date").value||"").slice(0,7);
   document.querySelector("#tx-invoice-summary").textContent=
@@ -217,7 +299,7 @@ function splitRow(data = {}) {
         type="number"
         min="0"
         step="0.01"
-        value="${Number(data.amount || 0)}"
+        value="${data.amount ? Number(data.amount) : ""}"
       >
     </div>
 
@@ -285,7 +367,7 @@ function updateSplitTotal() {
 
   document.querySelector("#split-total").textContent =
     `Total dividido: ${money(total)} / movimiento: ` +
-    `${money(document.querySelector("#tx-amount").value)}`;
+    `${money(parseDecimalInput(document.querySelector("#tx-amount").value))}`;
 }
 
 function collectSplits() {
@@ -293,7 +375,7 @@ function collectSplits() {
     .map(row => ({
       category: row.querySelector("[data-split-cat]").value,
       subcategory: row.querySelector("[data-split-sub]").value,
-      amount: Number(row.querySelector("[data-split-amount]").value || 0)
+      amount: parseDecimalInput(row.querySelector("[data-split-amount]").value)
     }))
     .filter(x => x.amount > 0);
 }
@@ -304,8 +386,8 @@ function reset() {
 
   document.querySelector("#tx-date").value = todayISO();
   type.value = "expense";
-  document.querySelector("#tx-amount").value = 0;
-  document.querySelector("#tx-vat").value = 0;
+  document.querySelector("#tx-amount").value = "";
+  document.querySelector("#tx-vat").value = "";
   document.querySelector("#tx-has-invoice").checked = false;
   document.querySelector("#tx-invoice-number").value = "";
   document.querySelector("#tx-has-invoice").disabled = false;
@@ -313,9 +395,11 @@ function reset() {
   document.querySelector("#tx-invoice-number").disabled = false;
   document.querySelector("#split-rows").innerHTML = "";
   document.querySelector("#tx-cancel").hidden = true;
-  document.querySelector("#tx-submit").textContent = "Guardar movimiento";
+  document.querySelector("#tx-editor-title").textContent = "Nuevo movimiento";
+  if (moreDetails) moreDetails.open = false;
 
   toggleType();
+  updateSaveButton();
   toggleSplit();
 }
 
@@ -399,10 +483,65 @@ async function refresh() {
 }
 
 type.addEventListener("change", toggleType);
+document.querySelectorAll("[data-tx-type]").forEach(button => {
+  button.addEventListener("click", () => {
+    blurEditorText();
+    type.value = button.dataset.txType;
+    toggleType();
+  });
+});
+
+["tx-account","tx-from","tx-to","tx-category","tx-subcategory","filter-account"].forEach(id => {
+  const el = document.querySelector(`#${id}`);
+  el?.addEventListener("pointerdown", blurEditorText);
+  el?.addEventListener("focus", blurEditorText);
+});
+
 document.querySelector("#tx-category").addEventListener("change", () => fillSubs());
+document.querySelector("#tx-subcategory").addEventListener("change", syncCategoryPickerLabel);
+document.querySelector("#tx-category-picker")?.addEventListener("click",openCategoryDialog);
+document.querySelector("#tx-category-dialog-close")?.addEventListener("click",()=>categoryDialog?.close());
+categoryDialogBody?.addEventListener("click",e=>{
+  const cat=e.target.closest("[data-category-choice]");
+  const sub=e.target.closest("[data-subcategory-choice]");
+  const back=e.target.closest("[data-category-back]");
+  if(back){ renderCategoryDialog(); return; }
+  if(cat){
+    const value=cat.dataset.categoryChoice;
+    document.querySelector("#tx-category").value=value;
+    fillSubs();
+    document.querySelector("#tx-subcategory").value="";
+    syncCategoryPickerLabel();
+    renderCategoryDialog(value);
+    return;
+  }
+  if(sub){
+    document.querySelector("#tx-subcategory").value=sub.dataset.subcategoryChoice;
+    syncCategoryPickerLabel();
+    blurEditorText();
+    categoryDialog?.close();
+  }
+});
 filter.addEventListener("change", render);
 document.querySelector("#tx-split-enabled").addEventListener("change", toggleSplit);
-document.querySelector("#tx-amount").addEventListener("input",()=>{updateSplitTotal();updateInvoiceSummary()});
+document.querySelector("#tx-amount").addEventListener("input",()=>{updateSplitTotal();updateInvoiceSummary();updateSaveButton()});
+["tx-amount","tx-vat"].forEach(id => {
+  const input=document.querySelector(`#${id}`);
+  input?.addEventListener("focus", () => requestAnimationFrame(() => input.select()));
+  input?.addEventListener("input", () => {
+    input.value=input.value.replace(/[^0-9.,]/g,"").replace(/([.,].*)[.,]/g,"$1");
+  });
+});
+document.querySelectorAll("[data-date-shortcut]").forEach(button => {
+  button.addEventListener("click", () => {
+    blurEditorText();
+    const date = new Date();
+    if (button.dataset.dateShortcut === "yesterday") date.setDate(date.getDate()-1);
+    const local = new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    document.querySelector("#tx-date").value = local;
+    updateInvoiceSummary();
+  });
+});
 document.querySelector("#tx-date").addEventListener("change",updateInvoiceSummary);
 document.querySelector("#tx-vat").addEventListener("input",updateInvoiceSummary);
 document.querySelector("#tx-has-invoice").addEventListener("change",toggleInvoice);
@@ -425,9 +564,9 @@ document.querySelector("#tx-cancel").addEventListener("click", reset);
 form.addEventListener("submit", async e => {
   e.preventDefault();
 
-  const amount = Number(document.querySelector("#tx-amount").value);
+  const amount = parseDecimalInput(document.querySelector("#tx-amount").value);
   const hasInvoice=type.value==="income"&&document.querySelector("#tx-has-invoice").checked;
-  const vat = hasInvoice ? Number(document.querySelector("#tx-vat").value || 0) : 0;
+  const vat = hasInvoice ? parseDecimalInput(document.querySelector("#tx-vat").value) : 0;
 
   if (!(amount > 0)) return alert("El monto debe ser mayor que cero.");
   if (vat < 0 || (hasInvoice && vat >= amount)) return alert("El IVA debe ser menor que el total recibido.");
@@ -548,6 +687,9 @@ form.addEventListener("submit", async e => {
     toast("Movimiento registrado.");
   }
 
+  const rememberedAccount = data.type === "transfer" ? data.fromAccountId : data.accountId;
+  if (rememberedAccount) localStorage.setItem(LAST_ACCOUNT_KEY, rememberedAccount);
+
   reset();
   await refresh();
 });
@@ -591,7 +733,9 @@ tbody.addEventListener("click", async e => {
     updateSplitTotal();
 
     document.querySelector("#tx-cancel").hidden = false;
-    document.querySelector("#tx-submit").textContent = "Actualizar movimiento";
+    document.querySelector("#tx-editor-title").textContent = "Editar movimiento";
+    if (moreDetails) moreDetails.open = !!(tx.receipt || tx.hasInvoice || Number(tx.vat||0)>0 || tx.splits?.length);
+    updateSaveButton();
     scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -632,5 +776,7 @@ tbody.addEventListener("click", async e => {
 });
 
 document.querySelector("#tx-date").value = todayISO();
+document.querySelector("#tx-amount").value = "";
 toggleType();
+updateSaveButton();
 requireUser(() => refresh().catch(console.error));
