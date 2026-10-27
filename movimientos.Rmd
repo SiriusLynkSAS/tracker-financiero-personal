@@ -64,13 +64,19 @@ title: "Movimientos"
         <input id="tx-description" autocomplete="off" placeholder="Ej. Almuerzo, combustible, sueldo…">
       </div>
 
-      <div class="tf-field">
-        <label>Fecha</label>
-        <input id="tx-date" type="date" required>
-        <div class="tf-tx-date-shortcuts">
+      <div class="tf-form-grid">
+        <div class="tf-field">
+          <label>Fecha</label>
+          <input id="tx-date" type="date" required>
+        </div>
+        <div class="tf-field">
+          <label>Hora</label>
+          <input id="tx-time" type="time" required>
+        </div>
+      </div>
+      <div class="tf-tx-date-shortcuts">
           <button type="button" class="tf-btn tf-btn-secondary tf-btn-compact" data-date-shortcut="today">Hoy</button>
           <button type="button" class="tf-btn tf-btn-secondary tf-btn-compact" data-date-shortcut="yesterday">Ayer</button>
-        </div>
       </div>
 
       <details id="tx-more-details" class="tf-tx-more-details">
@@ -90,6 +96,16 @@ title: "Movimientos"
             </div>
             <div id="tx-invoice-summary" class="tf-muted" style="margin-top:.55rem">Base sin IVA: $0,00</div>
             <div id="tx-invoice-lock" class="tf-alert tf-alert-info" style="margin-top:.55rem"></div>
+          </div>
+
+          <div id="transfer-charge-panel" class="tf-subtle" hidden>
+            <strong>Cargos e impuestos de la operación</strong>
+            <div class="tf-form-grid" style="margin-top:.65rem">
+              <div class="tf-field"><label>Comisión bancaria ($)</label><input id="tx-fee" type="text" inputmode="decimal" placeholder="0,00"></div>
+              <div class="tf-field"><label>Impuestos ($)</label><input id="tx-tax" type="text" inputmode="decimal" placeholder="0,00"></div>
+              <div class="tf-field"><label>Otros cargos ($)</label><input id="tx-other-charge" type="text" inputmode="decimal" placeholder="0,00"></div>
+            </div>
+            <div id="tx-gross-debit" class="tf-alert tf-alert-info" style="margin-top:.55rem">Total que saldrá: $0,00</div>
           </div>
 
           <div id="split-toggle-wrap" class="tf-check">
@@ -114,9 +130,17 @@ title: "Movimientos"
   </section>
 
   <section class="tf-card tf-tx-filter-card">
-    <h2>Filtro</h2>
-    <div class="tf-field"><label>Cuenta</label><select id="filter-account"></select></div>
-    <p class="tf-muted">Las transferencias no son gasto ni ingreso. Los splits solo redistribuyen categorías.</p>
+    <div class="tf-section-heading"><div><div class="tf-section-kicker">Historial</div><h2>Buscar y organizar</h2></div></div>
+    <div class="tf-field"><label>Buscar</label><input id="filter-search" placeholder="Descripción, categoría, cuenta…"></div>
+    <div class="tf-form-grid">
+      <div class="tf-field"><label>Tipo</label><select id="filter-type"><option value="all">Todos</option><option value="expense">Gastos</option><option value="income">Ingresos</option><option value="transfer">Transferencias</option></select></div>
+      <div class="tf-field"><label>Cuenta</label><select id="filter-account"></select></div>
+      <div class="tf-field"><label>Período</label><select id="filter-period"><option value="all">Todo</option><option value="month" selected>Este mes</option><option value="year">Este año</option></select></div>
+      <div class="tf-field"><label>Ordenar</label><select id="filter-sort"><option value="recent">Más recientes</option><option value="oldest">Más antiguos</option><option value="amount_desc">Mayor monto</option><option value="amount_asc">Menor monto</option><option value="category">Categoría A–Z</option></select></div>
+      <div class="tf-field"><label>Categoría</label><select id="filter-category"><option value="all">Todas</option></select></div>
+      <div class="tf-field"><label>Subcategoría</label><select id="filter-subcategory"><option value="all">Todas</option></select></div>
+    </div>
+    <button id="filter-clear" type="button" class="tf-btn tf-btn-secondary">Limpiar filtros</button>
   </section>
 </div>
 
@@ -134,7 +158,7 @@ title: "Movimientos"
 <div class="tf-card" style="margin-top:1rem">
   <div class="tf-table-wrap">
     <table class="tf-table">
-      <thead><tr><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th>Categoría</th><th>Detalle</th><th>Monto</th><th></th></tr></thead>
+      <thead><tr><th>Fecha / hora</th><th>Tipo</th><th>Cuenta</th><th>Categoría</th><th>Detalle</th><th>Monto</th><th></th></tr></thead>
       <tbody id="tx-body"></tbody>
     </table>
   </div>

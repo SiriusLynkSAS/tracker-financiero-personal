@@ -127,7 +127,7 @@ title: "Resumen"
 
 <div class="tf-grid tf-grid-2" style="margin-top:1rem">
   <div class="tf-card">
-    <h2>Lo que viene</h2>
+    <div class="tf-section-heading"><h2>Lo que viene</h2><a class="tf-btn tf-btn-secondary" href="pendientes.html">Revisar pendientes</a></div>
     <div id="upcoming"></div>
   </div>
 
@@ -138,12 +138,12 @@ title: "Resumen"
 </div>
 
 <div class="tf-card" style="margin-top:1rem">
-  <h2>Movimientos recientes</h2>
+  <div class="tf-section-heading"><h2>Movimientos recientes</h2><a class="tf-btn tf-btn-secondary" href="movimientos.html">Ver todos</a></div>
   <div class="tf-table-wrap">
     <table class="tf-table">
       <thead>
         <tr>
-          <th>Fecha</th>
+          <th>Fecha / hora</th>
           <th>Tipo</th>
           <th>Descripción</th>
           <th>Monto</th>

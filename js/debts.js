@@ -1402,6 +1402,12 @@ function openDebtPayment(n){
   document.querySelector("#debt-payment-fees").value="0.00";
   document.querySelector("#debt-payment-balance").value="";
   document.querySelector("#debt-payment-note").value="";
+  document.querySelector("#debt-payment-bank-fee").value="";
+  document.querySelector("#debt-payment-bank-tax").value="";
+  document.querySelector("#debt-payment-bank-other").value="";
+  document.querySelector("#debt-payment-destination").value="";
+  document.querySelector("#debt-payment-reference").value="";
+  document.querySelector("#debt-payment-gross").textContent=money(remaining>0?remaining:expected);
   document.querySelector("#debt-payment-close").checked=
     expected<=0 || remaining<=0 || (remaining>0 && Math.abs(remaining-expected)<0.01);
   document.querySelector("#debt-payment-movement-mode").value="create";
@@ -1431,6 +1437,11 @@ async function registerDebtPayment(){
   const balanceRaw=document.querySelector("#debt-payment-balance").value;
   const reportedBalanceAfter=balanceRaw===""?null:Number(balanceRaw);
   const note=document.querySelector("#debt-payment-note").value.trim();
+  const bankFeeAmount=Number(document.querySelector("#debt-payment-bank-fee").value||0);
+  const bankTaxAmount=Number(document.querySelector("#debt-payment-bank-tax").value||0);
+  const bankOtherChargeAmount=Number(document.querySelector("#debt-payment-bank-other").value||0);
+  const destinationBank=document.querySelector("#debt-payment-destination").value.trim();
+  const reference=document.querySelector("#debt-payment-reference").value.trim();
   const closesInstallment=document.querySelector("#debt-payment-close").checked;
   const movementMode=document.querySelector("#debt-payment-movement-mode").value;
   const accountId=document.querySelector("#debt-payment-account").value;
@@ -1440,8 +1451,8 @@ async function registerDebtPayment(){
     toast("Ingresa fecha y monto realmente pagado.");
     return;
   }
-  if([capital,interest,fees].some(x=>x<0)){
-    toast("Capital, interés y otros cargos no pueden ser negativos.");
+  if([capital,interest,fees,bankFeeAmount,bankTaxAmount,bankOtherChargeAmount].some(x=>x<0)){
+    toast("Capital, interés, cargos e impuestos no pueden ser negativos.");
     return;
   }
   const breakdown=capital+interest+fees;
@@ -1499,7 +1510,12 @@ async function registerDebtPayment(){
     accountId:movementMode==="create"?accountId:(linkedTx?.accountId||""),
     transactionId:txId,
     note,
-    closesInstallment
+    closesInstallment,
+    bankFeeAmount,
+    bankTaxAmount,
+    bankOtherChargeAmount,
+    destinationBank,
+    reference
   };
   const payments=[...oldPayments,payment];
   const totalPaid=payments.reduce((s,p)=>s+Number(p.amount||0),0);
@@ -1597,7 +1613,13 @@ async function registerDebtPayment(){
         splits:[],
         liabilityId:debt.id,
         debtPaymentId:id,
-        installmentNumber:n
+        installmentNumber:n,
+        feeAmount:bankFeeAmount,
+        taxAmount:bankTaxAmount,
+        otherChargeAmount:bankOtherChargeAmount,
+        grossDebitAmount:amount+bankFeeAmount+bankTaxAmount+bankOtherChargeAmount,
+        transactionDateTime:`${date}T12:00`,
+        receipt:reference
       }
     });
   }else if(movementMode==="existing"){
@@ -1629,6 +1651,9 @@ async function registerDebtPayment(){
         : capital>0
           ? `El saldo de referencia se estimará restando ${money(capital)} de capital.`
           : "El saldo de referencia no se recalculará hasta que informes capital o saldo posterior.",
+      bankFeeAmount+bankTaxAmount+bankOtherChargeAmount>0
+        ? `Cargos bancarios: ${money(bankFeeAmount+bankTaxAmount+bankOtherChargeAmount)} · débito total ${money(amount+bankFeeAmount+bankTaxAmount+bankOtherChargeAmount)}.`
+        : "Sin cargos bancarios adicionales.",
       movementMode==="create"
         ? "Se creará un egreso vinculado en Movimientos."
         : movementMode==="existing"
@@ -1747,9 +1772,19 @@ async function payCardInstallment(n){
   if(!installment) return;
 
   const bankId=document.querySelector("#schedule-payment-account").value;
+  const paymentDate=document.querySelector("#schedule-payment-date").value||todayISO();
+  const feeAmount=Number(document.querySelector("#schedule-payment-fee").value||0);
+  const taxAmount=Number(document.querySelector("#schedule-payment-tax").value||0);
+  const otherChargeAmount=Number(document.querySelector("#schedule-payment-other").value||0);
+  const reference=document.querySelector("#schedule-payment-reference").value.trim();
+  const grossDebit=Number(installment.payment||0)+feeAmount+taxAmount+otherChargeAmount;
 
   if(!bankId){
     toast("Selecciona la cuenta bancaria desde la que pagarás la tarjeta.");
+    return;
+  }
+  if([feeAmount,taxAmount,otherChargeAmount].some(x=>x<0)){
+    toast("Los cargos e impuestos no pueden ser negativos.");
     return;
   }
 
@@ -1760,6 +1795,7 @@ async function payCardInstallment(n){
       `La cuota ${n} pasará a estado Pagada.`,
       "El saldo pendiente y la siguiente cuota se actualizarán.",
       "Creará una transferencia desde la cuenta bancaria hacia la tarjeta.",
+      `Cargos adicionales ${money(feeAmount+taxAmount+otherChargeAmount)} · débito total ${money(grossDebit)}.`,
       "Las cuotas deben pagarse en orden."
     ]
   })) return;
@@ -1770,7 +1806,7 @@ async function payCardInstallment(n){
           ...x,
           status:"paid",
           paidAmount:Number(x.payment||0),
-          paidDate:todayISO(),
+          paidDate:paymentDate,
           historicalPayment:false
         }
       : x
@@ -1789,7 +1825,7 @@ async function payCardInstallment(n){
       : Number(plan.installmentCount||schedule.length||n),
     calculatedPending:pending,
     status:newNext ? "active" : "paid_off",
-    paidOffDate:newNext ? (plan.paidOffDate||null) : todayISO()
+    paidOffDate:newNext ? (plan.paidOffDate||null) : paymentDate
   };
 
   await atomicWrite([
@@ -1806,10 +1842,11 @@ async function payCardInstallment(n){
       auditType:"transaction",
       data:{
         type:"transfer",
-        date:todayISO(),
+        date:paymentDate,
+        transactionDateTime:`${paymentDate}T12:00`,
         amount:Number(installment.payment),
         vat:0,
-        receipt:"",
+        receipt:reference,
         description:`Pago cuota ${n}: ${plan.description}`,
         category:"",
         subcategory:"",
@@ -1818,7 +1855,11 @@ async function payCardInstallment(n){
         toAccountId:plan.parentId,
         splits:[],
         financingPlanId:plan.id,
-        installmentNumber:n
+        installmentNumber:n,
+        feeAmount,
+        taxAmount,
+        otherChargeAmount,
+        grossDebitAmount:grossDebit
       }
     }
   ]);
@@ -1883,6 +1924,8 @@ async function refresh(){
     banks.map(a=>
       `<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`
     ).join("");
+  const cardPayDate=document.querySelector("#schedule-payment-date");
+  if(cardPayDate && !cardPayDate.value) cardPayDate.value=todayISO();
 
   const debtPaymentAccount=document.querySelector("#debt-payment-account");
   if(debtPaymentAccount){
@@ -1942,6 +1985,14 @@ document.querySelector("#debt-payment-existing")?.addEventListener("change",()=>
 debtPaymentForm?.addEventListener("submit",async e=>{
   e.preventDefault();
   await registerDebtPayment();
+});
+
+["#debt-payment-amount","#debt-payment-bank-fee","#debt-payment-bank-tax","#debt-payment-bank-other"].forEach(sel=>{
+  document.querySelector(sel)?.addEventListener("input",()=>{
+    const total=["#debt-payment-amount","#debt-payment-bank-fee","#debt-payment-bank-tax","#debt-payment-bank-other"]
+      .reduce((sum,id)=>sum+Number(document.querySelector(id)?.value||0),0);
+    const out=document.querySelector("#debt-payment-gross"); if(out) out.textContent=money(total);
+  });
 });
 
 document.querySelector("#card-schedule-close").addEventListener("click",()=>{

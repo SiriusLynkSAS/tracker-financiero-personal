@@ -6,6 +6,7 @@ project:
     - dashboard.Rmd
     - cuentas.Rmd
     - movimientos.Rmd
+    - pendientes.Rmd
     - presupuestos.Rmd
     - plan_mensual.Rmd
     - categorias.Rmd
@@ -34,7 +35,7 @@ website:
   title: "Tracker Financiero Personal"
 
   page-footer:
-    center: "Tracker Financiero Personal V1.0.40"
+    center: "Tracker Financiero Personal V1.0.41"
 
 format:
   html:

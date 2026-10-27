@@ -5,7 +5,7 @@ import {
   archiveRecurring,
   listAccounts,
   listCategories,
-  saveTransaction
+  listTransactions
 } from "./data-service.js";
 import {
   money,
@@ -23,6 +23,7 @@ import { confirmAction, toast } from "./ui.js";
 let rows = [];
 let accounts = [];
 let categories = [];
+let transactions = [];
 let editingId = null;
 
 const list = document.querySelector("#rec-list");
@@ -97,49 +98,43 @@ function nextDue(r) {
   return iso;
 }
 
-function render() {
-  list.innerHTML = rows
-    .filter(r => r.active !== false)
-    .map(r => `
-      <div class="tf-card">
-        <strong>${escapeHtml(r.name)}</strong>
-        <div class="tf-muted">
-          ${r.type === "expense" ? "Egreso" : "Ingreso"}
-          · ${money(r.amount)}
-          · día ${r.dayOfMonth}
-        </div>
-        <div style="margin:.6rem 0">
-          ${escapeHtml(r.category || "—")}
-          ${r.subcategory ? ` > ${escapeHtml(r.subcategory)}` : ""}
-          <br>
-          Próximo: <strong>${nextDue(r)}</strong>
-          <br>
-          ${escapeHtml(accountLabel(r.accountId))}
-        </div>
-        <div class="tf-actions">
-          <button class="tf-btn tf-btn-primary" data-post="${r.id}">Registrar ahora</button>
-          <button class="tf-btn tf-btn-secondary" data-edit="${r.id}">Editar</button>
-          <button class="tf-btn tf-btn-secondary" data-archive="${r.id}">Archivar</button>
-        </div>
-      </div>
-    `).join("") || `
-      <div class="tf-card tf-empty">Sin recurrentes activos.</div>
-    `;
+function currentOccurrence(r){
+  const today=todayISO();
+  const ym=today.slice(0,7);
+  const [y,m]=ym.split("-").map(Number);
+  const day=Math.min(Number(r.dayOfMonth||1),new Date(y,m,0).getDate());
+  return {month:ym,dueDate:isoFromParts(y,m,day)};
+}
+function executionFor(r,occurrence){
+  return transactions.find(t=>t.recurringId===r.id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occurrence));
 }
 
+function render() {
+  list.innerHTML = rows.filter(r=>r.active!==false).map(r=>{
+    const occ=currentOccurrence(r);
+    const tx=executionFor(r,occ.month);
+    const verb=r.type==="expense"?"pago":"ingreso";
+    return `<div class="tf-card">
+      <div class="tf-section-heading"><div><strong>${escapeHtml(r.name)}</strong><div class="tf-muted">${r.type==="expense"?"Egreso":"Ingreso"} recurrente · ${money(r.amount)}</div></div><span class="tf-pill ${tx?"tf-pill-ok":"tf-pill-warn"}">${tx?(r.type==="expense"?"Pagado":"Recibido"):"Pendiente"}</span></div>
+      <div style="margin:.6rem 0">${escapeHtml(r.category||"—")}${r.subcategory?` · ${escapeHtml(r.subcategory)}`:""}<br>Ocurrencia: <strong>${occ.month}</strong> · vence ${occ.dueDate}${r.accountId?`<br>Cuenta habitual: ${escapeHtml(accountLabel(r.accountId))}`:""}</div>
+      ${tx?`<div class="tf-alert tf-alert-info">Registrado ${escapeHtml(tx.date||"")} · ${money(tx.amount)} · ${escapeHtml(accountLabel(tx.accountId))}</div>`:""}
+      <div class="tf-actions">
+        ${tx?`<a class="tf-btn tf-btn-secondary" href="movimientos.html?focus=${tx.id}">Ver movimiento</a>`:`<a class="tf-btn tf-btn-primary" href="movimientos.html?recurring=${encodeURIComponent(r.id)}&occurrence=${occ.month}">${r.type==="expense"?"Registrar pago":"Registrar ingreso"}</a>`}
+        <button class="tf-btn tf-btn-secondary" data-edit="${r.id}">Editar</button>
+        <button class="tf-btn tf-btn-secondary" data-archive="${r.id}">Archivar</button>
+      </div>
+    </div>`;
+  }).join("") || `<div class="tf-card tf-empty">Sin recurrentes activos.</div>`;
+}
 async function refresh() {
-  [rows, accounts, categories] = await Promise.all([
-    listRecurring(),
-    listAccounts({ includeArchived: false }),
-    listCategories()
+  [rows, accounts, categories, transactions] = await Promise.all([
+    listRecurring(), listAccounts({ includeArchived: false }), listCategories(), listTransactions()
   ]);
 
   categories = sortCategoryRows(categories);
 
-  document.querySelector("#rec-account").innerHTML = accounts
-    .map(a =>
-      `<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`
-    ).join("");
+  document.querySelector("#rec-account").innerHTML = `<option value="">Sin cuenta habitual</option>` + accounts
+    .map(a => `<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`).join("");
 
   fillCategoryCatalog();
   render();
@@ -195,7 +190,6 @@ document.querySelector("#rec-form").addEventListener("submit", async e => {
 });
 
 list.addEventListener("click", async e => {
-  const postButton = e.target.closest("[data-post]");
   const editButton = e.target.closest("[data-edit]");
   const archiveButton = e.target.closest("[data-archive]");
 
@@ -214,34 +208,6 @@ list.addEventListener("click", async e => {
     document.querySelector("#rec-submit").textContent="Actualizar recurrente";
     document.querySelector("#rec-cancel").hidden=false;
     scrollTo({top:0,behavior:"smooth"});
-  }
-
-  if (postButton) {
-    const recurring = rows.find(x => x.id === postButton.dataset.post);
-
-    if (await confirmAction({
-      title: "Registrar recurrente",
-      message: `${recurring.name} · ${money(recurring.amount)}`,
-      impact: ["Creará una transacción real."]
-    })) {
-      await saveTransaction({
-        type: recurring.type,
-        date: todayISO(),
-        amount: recurring.amount,
-        vat: 0,
-        receipt: "",
-        description: recurring.name,
-        category: recurring.category,
-        subcategory: recurring.subcategory,
-        accountId: recurring.accountId,
-        fromAccountId: null,
-        toAccountId: null,
-        splits: [],
-        recurringId: recurring.id
-      });
-
-      toast("Movimiento registrado.");
-    }
   }
 
   if (

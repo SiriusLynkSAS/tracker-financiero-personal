@@ -1,0 +1,10 @@
+---
+title: "Pendientes"
+---
+
+```{=html}
+<div class="tf-page-header"><div><h1>Pendientes</h1><div class="tf-muted">Pagos, cuotas e ingresos que requieren una acción.</div></div></div>
+<div class="tf-card"><div class="tf-actions"><button class="tf-btn tf-btn-secondary is-selected" data-pending-filter="all">Todos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="overdue">Vencidos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="today">Hoy</button><button class="tf-btn tf-btn-secondary" data-pending-filter="upcoming">Próximos</button></div></div>
+<div id="pending-list" class="tf-grid tf-grid-2" style="margin-top:1rem"></div>
+<script type="module" src="js/pending.js"></script>
+```

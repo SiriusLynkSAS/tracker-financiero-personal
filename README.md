@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.40
+# Tracker Financiero Personal V1.0.41
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1135,7 +1135,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Las cuotas históricas anteriores al uso de Tracker permanecen como historial y no crean movimientos retroactivos.
 
 
-## V1.0.40 — Movimientos: registro rápido + detalles opcionales
+## V1.0.41 — Movimientos: registro rápido + detalles opcionales
 
 - Formulario principal reducido a tipo, monto, cuenta, categoría/subcategoría, descripción y fecha.
 - Factura, IVA, referencia y splits pasan a “Más detalles”.
@@ -1145,3 +1145,12 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Atajos Hoy / Ayer para fecha.
 - Los selectores quitan el foco de campos de texto para evitar mantener teclados abiertos en dispositivos táctiles.
 - Botón Guardar permanece accesible y muestra el monto actual.
+
+
+## V1.0.41 — Movimientos, recurrentes y pendientes
+- Movimientos ordenables por fecha/hora real, búsqueda y filtros.
+- `transactionDateTime` es aditivo; `date` se conserva para compatibilidad.
+- Recurrentes se ejecutan una sola vez por mes con ID de transacción determinístico y campos `recurringId` / `recurringOccurrence`.
+- Transferencias admiten `feeAmount`, `taxAmount`, `otherChargeAmount` y `grossDebitAmount`.
+- Centro de pendientes Web con campana y pantalla dedicada.
+- No se renombraron colecciones ni campos históricos de Firebase.
