@@ -276,6 +276,12 @@ ul.task-list li input[type="checkbox"] {
       <div class="tf-field"><label>Movimiento</label><select id="debt-payment-movement-mode"><option value="create">Crear egreso en Movimientos</option><option value="existing">Vincular movimiento existente</option><option value="none">No crear movimiento</option></select></div>
       <div class="tf-field" id="debt-payment-account-wrap"><label>Cuenta origen</label><select id="debt-payment-account"></select></div>
       <div class="tf-field tf-span-2" id="debt-payment-existing-wrap" hidden=""><label>Movimiento existente</label><select id="debt-payment-existing"></select><small>Solo se muestran egresos que todavía no están vinculados a otra deuda o proceso.</small></div>
+      <div class="tf-field"><label>Comisión bancaria ($)</label><input id="debt-payment-bank-fee" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Impuestos bancarios ($)</label><input id="debt-payment-bank-tax" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Otros cargos bancarios ($)</label><input id="debt-payment-bank-other" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Banco / destino del acreedor</label><input id="debt-payment-destination" type="text" placeholder="Opcional"></div>
+      <div class="tf-field tf-span-2"><label>Referencia / comprobante</label><input id="debt-payment-reference" type="text" placeholder="Opcional"></div>
+      <div class="tf-field tf-span-2"><div class="tf-card"><span class="tf-muted">Total que saldrá de la cuenta</span><strong id="debt-payment-gross">$0,00</strong></div></div>
       <div class="tf-field tf-span-2"><label>Nota</label><textarea id="debt-payment-note" rows="2" placeholder="Seguro, comisión, abono extraordinario, etc."></textarea></div>
       <label class="tf-check tf-span-2"><input id="debt-payment-close" type="checkbox" checked=""> Este pago completa la cuota y habilita la siguiente</label>
       <div class="tf-actions tf-span-2">
@@ -305,12 +311,16 @@ ul.task-list li input[type="checkbox"] {
     </div>
     <button type="button" class="tf-btn tf-btn-secondary" id="card-schedule-close">Cerrar</button>
   </div>
-  <div class="tf-toolbar tf-card-payment-toolbar" style="margin-bottom:.8rem">
-    <div class="tf-field">
-      <label>Cuenta bancaria para pagar la tarjeta</label>
-      <select id="schedule-payment-account"></select>
+  <div class="tf-card tf-card-payment-toolbar" style="margin-bottom:.8rem">
+    <div class="tf-form-grid">
+      <div class="tf-field"><label>Cuenta bancaria para pagar la tarjeta</label><select id="schedule-payment-account"></select></div>
+      <div class="tf-field"><label>Fecha del pago</label><input id="schedule-payment-date" type="date"></div>
+      <div class="tf-field"><label>Comisión bancaria ($)</label><input id="schedule-payment-fee" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Impuestos ($)</label><input id="schedule-payment-tax" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Otros cargos ($)</label><input id="schedule-payment-other" type="number" min="0" step="0.01" placeholder="0,00"></div>
+      <div class="tf-field"><label>Referencia / comprobante</label><input id="schedule-payment-reference" type="text" placeholder="Opcional"></div>
     </div>
-    <div class="tf-muted">Solo se usa al pagar cuotas de planes de tarjeta. Crea una transferencia banco → tarjeta.</div>
+    <div class="tf-muted" style="margin-top:.6rem">El monto principal reduce la tarjeta. Comisión e impuestos se registran como gastos financieros adicionales de la cuenta origen.</div>
   </div>
   <div class="tf-table-wrap">
     
@@ -747,7 +757,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.40</p>
+<p>Tracker Financiero Personal V1.0.41</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

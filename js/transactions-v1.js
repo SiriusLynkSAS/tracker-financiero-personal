@@ -5,7 +5,9 @@ import {
   listCategories,
   saveTransaction,
   removeTransaction,
-  listReconciliations
+  listReconciliations,
+  listRecurring,
+  saveRecurringTransaction
 } from "./data-service.js";
 import {
   todayISO,
@@ -27,12 +29,20 @@ let accounts = [];
 let transactions = [];
 let categories = [];
 let reconciliations = [];
+let recurringRows = [];
+let recurringContext = null;
 let editingId = null;
 
 const form = document.querySelector("#tx-form");
 const tbody = document.querySelector("#tx-body");
 const type = document.querySelector("#tx-type");
 const filter = document.querySelector("#filter-account");
+const filterSearch = document.querySelector("#filter-search");
+const filterType = document.querySelector("#filter-type");
+const filterPeriod = document.querySelector("#filter-period");
+const filterSort = document.querySelector("#filter-sort");
+const filterCategory = document.querySelector("#filter-category");
+const filterSubcategory = document.querySelector("#filter-subcategory");
 const moreDetails = document.querySelector("#tx-more-details");
 const categoryDialog = document.querySelector("#tx-category-dialog");
 const categoryDialogBody = document.querySelector("#tx-category-dialog-body");
@@ -55,6 +65,18 @@ function parseDecimalInput(value){
   const normalized=String(value??"").trim().replace(",",".");
   const n=Number(normalized);
   return Number.isFinite(n)?n:0;
+}
+function nowTime(){ return new Date().toTimeString().slice(0,5); }
+function transactionDateTime(row){ return String(row?.transactionDateTime||`${row?.date||""}T00:00`); }
+function chargeTotal(row){ return Number(row?.feeAmount||0)+Number(row?.taxAmount||0)+Number(row?.otherChargeAmount||0); }
+function updateGrossDebit(){
+  const amount=parseDecimalInput(document.querySelector("#tx-amount").value);
+  const fee=parseDecimalInput(document.querySelector("#tx-fee")?.value);
+  const tax=parseDecimalInput(document.querySelector("#tx-tax")?.value);
+  const other=parseDecimalInput(document.querySelector("#tx-other-charge")?.value);
+  const gross=amount+fee+tax+other;
+  const el=document.querySelector("#tx-gross-debit");
+  if(el) el.textContent=`Total que saldrá de la cuenta: ${money(gross)}`;
 }
 
 function fillAccounts() {
@@ -190,6 +212,7 @@ function toggleType() {
   document.querySelector("#transfer-fields").hidden = !isTransfer;
   document.querySelector("#category-fields").hidden = isTransfer;
   document.querySelector("#split-toggle-wrap").hidden = isTransfer;
+  document.querySelector("#transfer-charge-panel").hidden = !isTransfer;
   const isIncome=type.value==="income";
   document.querySelector("#invoice-toggle-wrap").hidden=!isIncome;
   if(!isIncome){
@@ -385,6 +408,8 @@ function reset() {
   form.reset();
 
   document.querySelector("#tx-date").value = todayISO();
+  document.querySelector("#tx-time").value = nowTime();
+  ["tx-fee","tx-tax","tx-other-charge"].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.value="";});
   type.value = "expense";
   document.querySelector("#tx-amount").value = "";
   document.querySelector("#tx-vat").value = "";
@@ -403,59 +428,66 @@ function reset() {
   toggleSplit();
 }
 
-function visibleTransactions() {
-  if (filter.value === "all") return transactions;
-
-  return transactions.filter(t =>
-    t.accountId === filter.value ||
-    t.fromAccountId === filter.value ||
-    t.toAccountId === filter.value
-  );
+function filteredTransactions() {
+  let rows=[...transactions];
+  const account=filter?.value||"all";
+  const q=String(filterSearch?.value||"").trim().toLowerCase();
+  const selectedType=filterType?.value||"all";
+  const period=filterPeriod?.value||"all";
+  const cat=filterCategory?.value||"all";
+  const sub=filterSubcategory?.value||"all";
+  const now=new Date();
+  const ym=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  const year=String(now.getFullYear());
+  rows=rows.filter(t=>{
+    const accountOk=account==="all" || t.accountId===account || t.fromAccountId===account || t.toAccountId===account;
+    const typeOk=selectedType==="all" || t.type===selectedType;
+    const periodOk=period==="all" || (period==="month"?String(t.date).startsWith(ym):String(t.date).startsWith(year));
+    const catOk=cat==="all" || t.category===cat || (t.splits||[]).some(x=>x.category===cat);
+    const subOk=sub==="all" || t.subcategory===sub || (t.splits||[]).some(x=>x.subcategory===sub);
+    const hay=[t.description,t.category,t.subcategory,accountName(t.accountId),accountName(t.fromAccountId),accountName(t.toAccountId),t.receipt]
+      .join(" ").toLowerCase();
+    return accountOk&&typeOk&&periodOk&&catOk&&subOk&&(!q||hay.includes(q));
+  });
+  const sort=filterSort?.value||"recent";
+  rows.sort((a,b)=>{
+    if(sort==="oldest") return transactionDateTime(a).localeCompare(transactionDateTime(b));
+    if(sort==="amount_desc") return Number(b.amount||0)-Number(a.amount||0);
+    if(sort==="amount_asc") return Number(a.amount||0)-Number(b.amount||0);
+    if(sort==="category") return String(a.category||"").localeCompare(String(b.category||""));
+    return transactionDateTime(b).localeCompare(transactionDateTime(a));
+  });
+  return rows;
 }
-
+function renderFilterCatalog(){
+  const cats=[...new Set(categories.map(x=>x.category).filter(Boolean))].sort();
+  filterCategory.innerHTML='<option value="all">Todas</option>'+cats.map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+  const selected=filterCategory.value;
+  const subs=[...new Set(categories.filter(x=>selected==="all"||x.category===selected).map(x=>x.subcategory).filter(Boolean))].sort();
+  filterSubcategory.innerHTML='<option value="all">Todas</option>'+subs.map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+}
 function render() {
-  tbody.innerHTML = visibleTransactions().map(tx => `
-    <tr>
-      <td>${escapeHtml(tx.date)}</td>
+  const rows=filteredTransactions();
+  let lastDay="";
+  tbody.innerHTML = rows.map(tx => {
+    const day=String(tx.date||"");
+    const group=day!==lastDay?`<tr class="tf-tx-day-row"><td colspan="7"><strong>${escapeHtml(day)}</strong></td></tr>`:"";
+    lastDay=day;
+    const time=transactionDateTime(tx).slice(11,16);
+    const charges=chargeTotal(tx);
+    return group+`<tr>
+      <td><strong>${escapeHtml(time||"—")}</strong><div class="tf-muted">${escapeHtml(day)}</div></td>
       <td><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span></td>
-      <td>${escapeHtml(
-        tx.type === "transfer"
-          ? `${accountName(tx.fromAccountId)} → ${accountName(tx.toAccountId)}`
-          : accountName(tx.accountId)
-      )}</td>
-      <td>${escapeHtml(
-        tx.splits?.length
-          ? `${tx.splits.length} divisiones`
-          : tx.category || "—"
-      )}</td>
-      <td>
-        ${escapeHtml(tx.description || "—")}
-        ${(tx.hasInvoice||Number(tx.vat||0)>0)?`
-          <div class="tf-muted tf-tx-invoice-line">
-            Factura ${escapeHtml(tx.invoiceNumber||tx.receipt||"—")} · Base ${money(tx.invoiceBase??Math.max(0,Number(tx.amount)-Number(tx.vat||0)))} · IVA ${money(tx.vat)} · ${tx.taxPaymentId?"IVA liquidado":"IVA pendiente"}
-          </div>`:""}
-      </td>
+      <td>${escapeHtml(tx.type === "transfer" ? `${accountName(tx.fromAccountId)} → ${accountName(tx.toAccountId)}` : accountName(tx.accountId))}</td>
+      <td>${escapeHtml(tx.splits?.length ? `${tx.splits.length} divisiones` : tx.category || "—")}</td>
+      <td>${escapeHtml(tx.description || "—")}${charges>0?`<div class="tf-muted">Cargos ${money(charges)} · débito ${money(Number(tx.amount||0)+charges)}</div>`:""}</td>
       <td>${money(tx.amount)}</td>
-      <td>
-        <div class="tf-actions">
-          ${tx.reconciliationAdjustment
-            ? `<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`
-            : (tx.debtPaymentId||tx.liabilityId)
-              ? `<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`
-            : (tx.tripExpenseId||tx.tripSettlementId)
-              ? `<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`
-              : (tx.taxPaymentId && tx.type==="expense" && tx.category==="Impuestos" && tx.subcategory==="IVA")
-                ? `<span class="tf-pill tf-pill-ok">Liquidación IVA</span>`
-                : `<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`}
-          ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId)
-            ? `<span class="tf-pill">Vinculado</span>`
-            : `<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
-        </div>
-      </td>
-    </tr>
-  `).join("") || `
-    <tr><td colspan="7" class="tf-empty">No hay movimientos.</td></tr>
-  `;
+      <td><div class="tf-actions">
+        ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Ver recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
+        ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
+      </div></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="7" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
 }
 
 function affectedReconciliations(accountIds,date){
@@ -468,18 +500,40 @@ function affectedReconciliations(accountIds,date){
 }
 
 async function refresh() {
-  [accounts, transactions, categories, reconciliations] = await Promise.all([
-    listAccounts(),
-    listTransactions(),
-    listCategories(),
-    listReconciliations()
+  [accounts, transactions, categories, reconciliations, recurringRows] = await Promise.all([
+    listAccounts(), listTransactions(), listCategories(), listReconciliations(), listRecurring()
   ]);
 
   categories = sortCategoryRows(categories);
   fillAccounts();
   fillCategories();
   refreshSplitCatalogs();
+  renderFilterCatalog();
   render();
+  applyRecurringContext();
+}
+
+function applyRecurringContext(){
+  if(recurringContext) return;
+  const params=new URLSearchParams(location.search);
+  const id=params.get("recurring");
+  const occurrence=params.get("occurrence");
+  if(!id||!occurrence) return;
+  const recurring=recurringRows.find(x=>x.id===id&&x.active!==false);
+  if(!recurring) return;
+  const exists=transactions.some(t=>t.recurringId===id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occurrence));
+  if(exists){ toast("Este recurrente ya fue registrado para ese mes."); return; }
+  recurringContext={recurring,occurrence};
+  type.value=recurring.type;
+  document.querySelector("#tx-amount").value=Number(recurring.amount||0);
+  document.querySelector("#tx-description").value=recurring.name||"";
+  document.querySelector("#tx-date").value=todayISO();
+  document.querySelector("#tx-time").value=nowTime();
+  toggleType();
+  if(recurring.accountId && activeAccounts().some(a=>a.id===recurring.accountId)) document.querySelector("#tx-account").value=recurring.accountId;
+  fillCategories(recurring.category||"",recurring.subcategory||"");
+  document.querySelector("#tx-editor-title").textContent=recurring.type==="income"?"Registrar ingreso recurrente":"Registrar pago recurrente";
+  updateSaveButton();
 }
 
 type.addEventListener("change", toggleType);
@@ -522,14 +576,17 @@ categoryDialogBody?.addEventListener("click",e=>{
     categoryDialog?.close();
   }
 });
-filter.addEventListener("change", render);
+[filter,filterType,filterPeriod,filterSort,filterCategory,filterSubcategory].forEach(el=>el?.addEventListener("change",()=>{if(el===filterCategory)renderFilterCatalog();render();}));
+filterSearch?.addEventListener("input",render);
+document.querySelector("#filter-clear")?.addEventListener("click",()=>{filter.value="all";filterType.value="all";filterPeriod.value="month";filterSort.value="recent";filterSearch.value="";renderFilterCatalog();render();});
 document.querySelector("#tx-split-enabled").addEventListener("change", toggleSplit);
 document.querySelector("#tx-amount").addEventListener("input",()=>{updateSplitTotal();updateInvoiceSummary();updateSaveButton()});
-["tx-amount","tx-vat"].forEach(id => {
+["tx-amount","tx-vat","tx-fee","tx-tax","tx-other-charge"].forEach(id => {
   const input=document.querySelector(`#${id}`);
   input?.addEventListener("focus", () => requestAnimationFrame(() => input.select()));
   input?.addEventListener("input", () => {
     input.value=input.value.replace(/[^0-9.,]/g,"").replace(/([.,].*)[.,]/g,"$1");
+    updateGrossDebit();
   });
 });
 document.querySelectorAll("[data-date-shortcut]").forEach(button => {
@@ -575,7 +632,11 @@ form.addEventListener("submit", async e => {
   const data = {
     type: type.value,
     date: document.querySelector("#tx-date").value,
+    transactionDateTime:`${document.querySelector("#tx-date").value}T${document.querySelector("#tx-time").value||"00:00"}`,
     amount,
+    feeAmount:type.value==="transfer"?parseDecimalInput(document.querySelector("#tx-fee").value):Number(previous?.feeAmount||0),
+    taxAmount:type.value==="transfer"?parseDecimalInput(document.querySelector("#tx-tax").value):Number(previous?.taxAmount||0),
+    otherChargeAmount:type.value==="transfer"?parseDecimalInput(document.querySelector("#tx-other-charge").value):Number(previous?.otherChargeAmount||0),
     vat,
     receipt: document.querySelector("#tx-receipt").value.trim(),
     description: document.querySelector("#tx-description").value.trim(),
@@ -601,6 +662,9 @@ form.addEventListener("submit", async e => {
     tripSettlementId:previous?.tripSettlementId||"",
     liabilityId:previous?.liabilityId||"",
     debtPaymentId:previous?.debtPaymentId||"",
+    recurringId:previous?.recurringId||recurringContext?.recurring?.id||"",
+    recurringOccurrence:previous?.recurringOccurrence||recurringContext?.occurrence||"",
+    recurringScheduledDate:previous?.recurringScheduledDate||"",
     category:
       type.value === "transfer"
         ? ""
@@ -626,6 +690,8 @@ form.addEventListener("submit", async e => {
         ? collectSplits()
         : []
   };
+
+  data.grossDebitAmount=Number(data.amount||0)+Number(data.feeAmount||0)+Number(data.taxAmount||0)+Number(data.otherChargeAmount||0);
 
   if (data.type !== "transfer" && !data.category) {
     return alert("Primero configura al menos una categoría para este tipo de movimiento.");
@@ -682,6 +748,10 @@ form.addEventListener("submit", async e => {
 
     await saveTransaction(data, editingId);
     toast("Movimiento actualizado.");
+  } else if(recurringContext){
+    await saveRecurringTransaction(recurringContext.recurring,recurringContext.occurrence,data);
+    toast(recurringContext.recurring.type==="income"?"Ingreso recurrente registrado.":"Pago recurrente registrado.");
+    recurringContext=null;
   } else {
     await saveTransaction(data);
     toast("Movimiento registrado.");
@@ -706,7 +776,11 @@ tbody.addEventListener("click", async e => {
     toggleType();
 
     document.querySelector("#tx-date").value = tx.date;
+    document.querySelector("#tx-time").value = transactionDateTime(tx).slice(11,16)||"00:00";
     document.querySelector("#tx-amount").value = tx.amount;
+    document.querySelector("#tx-fee").value = Number(tx.feeAmount||0)||"";
+    document.querySelector("#tx-tax").value = Number(tx.taxAmount||0)||"";
+    document.querySelector("#tx-other-charge").value = Number(tx.otherChargeAmount||0)||"";
     document.querySelector("#tx-vat").value = tx.vat || 0;
     document.querySelector("#tx-has-invoice").checked = tx.type==="income" && (tx.hasInvoice===true || Number(tx.vat||0)>0);
     document.querySelector("#tx-invoice-number").value = tx.invoiceNumber || tx.receipt || "";

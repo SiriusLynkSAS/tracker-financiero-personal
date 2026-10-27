@@ -154,18 +154,40 @@ function inferredReconciliationAdjustment(row){
     String(row?.reconciliationId||"").trim()!=="" ||
     description.startsWith("ajuste de conciliacion");
 }
+function transactionSortKey(row){
+  const dt=String(row?.transactionDateTime||"").trim();
+  if(dt) return dt;
+  const date=String(row?.date||"");
+  const created=row?.createdAt?.toMillis?.() ?? row?.createdAt?.seconds*1000 ?? 0;
+  return `${date}T${String(created).padStart(16,"0")}`;
+}
 export const listTransactions=()=>listEntities("transactions","date")
   .then(r=>r.map(row=>({
     ...row,
+    transactionDateTime:String(row.transactionDateTime||"").trim() || (row.date?`${row.date}T00:00`:""),
+    feeAmount:Math.max(0,Number(row.feeAmount||0)),
+    taxAmount:Math.max(0,Number(row.taxAmount||0)),
+    otherChargeAmount:Math.max(0,Number(row.otherChargeAmount||0)),
+    grossDebitAmount:Math.max(0,Number(row.grossDebitAmount||0)),
+    recurringId:String(row.recurringId||""),
+    recurringOccurrence:String(row.recurringOccurrence||""),
     reconciliationAdjustment:inferredReconciliationAdjustment(row)
   })))
-  .then(r=>r.sort((a,b)=>String(b.date).localeCompare(String(a.date))));
+  .then(r=>r.sort((a,b)=>transactionSortKey(b).localeCompare(transactionSortKey(a))));
 export async function saveTransaction(d,id=null){
   const old=id?await getEntity("transactions",id):null;
   const vat=Math.max(0,Number(d.vat||0));
   const invoice=!!d.hasInvoice || vat>0;
+  const feeAmount=Math.max(0,Number(d.feeAmount||0));
+  const taxAmount=Math.max(0,Number(d.taxAmount||0));
+  const otherChargeAmount=Math.max(0,Number(d.otherChargeAmount||0));
+  const grossDebitAmount=Math.max(0,Number(d.grossDebitAmount || (Number(d.amount||0)+feeAmount+taxAmount+otherChargeAmount)));
   const normalized={
     ...d,
+    transactionDateTime:String(d.transactionDateTime||`${d.date||""}T00:00`),
+    feeAmount,taxAmount,otherChargeAmount,grossDebitAmount,
+    recurringId:String(d.recurringId||""),
+    recurringOccurrence:String(d.recurringOccurrence||""),
     vat,
     hasInvoice:invoice,
     invoiceNumber:invoice?String(d.invoiceNumber||d.receipt||""):"",
@@ -226,6 +248,30 @@ export const removeMonthlyPlan=id=>deleteEntity("monthlyPlans",id,{auditType:"mo
 export const listRecurring=()=>listEntities("recurring");
 export const saveRecurring=(d,id=null)=>saveEntity("recurring",d,id,{auditType:"recurring"});
 export const archiveRecurring=id=>archiveEntity("recurring",id,{auditType:"recurring"});
+export function recurringOccurrenceId(recurringId,occurrence){
+  return `recurring_${String(recurringId).replace(/[^A-Za-z0-9_-]/g,"_")}_${String(occurrence).replace(/[^0-9-]/g,"")}`;
+}
+export async function saveRecurringTransaction(recurring,occurrence,data){
+  if(!recurring?.id) throw new Error("Recurrente no válido.");
+  if(!/^\d{4}-\d{2}$/.test(String(occurrence||""))) throw new Error("Ocurrencia mensual no válida.");
+  const id=recurringOccurrenceId(recurring.id,occurrence);
+  const existing=await getEntity("transactions",id);
+  if(existing) throw new Error("Este recurrente ya fue registrado para este mes.");
+  const [year,month]=String(occurrence).split("-").map(Number);
+  const maxDay=new Date(year,month,0).getDate();
+  const scheduledDay=Math.min(Math.max(1,Number(recurring.dayOfMonth||1)),maxDay);
+  const recurringScheduledDate=
+    String(data.recurringScheduledDate||"") ||
+    `${occurrence}-${String(scheduledDay).padStart(2,"0")}`;
+  const payload={
+    ...data,
+    recurringId:recurring.id,
+    recurringOccurrence:occurrence,
+    recurringScheduledDate,
+  };
+  return upsertEntity("transactions",id,payload,{auditType:"transaction",note:`Ejecución recurrente ${occurrence}`});
+}
+
 export const listGoals=()=>listEntities("goals");
 export const saveGoal=(d,id=null)=>saveEntity("goals",d,id,{auditType:"goal"});
 export const archiveGoal=id=>archiveEntity("goals",id,{auditType:"goal"});
@@ -1303,9 +1349,10 @@ export function calculateBalances(accounts,transactions){
   for(const t of transactions){
     const m=Number(t.amount||0);
     if(["income","work_reimbursement","work_advance"].includes(t.type)&&t.accountId in b)b[t.accountId]+=m;
-    if(["expense","work_expense","work_advance_return"].includes(t.type)&&t.accountId in b)b[t.accountId]-=m;
+    const charges=Math.max(0,Number(t.feeAmount||0))+Math.max(0,Number(t.taxAmount||0))+Math.max(0,Number(t.otherChargeAmount||0));
+    if(["expense","work_expense","work_advance_return"].includes(t.type)&&t.accountId in b)b[t.accountId]-=(m+charges);
     if(t.type==="transfer"){
-      if(t.fromAccountId in b)b[t.fromAccountId]-=m;
+      if(t.fromAccountId in b)b[t.fromAccountId]-=(m+charges);
       if(t.toAccountId in b)b[t.toAccountId]+=m;
     }
     if(t.type==="investment_out"&&t.accountId in b)b[t.accountId]-=m;
@@ -1319,9 +1366,10 @@ export function calculateBalanceAtDate(account,transactions,date){
     if(String(t.date)>String(date)) continue;
     const m=Number(t.amount||0);
     if(["income","work_reimbursement","work_advance"].includes(t.type)&&t.accountId===account.id) balance+=m;
-    if(["expense","work_expense","work_advance_return"].includes(t.type)&&t.accountId===account.id) balance-=m;
+    const charges=Math.max(0,Number(t.feeAmount||0))+Math.max(0,Number(t.taxAmount||0))+Math.max(0,Number(t.otherChargeAmount||0));
+    if(["expense","work_expense","work_advance_return"].includes(t.type)&&t.accountId===account.id) balance-=(m+charges);
     if(t.type==="transfer"){
-      if(t.fromAccountId===account.id) balance-=m;
+      if(t.fromAccountId===account.id) balance-=(m+charges);
       if(t.toAccountId===account.id) balance+=m;
     }
     if(t.type==="investment_out"&&t.accountId===account.id) balance-=m;

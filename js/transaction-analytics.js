@@ -27,9 +27,13 @@ export function analyticSplits(tx){
   return Array.isArray(tx?.splits)?tx.splits:[];
 }
 
+export function financialCharges(tx){
+  return Math.max(0,Number(tx?.feeAmount||0))+Math.max(0,Number(tx?.taxAmount||0))+Math.max(0,Number(tx?.otherChargeAmount||0));
+}
 export function analyticAmount(tx){
   if(isReconciliationAdjustment(tx)) return 0;
-  return Number(tx?.amount||0);
+  const base=Number(tx?.amount||0);
+  return tx?.type==="expense" ? base+financialCharges(tx) : base;
 }
 
 export function analyticTransaction(tx){
@@ -40,5 +44,14 @@ export function analyticTransaction(tx){
 }
 
 export function analyticTransactions(rows=[]){
-  return rows.map(analyticTransaction).filter(Boolean);
+  const out=[];
+  for(const row of rows){
+    const base=analyticTransaction(row);
+    if(base) out.push(base.type==="expense"?{...base,amount:analyticAmount(base)}:base);
+    const charges=financialCharges(row);
+    if(!isReconciliationAdjustment(row) && row?.type==="transfer" && charges>0.009){
+      out.push({...row,id:`${row.id||"tx"}:charges`,type:"expense",amount:charges,category:"Gastos financieros",subcategory:"Comisiones e impuestos",splits:[],description:`Cargos · ${row.description||"Transferencia"}`});
+    }
+  }
+  return out;
 }

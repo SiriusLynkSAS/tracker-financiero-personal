@@ -1,3 +1,4 @@
+import { setupPendingMenu } from "./notifications.js";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";
   return path.replace(/\.html$/, "") || "index";
@@ -47,7 +48,8 @@ const icon = name => {
     menu: `<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
     close: `<svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>`,
     moon: `<svg viewBox="0 0 24 24"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z"/></svg>`,
-    sun: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
+    sun: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`,
+    bell: `<svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>`
   };
   return icons[name] || icons.home;
 };
@@ -55,7 +57,7 @@ const icon = name => {
 const groups = [
   {
     title: "Principal",
-    items: [["dashboard","Resumen","home"]]
+    items: [["dashboard","Resumen","home"],["pendientes","Pendientes","bell"]]
   },
   {
     title: "Operación",
@@ -140,6 +142,10 @@ function sidebarHtml() {
       </nav>
 
       <div class="tf-sidebar-footer">
+        <div class="tf-notification-host tf-notification-host-sidebar" data-pending-host>
+          <button class="tf-side-link" type="button" data-pending-toggle><span class="tf-side-icon">${icon("bell")}</span><span class="tf-side-label">Pendientes</span><span class="tf-notification-badge" data-pending-count hidden>0</span></button>
+          <div class="tf-notification-panel" data-pending-panel hidden></div>
+        </div>
         <a class="tf-side-link ${currentFile === "perfil" ? "is-active" : ""}" href="perfil.html">
           <span class="tf-side-icon">${icon("user")}</span>
           <span class="tf-side-label">Perfil y seguridad</span>
@@ -168,6 +174,10 @@ function mobileBarHtml() {
       <div class="tf-mobile-title-wrap">
         <img class="tf-mobile-brand-mark" src="assets/brand/tracker-sirius-mark.svg" alt="" aria-hidden="true">
         <div class="tf-mobile-title">${title}</div>
+      </div>
+      <div class="tf-notification-host" data-pending-host>
+        <button class="tf-icon-button tf-notification-button" data-pending-toggle aria-label="Pendientes">${icon("bell")}<span class="tf-notification-badge" data-pending-count hidden>0</span></button>
+        <div class="tf-notification-panel" data-pending-panel hidden></div>
       </div>
       <button class="tf-icon-button" data-mobile-theme-toggle aria-label="Cambiar tema">
         <span data-mobile-theme-icon>${icon("moon")}</span>
@@ -227,5 +237,6 @@ if (!isLogin) {
     document.querySelector("[data-mobile-theme-toggle]")?.addEventListener("click", toggleTheme);
 
     setTheme(document.documentElement.getAttribute("data-theme") || "light");
+    setupPendingMenu().catch(console.error);
   });
 }
