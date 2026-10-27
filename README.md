@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.41
+# Tracker Financiero Personal V1.0.42
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1154,3 +1154,16 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Transferencias admiten `feeAmount`, `taxAmount`, `otherChargeAmount` y `grossDebitAmount`.
 - Centro de pendientes Web con campana y pantalla dedicada.
 - No se renombraron colecciones ni campos históricos de Firebase.
+
+
+## V1.0.42 — Cache-first, archivados y modo consulta
+
+- Firestore Web usa caché persistente IndexedDB con coordinación entre pestañas.
+- Las lecturas de entidades priorizan memoria/caché local y revalidan Firebase en segundo plano.
+- Consultas idénticas simultáneas se deduplican en memoria.
+- Las pantallas se vuelven a renderizar de forma debounced cuando termina una revalidación remota.
+- Cuentas, recurrentes, metas, deudas/planes de tarjeta, activos, seguros, contratos e inversiones muestran por defecto solo registros operativos.
+- Los registros archivados/finalizados se abren mediante un botón específico y dejan de ocupar permanentemente la vista principal.
+- Los formularios de creación/edición ya no permanecen abiertos de forma permanente: Nuevo y Editar son acciones explícitas.
+- Los contratos finalizados y las inversiones liquidadas se muestran como histórico de solo lectura; no se reactivan automáticamente.
+- No se renombró, migró ni eliminó ningún campo o colección Firestore.

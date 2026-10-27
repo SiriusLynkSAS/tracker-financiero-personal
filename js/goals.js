@@ -1,6 +1,6 @@
 import {requireUser} from "./guard.js";
 import {
-  listGoals,saveGoal,archiveGoal,listAccounts,listTransactions,calculateBalances,
+  listGoals,saveGoal,archiveGoal,reactivateGoal,listAccounts,listTransactions,calculateBalances,
   getEmergencyFund,listRecurring,listInsurance,listLiabilities,listFinancingPlans,
   listContracts,syncReceivablesClosed
 } from "./data-service.js";
@@ -10,6 +10,8 @@ import {defaultEmergencyFundConfig,emergencyFundSummary,monthlyProjection} from 
 
 let goals=[],accounts=[],txs=[],balances={},emergencyConfig=null,recurring=[],insurance=[],debts=[],plans=[],contracts=[],receivables=[];
 const list=document.querySelector("#goal-list");
+const editor=document.querySelector("#goal-editor"),newButton=document.querySelector("#goal-new"),archivedToggle=document.querySelector("#goal-archived-toggle");
+let showArchived=false;
 
 function accountName(id){
   const a=accounts.find(x=>x.id===id);
@@ -26,7 +28,12 @@ function monthlyNeeded(g,saved){
   return Math.max(0,Number(g.target||0)-saved)/months;
 }
 function render(){
-  list.innerHTML=goals.filter(g=>g.active!==false).map(g=>{
+  const archivedCount=goals.filter(g=>g.active===false).length;
+  archivedToggle.hidden=!archivedCount;
+  archivedToggle.textContent=showArchived?"Ver activas":`Archivadas (${archivedCount})`;
+  newButton.hidden=showArchived;
+  const visible=goals.filter(g=>showArchived?g.active===false:g.active!==false);
+  list.innerHTML=visible.map(g=>{
     const saved=g.accountId?Math.max(0,Number(balances[g.accountId]||0)):Number(g.savedManual||0);
     const p=clamp(saved/Math.max(1,Number(g.target))*100,0,100);
     const monthly=monthlyNeeded(g,saved);
@@ -43,13 +50,11 @@ function render(){
       </div>
       <div class="tf-muted" style="margin-top:.55rem">${g.targetDate?`Objetivo ${escapeHtml(g.targetDate)}`:"Sin fecha objetivo"}${g.accountId?` · ${escapeHtml(accountName(g.accountId))}`:""}</div>
       <div class="tf-actions" style="margin-top:.7rem">
-        <button class="tf-btn tf-btn-secondary" data-edit="${g.id}">Editar</button>
-        <button class="tf-btn tf-btn-secondary" data-archive="${g.id}">Archivar</button>
+        ${showArchived?`<button class="tf-btn tf-btn-primary" data-reactivate="${g.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-secondary" data-edit="${g.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-archive="${g.id}">Archivar</button>`}
       </div>
     </div>`;
-  }).join("")||`<div class="tf-card tf-empty">Sin metas activas.</div>`;
+  }).join("")||`<div class="tf-card tf-empty">${showArchived?"Sin metas archivadas.":"Sin metas activas."}</div>`;
 }
-
 function resetForm(){
   document.querySelector("#goal-form").reset();
   document.querySelector("#goal-id").value="";
@@ -59,6 +64,8 @@ function resetForm(){
   document.querySelector("#goal-submit").textContent="Guardar meta";
   document.querySelector("#goal-cancel").hidden=true;
   document.querySelector("#goal-saved").disabled=false;
+  document.querySelector("#goal-editor-title").textContent="Nueva meta";
+  editor.hidden=true;
 }
 function toggleManual(){
   const linked=!!document.querySelector("#goal-account").value;
@@ -67,6 +74,7 @@ function toggleManual(){
 }
 function renderEmergency(){
   const card=document.querySelector("#goal-emergency-card");
+  if(showArchived){card.hidden=true;return}
   if(!emergencyConfig){card.hidden=true;return}
   const projection=monthlyProjection({
     accounts,transactions:txs,recurring,insurance,receivables,contracts,debts,cardPlans:plans,
@@ -94,6 +102,8 @@ async function refresh(){
 
 document.querySelector("#goal-account").addEventListener("change",toggleManual);
 document.querySelector("#goal-cancel").addEventListener("click",resetForm);
+newButton.addEventListener("click",()=>{resetForm();editor.hidden=false;document.querySelector("#goal-name").focus()});
+archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;resetForm();render();renderEmergency()});
 
 document.querySelector("#goal-form").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -119,8 +129,11 @@ document.querySelector("#goal-form").addEventListener("submit",async e=>{
 list.addEventListener("click",async e=>{
   const edit=e.target.closest("[data-edit]");
   const archive=e.target.closest("[data-archive]");
+  const reactivate=e.target.closest("[data-reactivate]");
   if(edit){
     const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;
+    editor.hidden=false;
+    document.querySelector("#goal-editor-title").textContent="Editar meta";
     document.querySelector("#goal-id").value=g.id;
     document.querySelector("#goal-name").value=g.name||"";
     document.querySelector("#goal-target").value=Number(g.target||0);
@@ -132,6 +145,7 @@ list.addEventListener("click",async e=>{
     document.querySelector("#goal-cancel").hidden=false;
     toggleManual();scrollTo({top:0,behavior:"smooth"});
   }
+  if(reactivate){await reactivateGoal(reactivate.dataset.reactivate);await refresh()}
   if(archive&&await confirmAction({title:"Archivar meta",message:"Se conserva su historial.",confirmText:"Archivar"})){
     await archiveGoal(archive.dataset.archive);await refresh();
   }

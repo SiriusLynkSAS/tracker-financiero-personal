@@ -3,7 +3,10 @@ import {listInvestments,listAccounts,atomicWrite} from "./data-service.js";
 import {investmentProjection} from "./finance.js";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
-let rows=[],accounts=[],projection=null;const list=document.querySelector("#inv-list");
+let rows=[],accounts=[],projection=null,showHistory=false;
+const list=document.querySelector("#inv-list");
+const editor=document.querySelector("#inv-editor"),settleEditor=document.querySelector("#inv-settle-editor");
+const newButton=document.querySelector("#inv-new"),settleOpen=document.querySelector("#inv-settle-open"),historyToggle=document.querySelector("#inv-history-toggle");
 
 function calc(){
   projection=investmentProjection({
@@ -22,7 +25,19 @@ function calc(){
 }
 function render(){
   const active=rows.filter(x=>x.active!==false&&x.status==="active");
-  list.innerHTML=active.map(i=>`<div class="tf-card"><strong>${escapeHtml(i.bank)} · ${escapeHtml(i.name)}</strong><div class="tf-account-balance">${money(i.principal)}</div><div class="tf-muted">${i.annualRate}% ${i.rateType==="effective"?"efectiva":"nominal"} · vence ${i.maturityDate}</div><div style="margin:.6rem 0">Rendimiento neto esperado: <strong>${money(i.expectedNetInterest)}</strong></div></div>`).join("")||`<div class="tf-card tf-empty">Sin inversiones activas.</div>`;
+  const history=rows.filter(x=>x.active===false||x.status!=="active");
+  historyToggle.hidden=!history.length;
+  historyToggle.textContent=showHistory?"Ver activas":`Histórico (${history.length})`;
+  newButton.hidden=showHistory;
+  settleOpen.hidden=showHistory||!active.length;
+  const visible=showHistory?history:active;
+  list.innerHTML=visible.map(i=>`<div class="tf-card">
+    <strong>${escapeHtml(i.bank)} · ${escapeHtml(i.name)}</strong>
+    <div class="tf-account-balance">${money(i.principal)}</div>
+    <div class="tf-muted">${i.annualRate}% ${i.rateType==="effective"?"efectiva":"nominal"} · vence ${i.maturityDate||"—"}</div>
+    <div style="margin:.6rem 0">${showHistory?"Rendimiento neto real":"Rendimiento neto esperado"}: <strong>${money(showHistory?(i.actualNetInterest??i.expectedNetInterest):i.expectedNetInterest)}</strong></div>
+    ${showHistory?`<div class="tf-muted">Liquidada ${escapeHtml(i.liquidatedAt||"—")} · histórico en modo consulta.</div>`:""}
+  </div>`).join("")||`<div class="tf-card tf-empty">${showHistory?"Sin inversiones históricas.":"Sin inversiones activas."}</div>`;
   document.querySelector("#settle-investment").innerHTML=active.map(i=>`<option value="${i.id}">${escapeHtml(i.bank+" · "+i.name)}</option>`).join("");
   fillSettlementDefaults();
 }
@@ -41,6 +56,11 @@ async function refresh(){
 }
 document.querySelector("#inv-start").value=todayISO();
 document.querySelector("#settle-date").value=todayISO();
+newButton.addEventListener("click",()=>{editor.hidden=false;settleEditor.hidden=true});
+settleOpen.addEventListener("click",()=>{settleEditor.hidden=false;editor.hidden=true;fillSettlementDefaults()});
+historyToggle.addEventListener("click",()=>{showHistory=!showHistory;editor.hidden=true;settleEditor.hidden=true;render()});
+document.querySelector("#inv-cancel").addEventListener("click",()=>{editor.hidden=true});
+document.querySelector("#settle-cancel").addEventListener("click",()=>{settleEditor.hidden=true});
 document.querySelector("#inv-preview").addEventListener("click",calc);
 document.querySelector("#settle-investment").addEventListener("change",fillSettlementDefaults);
 
@@ -64,7 +84,7 @@ document.querySelector("#inv-form").addEventListener("submit",async e=>{
   const ops=[{collection:"investments",action:"create",auditType:"investment",data}];
   if(!alreadyMoved)ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"investment_out",date:data.startDate,amount:principal,vat:0,receipt:"",description:`Capital invertido: ${data.name}`,category:"",subcategory:"",accountId,fromAccountId:null,toAccountId:null,splits:[]}});
   await atomicWrite(ops);
-  e.target.reset();document.querySelector("#inv-start").value=todayISO();toast("Inversión guardada.");await refresh();
+  e.target.reset();document.querySelector("#inv-start").value=todayISO();editor.hidden=true;toast("Inversión guardada.");await refresh();
 });
 
 document.querySelector("#inv-settle-form").addEventListener("submit",async e=>{
@@ -78,6 +98,6 @@ document.querySelector("#inv-settle-form").addEventListener("submit",async e=>{
     {collection:"transactions",action:"create",auditType:"transaction",data:{type:"investment_return",date,amount:capital,vat:0,receipt:"",description:`Retorno de capital: ${i.name}`,category:"",subcategory:"",accountId,fromAccountId:null,toAccountId:null,splits:[],investmentId:i.id}}
   ];
   if(interest>0)ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"income",date,amount:interest,vat:0,receipt:"",description:`Rendimiento inversión: ${i.name}`,category:"Inversiones",subcategory:"Rendimientos",accountId,fromAccountId:null,toAccountId:null,splits:[],investmentId:i.id}});
-  await atomicWrite(ops);toast("Inversión liquidada.");await refresh();
+  await atomicWrite(ops);settleEditor.hidden=true;toast("Inversión liquidada.");await refresh();
 });
 requireUser(()=>refresh().catch(console.error));

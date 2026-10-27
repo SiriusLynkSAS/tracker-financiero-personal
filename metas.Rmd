@@ -16,7 +16,12 @@ title: "Metas"
   <span>→</span>
 </a>
 
-<section class="tf-card" style="margin-top:1rem">
+<div class="tf-actions" style="margin-top:1rem">
+  <button id="goal-new" class="tf-btn tf-btn-primary" type="button">Nueva meta</button>
+  <button id="goal-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden>Archivadas</button>
+</div>
+<section id="goal-editor" class="tf-card" style="margin-top:1rem" hidden>
+  <h2 id="goal-editor-title">Nueva meta</h2>
   <form id="goal-form" class="tf-form-grid">
     <input id="goal-id" type="hidden">
     <div class="tf-field"><label>Meta</label><input id="goal-name" required></div>

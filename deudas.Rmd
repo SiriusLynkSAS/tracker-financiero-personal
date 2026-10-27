@@ -19,7 +19,13 @@ title: "Deudas y tarjetas"
     <div id="overview-total-pending" class="tf-kpi-value tf-negative">$0,00</div>
   </div>
 </div>
-<div class="tf-grid tf-grid-2"><section class="tf-card"><h2>Calculadora / nueva deuda</h2><form id="debt-form" class="tf-form-grid">
+<div class="tf-actions" style="margin-bottom:1rem">
+  <button id="debt-new" class="tf-btn tf-btn-primary" type="button">Nueva deuda</button>
+  <button id="plan-new" class="tf-btn tf-btn-primary" type="button">Nuevo plan de tarjeta</button>
+  <button id="debt-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden>Archivados</button>
+</div>
+<div id="debt-editor-grid" class="tf-grid tf-grid-2">
+<section id="debt-editor-section" class="tf-card" hidden><h2 id="debt-editor-title">Nueva deuda</h2><form id="debt-form" class="tf-form-grid">
 <div class="tf-field"><label>Acreedor</label><input id="debt-creditor" required></div><div class="tf-field"><label>Concepto</label><input id="debt-concept" required></div><div class="tf-field"><label>Origen del seguimiento</label><select id="debt-mode"><option value="calculated">Calculado por Tracker</option><option value="manual">Saldo reportado + seguimiento</option><option value="imported">Cronograma reportado</option></select></div><div class="tf-field" id="debt-method-wrap"><label>Sistema de amortización</label><select id="debt-method"><option value="german">Alemán</option><option value="french">Francés</option></select></div>
 <div class="tf-field"><label>Capital original ($)</label><input id="debt-principal" type="number" min="0" step="0.01" value="10000"></div>
 <div class="tf-field" id="debt-reported-balance-wrap"><label>Saldo informado por acreedor ($)</label><input id="debt-current" type="number" min="0" step="0.01" placeholder="Opcional si Tracker calcula"><small>En seguimiento manual/reportado es el saldo de referencia. En modo calculado permite comparar el saldo real con el cronograma teórico.</small></div>
@@ -51,7 +57,7 @@ title: "Deudas y tarjetas"
   <button id="debt-cancel-edit" type="button" class="tf-btn tf-btn-secondary" hidden>Cancelar edición</button>
 </div>
 <div id="debt-edit-status" class="tf-span-2 tf-subtle" hidden></div></form><div id="debt-preview-box" class="tf-subtle" style="margin-top:1rem"></div></section>
-<section class="tf-card"><h2>Compra a plazos / avance de tarjeta</h2><form id="plan-form" class="tf-form-grid">
+<section id="plan-editor-section" class="tf-card" hidden><h2 id="plan-editor-title">Nuevo plan de tarjeta</h2><form id="plan-form" class="tf-form-grid">
 <div class="tf-field"><label>Tarjeta</label><select id="plan-card"></select></div>
 <div class="tf-field"><label>Tipo</label><select id="plan-type"><option value="installment_purchase">Compra a plazos</option><option value="cash_advance">Avance de efectivo</option></select></div>
 <div class="tf-field"><label>Descripción</label><input id="plan-description" required></div>
@@ -92,7 +98,7 @@ title: "Deudas y tarjetas"
 <div id="plan-preview-box" class="tf-subtle" style="margin-top:1rem"></div>
 </section></div>
 <div id="debt-load-status" class="tf-subtle" style="margin-top:1rem">Cargando registros de deuda…</div>
-<section class="tf-module-section tf-module-loans" style="margin-top:1.4rem">
+<section id="active-debt-section" class="tf-module-section tf-module-loans" style="margin-top:1.4rem">
   <div class="tf-section-heading">
     <div>
       <h2>Préstamos y otras deudas</h2>
@@ -103,8 +109,11 @@ title: "Deudas y tarjetas"
 </section>
 
 <section id="archived-debt-section" class="tf-module-section" style="margin-top:1.2rem" hidden>
-  <div class="tf-section-heading"><div><h2>Deudas archivadas</h2><div class="tf-muted">Registros históricos que siguen almacenados en Firebase. Puedes reactivarlos sin crear una deuda nueva.</div></div></div>
+  <div class="tf-section-heading"><div><h2>Archivados</h2><div class="tf-muted">Histórico fuera del flujo operativo. Puedes reactivar préstamos o planes sin crear registros nuevos.</div></div></div>
+  <h3>Préstamos y otras deudas</h3>
   <div id="archived-debt-list" class="tf-grid tf-grid-3"></div>
+  <h3 style="margin-top:1rem">Planes de tarjeta</h3>
+  <div id="archived-plan-list" class="tf-grid tf-grid-3"></div>
 </section>
 
 <div id="debt-schedule-card" class="tf-card tf-schedule-card tf-loan-schedule" style="margin-top:1rem" hidden>
@@ -157,7 +166,7 @@ title: "Deudas y tarjetas"
   </div>
 </div>
 
-<section class="tf-module-section tf-module-cards" style="margin-top:1.8rem">
+<section id="active-card-section" class="tf-module-section tf-module-cards" style="margin-top:1.8rem">
   <div class="tf-section-heading">
     <div>
       <h2>Planes de tarjetas</h2>
