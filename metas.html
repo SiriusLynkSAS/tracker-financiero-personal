@@ -137,7 +137,12 @@ ul.task-list li input[type="checkbox"] {
   <span>→</span>
 </a>
 
-<section class="tf-card" style="margin-top:1rem">
+<div class="tf-actions" style="margin-top:1rem">
+  <button id="goal-new" class="tf-btn tf-btn-primary" type="button">Nueva meta</button>
+  <button id="goal-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden="">Archivadas</button>
+</div>
+<section id="goal-editor" class="tf-card" style="margin-top:1rem" hidden="">
+  <h2 id="goal-editor-title" class="anchored">Nueva meta</h2>
   <form id="goal-form" class="tf-form-grid">
     <input id="goal-id" type="hidden">
     <div class="tf-field"><label>Meta</label><input id="goal-name" required=""></div>
@@ -567,7 +572,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.41</p>
+<p>Tracker Financiero Personal V1.0.42</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

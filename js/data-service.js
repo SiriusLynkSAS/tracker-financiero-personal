@@ -1,6 +1,6 @@
 import {
-  collection, doc, addDoc, getDocs, getDoc, setDoc, updateDoc, deleteDoc,
-  query, orderBy, serverTimestamp, writeBatch
+  collection, doc, addDoc, getDocs, getDocsFromCache, getDoc, getDocFromCache,
+  setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
 import {contractPeriodCalculation,contractDesiredStopMonth} from "./contract-math.js";
@@ -39,17 +39,73 @@ function auditPayload(entityType,entityId,action,before=null,after=null,note="")
     createdAt:serverTimestamp()
   };
 }
+const entityMemory=new Map();
+const entityInflight=new Map();
+const MEMORY_TTL_MS=5000;
+
+function entityKey(n,order=null){return `${n}|${order||""}`;}
+function rowsFromSnapshot(snapshot){return snapshot.docs.map(d=>({id:d.id,...d.data()}));}
+function rememberRows(key,rows){entityMemory.set(key,{at:Date.now(),rows});return rows;}
+function invalidateCollection(n){
+  for(const key of [...entityMemory.keys()]){
+    if(key.startsWith(`${n}|`)) entityMemory.delete(key);
+  }
+}
+function remoteRows(key,q){
+  if(entityInflight.has(key)) return entityInflight.get(key);
+  const request=getDocs(q)
+    .then(snapshot=>rememberRows(key,rowsFromSnapshot(snapshot)))
+    .finally(()=>entityInflight.delete(key));
+  entityInflight.set(key,request);
+  return request;
+}
+function refreshInBackground(key,q){
+  if(typeof navigator!=="undefined" && navigator.onLine===false) return;
+  remoteRows(key,q).then(()=>{
+    window.dispatchEvent(new CustomEvent("tf-data-refreshed",{detail:{key}}));
+  }).catch(()=>{});
+}
+
 export async function ensureUserProfile(){
-  const r=doc(db,"users",uid()),s=await getDoc(r);
-  if(!s.exists()) await setDoc(r,{email:auth.currentUser?.email||"",role:"owner",createdAt:serverTimestamp()});
+  const r=doc(db,"users",uid());
+  let cached=null;
+  try{cached=await getDocFromCache(r)}catch{}
+  if(cached?.exists()) return;
+  const remote=await getDoc(r);
+  if(!remote.exists()) await setDoc(r,{email:auth.currentUser?.email||"",role:"owner",createdAt:serverTimestamp()});
 }
+
 export async function listEntities(n,order=null){
-  const q=order?query(col(n),orderBy(order)):col(n),s=await getDocs(q);
-  return s.docs.map(d=>({id:d.id,...d.data()}));
+  const key=entityKey(n,order);
+  const memory=entityMemory.get(key);
+  if(memory && Date.now()-memory.at<MEMORY_TTL_MS) return memory.rows;
+
+  const q=order?query(col(n),orderBy(order)):col(n);
+  try{
+    const cached=await getDocsFromCache(q);
+    if(!cached.empty){
+      const rows=rememberRows(key,rowsFromSnapshot(cached));
+      refreshInBackground(key,q);
+      return rows;
+    }
+  }catch{}
+
+  return remoteRows(key,q);
 }
+
 export async function getEntity(n,id){
-  const s=await getDoc(ref(n,id));
-  return s.exists()?{id:s.id,...s.data()}:null;
+  const r=ref(n,id);
+  try{
+    const cached=await getDocFromCache(r);
+    if(cached.exists()){
+      if(typeof navigator==="undefined" || navigator.onLine!==false){
+        getDoc(r).catch(()=>{});
+      }
+      return {id:cached.id,...cached.data()};
+    }
+  }catch{}
+  const remote=await getDoc(r);
+  return remote.exists()?{id:remote.id,...remote.data()}:null;
 }
 export async function appendAudit(entityType,entityId,action,before=null,after=null,note=""){
   await addDoc(col("auditLog"),auditPayload(entityType,entityId,action,before,after,note));
@@ -66,6 +122,7 @@ export async function saveEntity(n,data,id=null,{auditType=n,note=""}={}){
   const auditRef=doc(col("auditLog"));
   batch.set(auditRef,auditPayload(auditType,entityId,id?"UPDATE":"CREATE",old,data,note));
   await batch.commit();
+  invalidateCollection(n);
   return entityId;
 }
 export async function upsertEntity(n,id,data,{auditType=n,note=""}={}){
@@ -83,6 +140,7 @@ export async function upsertEntity(n,id,data,{auditType=n,note=""}={}){
     auditPayload(auditType,id,old?"UPDATE":"CREATE",old,data,note)
   );
   await batch.commit();
+  invalidateCollection(n);
   return id;
 }
 
@@ -92,6 +150,7 @@ export async function archiveEntity(n,id,{auditType=n}={}){
   batch.update(ref(n,id),{active:false,archivedAt:serverTimestamp(),updatedAt:serverTimestamp()});
   batch.set(doc(col("auditLog")),auditPayload(auditType,id,"ARCHIVE",old,{...old,active:false}));
   await batch.commit();
+  invalidateCollection(n);
 }
 export async function reactivateEntity(n,id,{auditType=n}={}){
   const old=await getEntity(n,id);
@@ -99,6 +158,7 @@ export async function reactivateEntity(n,id,{auditType=n}={}){
   batch.update(ref(n,id),{active:true,updatedAt:serverTimestamp()});
   batch.set(doc(col("auditLog")),auditPayload(auditType,id,"REACTIVATE",old,{...old,active:true}));
   await batch.commit();
+  invalidateCollection(n);
 }
 export async function deleteEntity(n,id,{auditType=n}={}){
   const old=await getEntity(n,id);
@@ -106,6 +166,7 @@ export async function deleteEntity(n,id,{auditType=n}={}){
   batch.delete(ref(n,id));
   batch.set(doc(col("auditLog")),auditPayload(auditType,id,"DELETE",old,null));
   await batch.commit();
+  invalidateCollection(n);
 }
 export async function atomicWrite(ops=[]){
   if(!ops.length) return [];
@@ -139,6 +200,7 @@ export async function atomicWrite(ops=[]){
     );
   }
   await batch.commit();
+  for(const name of new Set(enriched.map(x=>x.collection))) invalidateCollection(name);
   return enriched.map(x=>x.entityId);
 }
 
@@ -248,6 +310,7 @@ export const removeMonthlyPlan=id=>deleteEntity("monthlyPlans",id,{auditType:"mo
 export const listRecurring=()=>listEntities("recurring");
 export const saveRecurring=(d,id=null)=>saveEntity("recurring",d,id,{auditType:"recurring"});
 export const archiveRecurring=id=>archiveEntity("recurring",id,{auditType:"recurring"});
+export const reactivateRecurring=id=>reactivateEntity("recurring",id,{auditType:"recurring"});
 export function recurringOccurrenceId(recurringId,occurrence){
   return `recurring_${String(recurringId).replace(/[^A-Za-z0-9_-]/g,"_")}_${String(occurrence).replace(/[^0-9-]/g,"")}`;
 }
@@ -275,6 +338,7 @@ export async function saveRecurringTransaction(recurring,occurrence,data){
 export const listGoals=()=>listEntities("goals");
 export const saveGoal=(d,id=null)=>saveEntity("goals",d,id,{auditType:"goal"});
 export const archiveGoal=id=>archiveEntity("goals",id,{auditType:"goal"});
+export const reactivateGoal=id=>reactivateEntity("goals",id,{auditType:"goal"});
 export const listLiabilities=()=>listEntities("liabilities");
 export const saveLiability=(d,id=null)=>saveEntity("liabilities",d,id,{auditType:"liability"});
 export const archiveLiability=id=>archiveEntity("liabilities",id,{auditType:"liability"});
@@ -282,24 +346,30 @@ export const reactivateLiability=id=>reactivateEntity("liabilities",id,{auditTyp
 export const listFinancingPlans=()=>listEntities("financingPlans");
 export const saveFinancingPlan=(d,id=null)=>saveEntity("financingPlans",d,id,{auditType:"financingPlan"});
 export const archiveFinancingPlan=id=>archiveEntity("financingPlans",id,{auditType:"financingPlan"});
+export const reactivateFinancingPlan=id=>reactivateEntity("financingPlans",id,{auditType:"financingPlan"});
 export const listInsurance=()=>listEntities("insurance");
 export const saveInsurance=(d,id=null)=>saveEntity("insurance",d,id,{auditType:"insurance"});
 export const archiveInsurance=id=>archiveEntity("insurance",id,{auditType:"insurance"});
+export const reactivateInsurance=id=>reactivateEntity("insurance",id,{auditType:"insurance"});
 export const listAssets=()=>listEntities("assets");
 export const saveAsset=(d,id=null)=>saveEntity("assets",d,id,{auditType:"asset"});
 export const archiveAsset=id=>archiveEntity("assets",id,{auditType:"asset"});
+export const reactivateAsset=id=>reactivateEntity("assets",id,{auditType:"asset"});
 export const listContracts=()=>listEntities("contracts");
 export const saveContract=(d,id=null)=>saveEntity("contracts",d,id,{auditType:"contract"});
 export const archiveContract=id=>archiveEntity("contracts",id,{auditType:"contract"});
+export const reactivateContract=id=>reactivateEntity("contracts",id,{auditType:"contract"});
 export const listReceivables=()=>listEntities("receivables");
 export const saveReceivable=(d,id=null)=>saveEntity("receivables",d,id,{auditType:"receivable"});
 export const listInvestments=()=>listEntities("investments");
 export const saveInvestment=(d,id=null)=>saveEntity("investments",d,id,{auditType:"investment"});
 export const archiveInvestment=id=>archiveEntity("investments",id,{auditType:"investment"});
+export const reactivateInvestment=id=>reactivateEntity("investments",id,{auditType:"investment"});
 export const listBusinessTrips=()=>listEntities("businessTrips","startDate")
   .then(r=>r.sort((a,b)=>String(b.startDate).localeCompare(String(a.startDate))));
 export const saveBusinessTrip=(d,id=null)=>saveEntity("businessTrips",d,id,{auditType:"businessTrip"});
 export const archiveBusinessTrip=id=>archiveEntity("businessTrips",id,{auditType:"businessTrip"});
+export const reactivateBusinessTrip=id=>reactivateEntity("businessTrips",id,{auditType:"businessTrip"});
 
 export const listTripExpenses=()=>listEntities("tripExpenses","date")
   .then(r=>r.sort((a,b)=>String(b.date).localeCompare(String(a.date))));

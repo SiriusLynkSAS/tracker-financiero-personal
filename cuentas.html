@@ -126,7 +126,11 @@ ul.task-list li input[type="checkbox"] {
 
 
 <div class="tf-page-header"><div><h1>Bancos y cuentas</h1><div class="tf-muted">Varias cuentas por banco y tarjetas con cupo, corte y fecha de pago.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<div class="tf-card" style="margin-bottom:1rem"><h2 class="anchored">Registrar / editar cuenta</h2><form id="account-form" class="tf-form-grid">
+<div class="tf-actions" style="margin-bottom:1rem">
+  <button id="account-new" class="tf-btn tf-btn-primary" type="button">Nueva cuenta</button>
+  <button id="account-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden="">Archivadas</button>
+</div>
+<div id="account-editor" class="tf-card" style="margin-bottom:1rem" hidden=""><h2 id="account-editor-title" class="anchored">Nueva cuenta</h2><form id="account-form" class="tf-form-grid">
 <div class="tf-field"><label>Banco / institución</label><input id="bank" required=""></div><div class="tf-field"><label>Alias</label><input id="alias" required=""></div>
 <div class="tf-field"><label>Tipo</label><select id="account-type"><option value="savings">Ahorros</option><option value="checking">Corriente</option><option value="credit_card">Tarjeta de crédito</option><option value="cash">Efectivo / billetera</option></select></div><div class="tf-field"><label>Últimos 4 dígitos</label><input id="last4" maxlength="4" pattern="[0-9]{0,4}"></div>
 <div class="tf-field"><label id="opening-label">Saldo inicial ($)</label><input id="opening-balance" type="number" step="0.01" value="0"></div>
@@ -546,7 +550,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.41</p>
+<p>Tracker Financiero Personal V1.0.42</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

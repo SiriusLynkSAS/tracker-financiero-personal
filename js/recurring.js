@@ -3,6 +3,7 @@ import {
   listRecurring,
   saveRecurring,
   archiveRecurring,
+  reactivateRecurring,
   listAccounts,
   listCategories,
   listTransactions
@@ -25,6 +26,10 @@ let accounts = [];
 let categories = [];
 let transactions = [];
 let editingId = null;
+let showArchived = false;
+const editor=document.querySelector("#rec-editor");
+const newButton=document.querySelector("#rec-new");
+const archivedToggle=document.querySelector("#rec-archived-toggle");
 
 const list = document.querySelector("#rec-list");
 const typeSelect = document.querySelector("#rec-type");
@@ -110,21 +115,26 @@ function executionFor(r,occurrence){
 }
 
 function render() {
-  list.innerHTML = rows.filter(r=>r.active!==false).map(r=>{
+  const archivedCount=rows.filter(r=>r.active===false).length;
+  archivedToggle.hidden=!archivedCount;
+  archivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archivedCount})`;
+  newButton.hidden=showArchived;
+  const visible=rows.filter(r=>showArchived?r.active===false:r.active!==false);
+
+  list.innerHTML = visible.map(r=>{
     const occ=currentOccurrence(r);
-    const tx=executionFor(r,occ.month);
-    const verb=r.type==="expense"?"pago":"ingreso";
+    const tx=showArchived?null:executionFor(r,occ.month);
     return `<div class="tf-card">
-      <div class="tf-section-heading"><div><strong>${escapeHtml(r.name)}</strong><div class="tf-muted">${r.type==="expense"?"Egreso":"Ingreso"} recurrente · ${money(r.amount)}</div></div><span class="tf-pill ${tx?"tf-pill-ok":"tf-pill-warn"}">${tx?(r.type==="expense"?"Pagado":"Recibido"):"Pendiente"}</span></div>
-      <div style="margin:.6rem 0">${escapeHtml(r.category||"—")}${r.subcategory?` · ${escapeHtml(r.subcategory)}`:""}<br>Ocurrencia: <strong>${occ.month}</strong> · vence ${occ.dueDate}${r.accountId?`<br>Cuenta habitual: ${escapeHtml(accountLabel(r.accountId))}`:""}</div>
+      <div class="tf-section-heading"><div><strong>${escapeHtml(r.name)}</strong><div class="tf-muted">${r.type==="expense"?"Egreso":"Ingreso"} recurrente · ${money(r.amount)}</div></div><span class="tf-pill ${showArchived?"":tx?"tf-pill-ok":"tf-pill-warn"}">${showArchived?"Archivado":tx?(r.type==="expense"?"Pagado":"Recibido"):"Pendiente"}</span></div>
+      <div style="margin:.6rem 0">${escapeHtml(r.category||"—")}${r.subcategory?` · ${escapeHtml(r.subcategory)}`:""}${showArchived?"":`<br>Ocurrencia: <strong>${occ.month}</strong> · vence ${occ.dueDate}`}${r.accountId?`<br>Cuenta habitual: ${escapeHtml(accountLabel(r.accountId))}`:""}</div>
       ${tx?`<div class="tf-alert tf-alert-info">Registrado ${escapeHtml(tx.date||"")} · ${money(tx.amount)} · ${escapeHtml(accountLabel(tx.accountId))}</div>`:""}
       <div class="tf-actions">
-        ${tx?`<a class="tf-btn tf-btn-secondary" href="movimientos.html?focus=${tx.id}">Ver movimiento</a>`:`<a class="tf-btn tf-btn-primary" href="movimientos.html?recurring=${encodeURIComponent(r.id)}&occurrence=${occ.month}">${r.type==="expense"?"Registrar pago":"Registrar ingreso"}</a>`}
-        <button class="tf-btn tf-btn-secondary" data-edit="${r.id}">Editar</button>
-        <button class="tf-btn tf-btn-secondary" data-archive="${r.id}">Archivar</button>
+        ${showArchived
+          ? `<button class="tf-btn tf-btn-primary" data-reactivate="${r.id}">Reactivar</button>`
+          : `${tx?`<a class="tf-btn tf-btn-secondary" href="movimientos.html?focus=${tx.id}">Ver movimiento</a>`:`<a class="tf-btn tf-btn-primary" href="movimientos.html?recurring=${encodeURIComponent(r.id)}&occurrence=${occ.month}">${r.type==="expense"?"Registrar pago":"Registrar ingreso"}</a>`}<button class="tf-btn tf-btn-secondary" data-edit="${r.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-archive="${r.id}">Archivar</button>`}
       </div>
     </div>`;
-  }).join("") || `<div class="tf-card tf-empty">Sin recurrentes activos.</div>`;
+  }).join("") || `<div class="tf-card tf-empty">${showArchived?"Sin recurrentes archivados.":"Sin recurrentes activos."}</div>`;
 }
 async function refresh() {
   [rows, accounts, categories, transactions] = await Promise.all([
@@ -148,8 +158,10 @@ function resetForm(){
   document.querySelector("#rec-reminder").value=3;
   document.querySelector("#rec-submit").textContent="Guardar recurrente";
   document.querySelector("#rec-cancel").hidden=true;
+  document.querySelector("#rec-editor-title").textContent="Nuevo recurrente";
   typeSelect.value="expense";
   fillCategoryCatalog();
+  editor.hidden=true;
 }
 
 typeSelect.addEventListener("change", () => fillCategoryCatalog());
@@ -157,6 +169,8 @@ categorySelect.addEventListener("change", () => fillSubcategories());
 
 document.querySelector("#rec-start").value = todayISO();
 document.querySelector("#rec-cancel").addEventListener("click", resetForm);
+newButton.addEventListener("click",()=>{resetForm();editor.hidden=false;document.querySelector("#rec-name").focus()});
+archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;resetForm();render()});
 
 document.querySelector("#rec-form").addEventListener("submit", async e => {
   e.preventDefault();
@@ -192,10 +206,13 @@ document.querySelector("#rec-form").addEventListener("submit", async e => {
 list.addEventListener("click", async e => {
   const editButton = e.target.closest("[data-edit]");
   const archiveButton = e.target.closest("[data-archive]");
+  const reactivateButton = e.target.closest("[data-reactivate]");
 
   if(editButton){
     const r=rows.find(x=>x.id===editButton.dataset.edit);if(!r)return;
     editingId=r.id;
+    editor.hidden=false;
+    document.querySelector("#rec-editor-title").textContent="Editar recurrente";
     document.querySelector("#rec-name").value=r.name||"";
     typeSelect.value=r.type||"expense";
     document.querySelector("#rec-amount").value=Number(r.amount||0);
@@ -208,6 +225,11 @@ list.addEventListener("click", async e => {
     document.querySelector("#rec-submit").textContent="Actualizar recurrente";
     document.querySelector("#rec-cancel").hidden=false;
     scrollTo({top:0,behavior:"smooth"});
+  }
+
+  if(reactivateButton){
+    await reactivateRecurring(reactivateButton.dataset.reactivate);
+    await refresh();
   }
 
   if (

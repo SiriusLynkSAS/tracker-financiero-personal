@@ -125,13 +125,18 @@ ul.task-list li input[type="checkbox"] {
 
 
 <div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Los cobros se generan al cerrar cada mes. El inicio y fin parciales se prorratean por días calendario.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<div class="tf-grid tf-grid-2"><section class="tf-card"><h2 class="anchored">Nuevo contrato</h2><form id="contract-form" class="tf-form-grid">
+<div class="tf-actions" style="margin-bottom:1rem">
+<button id="contract-new" class="tf-btn tf-btn-primary" type="button">Nuevo contrato</button>
+<button id="tariff-new" class="tf-btn tf-btn-secondary" type="button">Nueva tarifa</button>
+<button id="contract-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden="">Finalizados / archivados</button>
+</div>
+<div class="tf-grid tf-grid-2"><section id="contract-editor" class="tf-card" hidden=""><h2 class="anchored">Nuevo contrato</h2><form id="contract-form" class="tf-form-grid">
 <div class="tf-field"><label>Cliente / proyecto</label><input id="contract-name" required=""></div><div class="tf-field"><label>Inicio trabajo</label><input id="contract-start" type="date"></div><div class="tf-field"><label>Fin previsto (opcional)</label><input id="contract-end" type="date"></div><div class="tf-field"><label>Desfase de pago (meses)</label><input id="contract-lag" type="number" min="0" value="6"></div><div class="tf-field"><label>Día esperado de pago</label><input id="contract-pay-day" type="number" min="1" max="31" value="1"></div><div class="tf-field"><label>Tarifa inicial mensual ($)</label><input id="contract-rate" type="number" min="0" step="0.01" required=""></div><div class="tf-field"><label>Transporte mensual estimado ($)</label><input id="contract-transport" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Otros costos directos mensuales ($)</label><input id="contract-other-cost" type="number" min="0" step="0.01" value="0"></div>
 <div class="tf-span-2"><label>Asignación a activos</label><div id="contract-allocations"></div><div class="tf-actions" style="margin-top:.5rem"><button id="add-contract-allocation" type="button" class="tf-btn tf-btn-secondary">Añadir activo</button><span id="allocation-total" class="tf-muted"></span></div></div>
-<div class="tf-span-2"><button class="tf-btn tf-btn-primary">Guardar contrato</button></div></form></section>
-<section class="tf-card"><h2 class="anchored">Nueva tarifa</h2><form id="tariff-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Contrato</label><select id="tariff-contract"></select></div><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-span-2"><button class="tf-btn tf-btn-primary">Agregar período tarifario</button></div></form></section></div>
+<div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Guardar contrato</button><button id="contract-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section>
+<section id="tariff-editor" class="tf-card" hidden=""><h2 class="anchored">Nueva tarifa</h2><form id="tariff-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Contrato</label><select id="tariff-contract"></select></div><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Agregar período tarifario</button><button id="tariff-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section></div>
 <div id="contract-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
-<div class="tf-card" style="margin-top:1rem"><h2 class="anchored">Cuentas por cobrar</h2><div class="tf-toolbar"><div class="tf-field"><label>Cuenta destino</label><select id="payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="payment-amount" type="number" min="0" step="0.01"></div><button id="allocate-payment" class="tf-btn tf-btn-primary">Aplicar a seleccionados</button></div><div class="tf-table-wrap" style="margin-top:.7rem">
+<div id="receivables-section" class="tf-card" style="margin-top:1rem"><h2 class="anchored">Cuentas por cobrar</h2><div class="tf-toolbar"><div class="tf-field"><label>Cuenta destino</label><select id="payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="payment-amount" type="number" min="0" step="0.01"></div><button id="allocate-payment" class="tf-btn tf-btn-primary">Aplicar a seleccionados</button></div><div class="tf-table-wrap" style="margin-top:.7rem">
 <table class="tf-table caption-top">
 <thead>
 <tr class="header">
@@ -563,7 +568,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.41</p>
+<p>Tracker Financiero Personal V1.0.42</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

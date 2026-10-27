@@ -2,7 +2,7 @@
 import {requireUser} from "./guard.js";
 import {
   listLiabilities,saveLiability,archiveLiability,reactivateLiability,
-  listFinancingPlans,archiveFinancingPlan,
+  listFinancingPlans,archiveFinancingPlan,reactivateFinancingPlan,
   listAccounts,listTransactions,calculateBalances,atomicWrite
 } from "./data-service.js";
 import {
@@ -32,6 +32,12 @@ const cardScheduleBody=document.querySelector("#card-schedule-body");
 const debtPaymentPanel=document.querySelector("#debt-payment-panel");
 const debtPaymentForm=document.querySelector("#debt-payment-form");
 let debtPaymentInstallment=null;
+let showArchived=false;
+const debtEditorSection=document.querySelector("#debt-editor-section");
+const planEditorSection=document.querySelector("#plan-editor-section");
+const debtNewButton=document.querySelector("#debt-new");
+const planNewButton=document.querySelector("#plan-new");
+const debtArchivedToggle=document.querySelector("#debt-archived-toggle");
 
 function fmt(v){
   return v===null||v===undefined?"—":money(v);
@@ -458,6 +464,23 @@ function planFinancialChanged(oldPlan,newPlan){
   );
 }
 
+function closeDebtEditors(){
+  debtEditorSection.hidden=true;
+  planEditorSection.hidden=true;
+}
+function openDebtEditor(){
+  planEditorSection.hidden=true;
+  debtEditorSection.hidden=false;
+  document.querySelector("#debt-editor-title").textContent=editingDebtId?"Editar deuda":"Nueva deuda";
+  debtEditorSection.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function openPlanEditor(){
+  debtEditorSection.hidden=true;
+  planEditorSection.hidden=false;
+  document.querySelector("#plan-editor-title").textContent=editingCardPlanId?"Editar plan de tarjeta":"Nuevo plan de tarjeta";
+  planEditorSection.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function resetPlanForm(){
   editingCardPlanId=null;
   planPreviewSchedule=[];
@@ -483,9 +506,12 @@ function resetPlanForm(){
 
   togglePlanType();
   togglePlanMethod();
+  planEditorSection.hidden=true;
 }
 
 function startPlanEdit(plan){
+  planEditorSection.hidden=false;debtEditorSection.hidden=true;
+  document.querySelector("#plan-editor-title").textContent="Editar plan de tarjeta";
   editingCardPlanId=plan.id;
 
   document.querySelector("#plan-card").value=plan.parentId||"";
@@ -980,9 +1006,12 @@ function resetDebtForm(){
   previewSchedule=[];
   document.querySelector("#debt-preview-box").textContent="";
   syncDebtMode();
+  debtEditorSection.hidden=true;
 }
 
 function startDebtEdit(debt){
+  debtEditorSection.hidden=false;planEditorSection.hidden=true;
+  document.querySelector("#debt-editor-title").textContent="Editar deuda";
   editingDebtId=debt.id;
 
   document.querySelector("#debt-creditor").value=debt.creditor||"";
@@ -1151,11 +1180,30 @@ function render(){
     activeDebts.map(d=>debtCardHTML(d)).join("") ||
     `<div class="tf-card tf-empty">Sin préstamos activos.${archivedDebts.length?` Hay ${archivedDebts.length} registro(s) archivado(s) debajo.`:""}</div>`;
 
+  const archivedPlans=plans.filter(x=>x.active===false);
   const archivedWrap=document.querySelector("#archived-debt-section");
   const archivedList=document.querySelector("#archived-debt-list");
-  if(archivedWrap&&archivedList){
-    archivedWrap.hidden=!archivedDebts.length;
-    archivedList.innerHTML=archivedDebts.map(d=>debtCardHTML(d,{archived:true})).join("");
+  const archivedPlanList=document.querySelector("#archived-plan-list");
+  const archivedCount=archivedDebts.length+archivedPlans.length;
+  debtArchivedToggle.hidden=!archivedCount;
+  debtArchivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archivedCount})`;
+  debtNewButton.hidden=showArchived;
+  planNewButton.hidden=showArchived;
+  document.querySelector("#active-debt-section").hidden=showArchived;
+  document.querySelector("#active-card-section").hidden=showArchived;
+  if(archivedWrap&&archivedList&&archivedPlanList){
+    archivedWrap.hidden=!showArchived;
+    archivedList.innerHTML=archivedDebts.map(d=>debtCardHTML(d,{archived:true})).join("")||`<div class="tf-card tf-empty">Sin préstamos archivados.</div>`;
+    archivedPlanList.innerHTML=archivedPlans.map(p=>{
+      const totals=planTotals(p);
+      return `<div class="tf-card tf-card-muted">
+        <div class="tf-card-context tf-card-context-card">Plan de tarjeta archivado</div>
+        <strong>${escapeHtml(p.description||"Plan")}</strong>
+        <div class="tf-muted">${escapeHtml(accountLabel(p.parentId))}</div>
+        <div class="tf-debt-hero tf-debt-hero-card" style="margin-top:.75rem"><span class="tf-debt-hero-label">Saldo pendiente histórico</span><div class="tf-debt-hero-amount">${money(totals.pending)}</div></div>
+        <div class="tf-actions" style="margin-top:.8rem"><button class="tf-btn tf-btn-primary" data-plan-reactivate="${escapeHtml(p.id)}">Reactivar</button><button class="tf-btn tf-btn-secondary" data-plan-schedule="${escapeHtml(p.id)}">Ver cronograma</button></div>
+      </div>`;
+    }).join("")||`<div class="tf-card tf-empty">Sin planes de tarjeta archivados.</div>`;
   }
   const loadStatus=document.querySelector("#debt-load-status");
   if(loadStatus){
@@ -2408,6 +2456,7 @@ document.addEventListener("click",async e=>{
   const pa=e.target.closest("[data-plan-archive]");
   const da=e.target.closest("[data-debt-archive]");
   const dr=e.target.closest("[data-debt-reactivate]");
+  const pr=e.target.closest("[data-plan-reactivate]");
 
   if(pe){
     const debt=debts.find(x=>x.id===pe.dataset.debtEdit);
@@ -2444,6 +2493,16 @@ document.addEventListener("click",async e=>{
     await refresh();
   }
 
+  if(pr&&await confirmAction({
+    title:"Reactivar plan de tarjeta",
+    message:"El plan volverá a la lista activa.",
+    confirmText:"Reactivar"
+  })){
+    await reactivateFinancingPlan(pr.dataset.planReactivate);
+    await refresh();
+    return;
+  }
+
   if(dr&&await confirmAction({
     title:"Reactivar préstamo/deuda",
     message:"El registro volverá a la lista de deudas activas.",
@@ -2477,5 +2536,9 @@ cardScheduleBody.addEventListener("click",async e=>{
   if(!b) return;
   await payCardInstallment(Number(b.dataset.payCard));
 });
+
+debtNewButton.addEventListener("click",()=>{resetDebtForm();debtEditorSection.hidden=false;document.querySelector("#debt-editor-title").textContent="Nueva deuda";});
+planNewButton.addEventListener("click",()=>{resetPlanForm();planEditorSection.hidden=false;document.querySelector("#plan-editor-title").textContent="Nuevo plan de tarjeta";});
+debtArchivedToggle.addEventListener("click",()=>{showArchived=!showArchived;closeDebtEditors();render();});
 
 requireUser(()=>refresh().catch(console.error));
