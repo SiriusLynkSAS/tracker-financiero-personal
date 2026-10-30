@@ -32,6 +32,7 @@ let reconciliations = [];
 let recurringRows = [];
 let recurringContext = null;
 let editingId = null;
+let ledgerSnapshots = new Map();
 
 const form = document.querySelector("#tx-form");
 const tbody = document.querySelector("#tx-body");
@@ -46,6 +47,10 @@ const filterSubcategory = document.querySelector("#filter-subcategory");
 const moreDetails = document.querySelector("#tx-more-details");
 const categoryDialog = document.querySelector("#tx-category-dialog");
 const categoryDialogBody = document.querySelector("#tx-category-dialog-body");
+const detailDialog = document.querySelector("#tx-detail-dialog");
+const detailDialogTitle = document.querySelector("#tx-detail-title");
+const detailDialogMeta = document.querySelector("#tx-detail-meta");
+const detailDialogBody = document.querySelector("#tx-detail-body");
 const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 
 function activeAccounts() {
@@ -69,6 +74,84 @@ function parseDecimalInput(value){
 function nowTime(){ return new Date().toTimeString().slice(0,5); }
 function transactionDateTime(row){ return String(row?.transactionDateTime||`${row?.date||""}T00:00`); }
 function chargeTotal(row){ return Number(row?.feeAmount||0)+Number(row?.taxAmount||0)+Number(row?.otherChargeAmount||0); }
+
+function transactionEffects(tx){
+  const amount=Number(tx?.amount||0);
+  const charges=chargeTotal(tx);
+  const out=[];
+  const push=(accountId,change,role)=>{
+    if(accountId) out.push({accountId,change:Number(change||0),role});
+  };
+  if(["income","work_reimbursement","work_advance"].includes(tx.type)) push(tx.accountId,amount,"Cuenta");
+  else if(["expense","work_expense","work_advance_return"].includes(tx.type)) push(tx.accountId,-(amount+charges),"Cuenta");
+  else if(tx.type==="transfer"){
+    push(tx.fromAccountId,-(amount+charges),"Origen");
+    push(tx.toAccountId,amount,"Destino");
+  }else if(tx.type==="investment_out") push(tx.accountId,-amount,"Cuenta");
+  else if(tx.type==="investment_return") push(tx.accountId,amount,"Cuenta");
+  return out;
+}
+
+function buildLedgerSnapshots(){
+  const balances=Object.fromEntries(accounts.map(a=>[a.id,Number(a.openingBalance||0)]));
+  const rows=[...transactions].sort((a,b)=>{
+    const da=transactionDateTime(a),db=transactionDateTime(b);
+    return da.localeCompare(db)||String(a.id||"").localeCompare(String(b.id||""));
+  });
+  const map=new Map();
+  for(const tx of rows){
+    const lines=transactionEffects(tx).map(effect=>{
+      const before=Number(balances[effect.accountId]||0);
+      const after=before+effect.change;
+      balances[effect.accountId]=after;
+      return {...effect,before,after};
+    });
+    map.set(tx.id,lines);
+  }
+  ledgerSnapshots=map;
+}
+
+function signedMoney(value){
+  const n=Number(value||0);
+  return `${n>=0?"+":"−"}${money(Math.abs(n))}`;
+}
+
+function openTransactionDetail(tx){
+  if(!tx||!detailDialog) return;
+  const lines=ledgerSnapshots.get(tx.id)||[];
+  const charges=chargeTotal(tx);
+  detailDialogTitle.textContent=tx.description||txLabel(tx.type);
+  detailDialogMeta.textContent=`${tx.date||"—"} · ${transactionDateTime(tx).slice(11,16)||"—"} · ${tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type)}`;
+
+  const balanceHtml=lines.length?lines.map(line=>`
+    <section class="tf-subtle" style="margin-top:.75rem">
+      <div class="tf-section-heading">
+        <div><strong>${escapeHtml(line.role)} · ${escapeHtml(accountName(line.accountId))}</strong></div>
+      </div>
+      <div class="tf-detail-grid">
+        <div class="tf-metric"><span class="tf-metric-label">Saldo anterior</span><strong>${money(line.before)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Cambio</span><strong>${signedMoney(line.change)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Nuevo saldo</span><strong>${money(line.after)}</strong></div>
+      </div>
+    </section>
+  `).join(""):`<div class="tf-empty">Este movimiento no afecta directamente una cuenta del ledger.</div>`;
+
+  const chargeHtml=charges>0.009?`
+    <section class="tf-subtle" style="margin-top:.75rem">
+      <strong>Desglose de salida</strong>
+      <div class="tf-detail-grid" style="margin-top:.55rem">
+        <div class="tf-metric"><span class="tf-metric-label">Monto principal</span><strong>${money(tx.amount)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Cargos</span><strong>${money(charges)}</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Débito total</span><strong>${money(Number(tx.amount||0)+charges)}</strong></div>
+      </div>
+    </section>`:"";
+
+  detailDialogBody.innerHTML=balanceHtml+chargeHtml+
+    (tx.recurringId?`<div class="tf-muted" style="margin-top:.75rem">Vinculado a recurrente.</div>`:"")+
+    ((tx.debtPaymentId||tx.liabilityId)?`<div class="tf-muted" style="margin-top:.75rem">Vinculado a pago de deuda.</div>`:"");
+
+  detailDialog.showModal();
+}
 function updateGrossDebit(){
   const amount=parseDecimalInput(document.querySelector("#tx-amount").value);
   const fee=parseDecimalInput(document.querySelector("#tx-fee")?.value);
@@ -483,6 +566,7 @@ function render() {
       <td>${escapeHtml(tx.description || "—")}${charges>0?`<div class="tf-muted">Cargos ${money(charges)} · débito ${money(Number(tx.amount||0)+charges)}</div>`:""}</td>
       <td>${money(tx.amount)}</td>
       <td><div class="tf-actions">
+        <button class="tf-btn tf-btn-secondary" data-detail="${tx.id}">Detalle</button>
         ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Ver recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
       </div></td>
@@ -505,6 +589,7 @@ async function refresh() {
   ]);
 
   categories = sortCategoryRows(categories);
+  buildLedgerSnapshots();
   fillAccounts();
   fillCategories();
   refreshSplitCatalogs();
@@ -615,6 +700,15 @@ document.querySelector("#split-rows").addEventListener("click", e => {
   button.closest(".tf-split-row").remove();
   updateSplitTotal();
 });
+
+tbody.addEventListener("click",e=>{
+  const detail=e.target.closest("[data-detail]");
+  if(detail){
+    openTransactionDetail(transactions.find(tx=>tx.id===detail.dataset.detail));
+    return;
+  }
+});
+document.querySelector("#tx-detail-close")?.addEventListener("click",()=>detailDialog?.close());
 
 document.querySelector("#tx-cancel").addEventListener("click", reset);
 
