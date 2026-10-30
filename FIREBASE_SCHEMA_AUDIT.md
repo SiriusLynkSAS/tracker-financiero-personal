@@ -41,3 +41,9 @@ La transferencia presenta dos saldos independientes: origen y destino.
 
 ## Limitación de compilación
 No se ejecutó build Gradle Android completo porque el proyecto no incluye Gradle Wrapper y el entorno no dispone del toolchain Android completo.
+
+
+## V1.0.44
+- `Saldo final` es exclusivamente un valor calculado de presentación.
+- No se añadieron `previousBalance`, `newBalance`, `balanceBefore` ni `balanceAfter` a Firestore.
+- Se reutiliza `ledgerSnapshots`, calculado desde `openingBalance` + movimientos ordenados por `transactionDateTime`.

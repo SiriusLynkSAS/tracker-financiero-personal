@@ -116,6 +116,20 @@ function signedMoney(value){
   return `${n>=0?"+":"−"}${money(Math.abs(n))}`;
 }
 
+function finalBalanceCell(tx){
+  const lines=ledgerSnapshots.get(tx.id)||[];
+  if(!lines.length) return `<span class="tf-muted">—</span>`;
+  if(lines.length===1){
+    return `<strong>${money(lines[0].after)}</strong>`;
+  }
+  return lines.map(line=>`
+    <div class="tf-tx-final-balance-line">
+      <span class="tf-muted">${escapeHtml(line.role)}</span>
+      <strong>${money(line.after)}</strong>
+    </div>
+  `).join("");
+}
+
 function openTransactionDetail(tx){
   if(!tx||!detailDialog) return;
   const lines=ledgerSnapshots.get(tx.id)||[];
@@ -554,7 +568,7 @@ function render() {
   let lastDay="";
   tbody.innerHTML = rows.map(tx => {
     const day=String(tx.date||"");
-    const group=day!==lastDay?`<tr class="tf-tx-day-row"><td colspan="7"><strong>${escapeHtml(day)}</strong></td></tr>`:"";
+    const group=day!==lastDay?`<tr class="tf-tx-day-row"><td colspan="8"><strong>${escapeHtml(day)}</strong></td></tr>`:"";
     lastDay=day;
     const time=transactionDateTime(tx).slice(11,16);
     const charges=chargeTotal(tx);
@@ -570,8 +584,9 @@ function render() {
         ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Ver recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
       </div></td>
+      <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
 }
 
 function affectedReconciliations(accountIds,date){

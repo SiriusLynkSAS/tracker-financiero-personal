@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.43
+# Tracker Financiero Personal V1.0.44
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1178,3 +1178,12 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Categorías deja de mostrar formularios editables permanentemente; `Nuevo` y `Editar` abren formularios explícitos.
 - Se elimina la entrada duplicada de Pendientes del menú lateral; permanece el acceso de notificaciones.
 - Sin cambios de campos, colecciones o Firestore Rules.
+
+
+## V1.0.44 — Saldo final visible en Movimientos
+
+- La tabla Web de Movimientos añade una última columna `Saldo final`.
+- Ingresos/egresos muestran el saldo de la cuenta inmediatamente después del movimiento.
+- Transferencias muestran dos líneas: saldo final de `Origen` y de `Destino`.
+- El valor reutiliza el mismo ledger dinámico de `Detalle`; no se persiste ningún saldo histórico nuevo en Firebase.
+- No modifica campos, colecciones ni Firestore Rules.
