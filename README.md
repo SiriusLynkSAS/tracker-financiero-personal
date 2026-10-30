@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.42
+# Tracker Financiero Personal V1.0.43
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1167,3 +1167,14 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los formularios de creación/edición ya no permanecen abiertos de forma permanente: Nuevo y Editar son acciones explícitas.
 - Los contratos finalizados y las inversiones liquidadas se muestran como histórico de solo lectura; no se reactivan automáticamente.
 - No se renombró, migró ni eliminó ningún campo o colección Firestore.
+
+
+## V1.0.43 — Saldos por movimiento y consulta explícita
+
+- Movimientos incorpora `Detalle` con saldo anterior, cambio y nuevo saldo calculados desde el ledger.
+- Transferencias muestran por separado el efecto en cuenta origen y cuenta destino.
+- Cargos, impuestos y otros cargos se incluyen en el cambio real de la cuenta origen.
+- Los saldos históricos no se almacenan en Firebase: se recalculan desde `openingBalance` y `transactionDateTime`.
+- Categorías deja de mostrar formularios editables permanentemente; `Nuevo` y `Editar` abren formularios explícitos.
+- Se elimina la entrada duplicada de Pendientes del menú lateral; permanece el acceso de notificaciones.
+- Sin cambios de campos, colecciones o Firestore Rules.

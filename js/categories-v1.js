@@ -13,6 +13,9 @@ import { confirmAction, toast } from "./ui.js";
 
 let cats=[],txs=[];
 const tbody=document.querySelector("#category-body");
+const createPanel=document.querySelector("#category-create-panel");
+const stylePanel=document.querySelector("#category-style-panel");
+const newButton=document.querySelector("#category-new");
 
 function setupPicker(gridId,hiddenId,selected,filter=""){
   const grid=document.querySelector(`#${gridId}`);
@@ -141,21 +144,46 @@ function loadStyle(){
 async function refresh(){
   [cats,txs]=await Promise.all([listCategories(),listTransactions()]);
   cats=sortCategoryRows(cats);
-  tbody.innerHTML=cats.map(c=>{
-    const st=categoryStyle(cats,c.type,c.category);
-    return `
+  const groups=[...new Map(cats.map(c=>[`${c.type}|${normalizeText(c.category).toLowerCase()}`,[]])).entries()];
+  const grouped=new Map();
+  cats.forEach(c=>{
+    const key=`${c.type}|${normalizeText(c.category).toLowerCase()}`;
+    if(!grouped.has(key)) grouped.set(key,[]);
+    grouped.get(key).push(c);
+  });
+  tbody.innerHTML=[...grouped.values()].map(group=>{
+    const first=group[0],st=categoryStyle(cats,first.type,first.category);
+    const head=`<tr class="tf-tx-day-row">
+      <td>${categoryBadge({icon:st.icon,color:st.color,label:first.category})}</td>
+      <td>${first.type==="expense"?"Egreso":"Ingreso"}</td>
+      <td><strong>${escapeHtml(first.category)}</strong></td>
+      <td>${group.length} subcategoría${group.length===1?"":"s"}</td>
+      <td><button class="tf-btn tf-btn-secondary" data-style-id="${first.id}">Editar</button></td>
+    </tr>`;
+    const subs=group.sort((a,b)=>a.subcategory.localeCompare(b.subcategory,"es")).map(c=>`
       <tr>
-        <td>${categoryBadge({icon:st.icon,color:st.color,label:c.category})}</td>
-        <td>${c.type==="expense"?"Egreso":"Ingreso"}</td>
-        <td>${escapeHtml(c.category)}</td>
+        <td></td><td></td><td></td>
         <td>${escapeHtml(c.subcategory)}</td>
         <td><button class="tf-btn tf-btn-danger" data-delete="${c.id}">Eliminar</button></td>
-      </tr>
-    `;
+      </tr>`).join("");
+    return head+subs;
   }).join("")||`<tr><td colspan="5" class="tf-empty">Sin categorías.</td></tr>`;
   fillStyleCategory();
   syncNewCategoryStyleMode();
 }
+newButton.addEventListener("click",()=>{
+  document.querySelector("#category-form").reset();
+  document.querySelector("#category-icon-search").value="";
+  setupPicker("category-icon-grid","category-icon","wallet");
+  setupColors("category-color-grid","category-color","blue");
+  createPanel.hidden=false;
+  stylePanel.hidden=true;
+  syncNewCategoryStyleMode();
+  document.querySelector("#category-name").focus();
+});
+document.querySelector("#category-create-cancel").addEventListener("click",()=>{createPanel.hidden=true});
+document.querySelector("#category-style-cancel").addEventListener("click",()=>{stylePanel.hidden=true});
+
 document.querySelector("#category-icon-search").addEventListener("input",e=>{
   setupPicker("category-icon-grid","category-icon",document.querySelector("#category-icon").value,e.target.value);
 });
@@ -205,6 +233,7 @@ document.querySelector("#category-form").addEventListener("submit",async e=>{
   setupColors("category-color-grid","category-color","blue");
   syncNewCategoryStyleMode();
 
+  createPanel.hidden=true;
   toast(
     existing
       ? "Subcategoría agregada con el estilo de su categoría."
@@ -225,11 +254,25 @@ document.querySelector("#category-style-form").addEventListener("submit",async e
     collection:"categories",id:c.id,action:"update",auditType:"category",
     data:{...c,icon,color}
   })));
+  stylePanel.hidden=true;
   toast("Estilo actualizado.");
   await refresh();
 });
 
 tbody.addEventListener("click",async e=>{
+  const styleButton=e.target.closest("[data-style-id]");
+  if(styleButton){
+    const row=cats.find(x=>x.id===styleButton.dataset.styleId);if(!row)return;
+    document.querySelector("#category-type").value=row.type;
+    fillStyleCategory();
+    document.querySelector("#style-category").value=row.category;
+    document.querySelector("#category-style-title").textContent=`Editar ${row.category}`;
+    loadStyle();
+    createPanel.hidden=true;
+    stylePanel.hidden=false;
+    stylePanel.scrollIntoView({behavior:"smooth",block:"start"});
+    return;
+  }
   const b=e.target.closest("[data-delete]");if(!b)return;
   const c=cats.find(x=>x.id===b.dataset.delete);
   const used=txs.some(t=>compareEs(t.category,c.category)===0&&compareEs(t.subcategory,c.subcategory)===0);

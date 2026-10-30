@@ -155,6 +155,19 @@ title: "Movimientos"
   <div id="tx-category-dialog-body" class="tf-tx-category-options"></div>
 </dialog>
 
+
+<dialog id="tx-detail-dialog" class="tf-tx-category-dialog">
+  <div class="tf-tx-category-dialog-head">
+    <div>
+      <div class="tf-section-kicker">Detalle del movimiento</div>
+      <h3 id="tx-detail-title">Movimiento</h3>
+      <div id="tx-detail-meta" class="tf-muted"></div>
+    </div>
+    <button id="tx-detail-close" type="button" class="tf-btn tf-btn-secondary">Cerrar</button>
+  </div>
+  <div id="tx-detail-body"></div>
+</dialog>
+
 <div class="tf-card" style="margin-top:1rem">
   <div class="tf-table-wrap">
     <table class="tf-table">

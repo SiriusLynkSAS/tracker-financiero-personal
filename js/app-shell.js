@@ -57,7 +57,7 @@ const icon = name => {
 const groups = [
   {
     title: "Principal",
-    items: [["dashboard","Resumen","home"],["pendientes","Pendientes","bell"]]
+    items: [["dashboard","Resumen","home"]]
   },
   {
     title: "Operación",
