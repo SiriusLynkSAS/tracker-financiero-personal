@@ -1,4 +1,4 @@
-# Auditoría de integridad — V1.0.46 / V0.2.34
+# Auditoría de integridad — V1.0.47 / V0.2.35
 
 ## Alcance
 Esta versión corrige únicamente la primera etapa de integridad:

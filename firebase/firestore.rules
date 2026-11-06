@@ -7,6 +7,12 @@ service cloud.firestore {
     function nonNegative(v){ return number(v) && v >= 0; }
     function positive(v){ return number(v) && v > 0; }
     function shortString(v,max){ return v is string && v.size() <= max; }
+    function nonEmptyString(v,max){ return v is string && v.size() > 0 && v.size() <= max; }
+    function isoDate(v){ return v is string && v.matches('^\\d{4}-\\d{2}-\\d{2}$'); }
+    function yearMonth(v){ return v is string && v.matches('^\\d{4}-\\d{2}$'); }
+    function canonical(data){ return ('schemaVersion' in data) && data.schemaVersion is int && data.schemaVersion >= 2; }
+    function optionalNonNegative(data,key){ return !(key in data) || data[key] == null || nonNegative(data[key]); }
+    function optionalString(data,key,max){ return !(key in data) || data[key] == null || shortString(data[key],max); }
 
     match /users/{userId} {
       allow read,create,update: if isOwner(userId);
@@ -18,7 +24,13 @@ service cloud.firestore {
           && shortString(request.resource.data.bank,120)
           && shortString(request.resource.data.alias,120)
           && request.resource.data.accountType in ['savings','checking','credit_card','cash']
-          && number(request.resource.data.openingBalance);
+          && number(request.resource.data.openingBalance)
+          && (!canonical(request.resource.data) || (
+            nonEmptyString(request.resource.data.bank,120)
+            && nonEmptyString(request.resource.data.alias,120)
+            && optionalNonNegative(request.resource.data,'creditLimit')
+            && optionalString(request.resource.data,'openingBalanceAsOf',10)
+          ));
         allow delete: if false;
       }
 
@@ -28,7 +40,29 @@ service cloud.firestore {
           && request.resource.data.type in ['income','expense','transfer','investment_out','investment_return','work_expense','work_reimbursement','work_advance','work_advance_return']
           && request.resource.data.date is string
           && positive(request.resource.data.amount)
-          && nonNegative(request.resource.data.vat);
+          && nonNegative(request.resource.data.vat)
+          && (!canonical(request.resource.data) || (
+            isoDate(request.resource.data.date)
+            && optionalNonNegative(request.resource.data,'feeAmount')
+            && optionalNonNegative(request.resource.data,'taxAmount')
+            && optionalNonNegative(request.resource.data,'otherChargeAmount')
+            && optionalNonNegative(request.resource.data,'grossDebitAmount')
+            && optionalString(request.resource.data,'investmentId',128)
+            && optionalString(request.resource.data,'contractPaymentId',128)
+            && optionalString(request.resource.data,'settlementId',128)
+            && (
+              (request.resource.data.type == 'transfer'
+                && request.resource.data.fromAccountId is string
+                && request.resource.data.fromAccountId.size() > 0
+                && request.resource.data.toAccountId is string
+                && request.resource.data.toAccountId.size() > 0
+                && request.resource.data.fromAccountId != request.resource.data.toAccountId)
+              ||
+              (request.resource.data.type != 'transfer'
+                && request.resource.data.accountId is string
+                && request.resource.data.accountId.size() > 0)
+            )
+          ));
         allow delete: if isOwner(userId);
       }
 
@@ -50,7 +84,12 @@ service cloud.firestore {
           && request.resource.data.subcategory is string
           && nonNegative(request.resource.data.limit)
           && request.resource.data.month is string
-          && request.resource.data.rollover is bool;
+          && request.resource.data.rollover is bool
+          && (!canonical(request.resource.data) || (
+            nonEmptyString(request.resource.data.category,100)
+            && nonEmptyString(request.resource.data.subcategory,100)
+            && yearMonth(request.resource.data.month)
+          ));
         allow delete: if isOwner(userId);
       }
 
@@ -60,7 +99,8 @@ service cloud.firestore {
           && request.resource.data.month is string
           && request.resource.data.excludedSources is list
           && request.resource.data.adjustments is list
-          && request.resource.data.notes is string;
+          && request.resource.data.notes is string
+          && (!canonical(request.resource.data) || yearMonth(request.resource.data.month));
         allow delete: if false;
       }
 
@@ -68,7 +108,21 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)
           && request.resource.data.type in ['income','expense']
-          && positive(request.resource.data.amount);
+          && positive(request.resource.data.amount)
+          && (!canonical(request.resource.data) || (
+            nonEmptyString(request.resource.data.name,160)
+            && request.resource.data.accountId is string
+            && request.resource.data.accountId.size() > 0
+            && request.resource.data.dayOfMonth is int
+            && request.resource.data.dayOfMonth >= 1
+            && request.resource.data.dayOfMonth <= 31
+            && request.resource.data.reminderDaysBefore is int
+            && request.resource.data.reminderDaysBefore >= 0
+            && request.resource.data.reminderDaysBefore <= 90
+            && request.resource.data.startDate is string
+            && (request.resource.data.startDate == '' || isoDate(request.resource.data.startDate))
+            && (!(request.resource.data.endDate is string) || request.resource.data.endDate == '' || isoDate(request.resource.data.endDate))
+          ));
         allow delete: if false;
       }
 
@@ -82,7 +136,14 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)
           && request.resource.data.mode in ['calculated','manual','imported']
-          && nonNegative(request.resource.data.originalPrincipal);
+          && nonNegative(request.resource.data.originalPrincipal)
+          && (!canonical(request.resource.data) || (
+            request.resource.data.status in ['active','paid_off','cancelled','archived']
+            && request.resource.data.active is bool
+            && !(request.resource.data.active == false && request.resource.data.status == 'active')
+            && optionalNonNegative(request.resource.data,'annualRate')
+            && optionalNonNegative(request.resource.data,'bankInstallment')
+          ));
         allow delete: if false;
       }
 
@@ -91,7 +152,12 @@ service cloud.firestore {
         allow create,update: if isOwner(userId)
           && request.resource.data.parentType == 'credit_card'
           && positive(request.resource.data.originalPrincipal)
-          && request.resource.data.schedule is list;
+          && request.resource.data.schedule is list
+          && (!canonical(request.resource.data) || (
+            request.resource.data.status in ['active','paid_off','cancelled','archived']
+            && request.resource.data.active is bool
+            && !(request.resource.data.active == false && request.resource.data.status == 'active')
+          ));
         allow delete: if false;
       }
 
@@ -146,7 +212,12 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create,update: if isOwner(userId)
           && request.resource.data.startDate is string
-          && nonNegative(request.resource.data.initialMonthlyRate);
+          && nonNegative(request.resource.data.initialMonthlyRate)
+          && (!canonical(request.resource.data) || (
+            nonEmptyString(request.resource.data.name,180)
+            && isoDate(request.resource.data.startDate)
+            && (!(request.resource.data.endDate is string) || request.resource.data.endDate == '' || isoDate(request.resource.data.endDate))
+          ));
         allow delete: if false;
       }
 
@@ -155,7 +226,20 @@ service cloud.firestore {
         allow create,update: if isOwner(userId)
           && request.resource.data.contractId is string
           && nonNegative(request.resource.data.amount)
-          && nonNegative(request.resource.data.paidAmount);
+          && nonNegative(request.resource.data.paidAmount)
+          && (!canonical(request.resource.data) || request.resource.data.paidAmount <= request.resource.data.amount);
+        allow delete: if false;
+      }
+
+      match /contractPayments/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && canonical(request.resource.data)
+          && nonEmptyString(request.resource.data.contractId,128)
+          && isoDate(request.resource.data.date)
+          && positive(request.resource.data.amount)
+          && request.resource.data.allocations is list
+          && nonEmptyString(request.resource.data.transactionId,128);
         allow delete: if false;
       }
 
@@ -165,7 +249,53 @@ service cloud.firestore {
           && positive(request.resource.data.principal)
           && nonNegative(request.resource.data.annualRate)
           && request.resource.data.rateType in ['nominal','effective']
-          && request.resource.data.status in ['active','liquidated','renewed','cancelled'];
+          && request.resource.data.status in ['active','liquidated','renewed','cancelled','legacy_inactive']
+          && (!canonical(request.resource.data) || (
+            nonEmptyString(request.resource.data.bank,120)
+            && nonEmptyString(request.resource.data.name,160)
+            && request.resource.data.calculation in ['simple','compound']
+            && request.resource.data.capitalization in ['monthly','quarterly','semiannual','annual']
+            && isoDate(request.resource.data.startDate)
+            && positive(request.resource.data.termValue)
+            && request.resource.data.termUnit in ['days','months','years']
+            && isoDate(request.resource.data.maturityDate)
+            && optionalNonNegative(request.resource.data,'withholding')
+            && optionalNonNegative(request.resource.data,'fees')
+            && request.resource.data.capitalMovementMode in ['automatic','linked_existing','historical','already_registered']
+            && request.resource.data.reminderDaysBefore is int
+            && request.resource.data.reminderDaysBefore >= 0
+            && request.resource.data.reminderDaysBefore <= 365
+            && request.resource.data.active is bool
+            && !(request.resource.data.active == false && request.resource.data.status == 'active')
+          ));
+        allow delete: if false;
+      }
+
+      match /investmentBankReports/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && canonical(request.resource.data)
+          && nonEmptyString(request.resource.data.investmentId,128)
+          && isoDate(request.resource.data.asOf)
+          && request.resource.data.sourceType in ['quote','certificate','statement','maturity_notice','other']
+          && optionalNonNegative(request.resource.data,'bankReportedGrossInterest')
+          && optionalNonNegative(request.resource.data,'bankReportedNetInterest')
+          && optionalNonNegative(request.resource.data,'bankReportedMaturityValue');
+        allow delete: if false;
+      }
+
+      match /investmentSettlements/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && canonical(request.resource.data)
+          && nonEmptyString(request.resource.data.investmentId,128)
+          && isoDate(request.resource.data.date)
+          && request.resource.data.settlementType in ['maturity','early_redemption','partial','capital_loss','correction']
+          && nonNegative(request.resource.data.returnedPrincipal)
+          && nonNegative(request.resource.data.actualGrossInterest)
+          && nonNegative(request.resource.data.actualWithholdingAmount)
+          && nonNegative(request.resource.data.actualFees)
+          && request.resource.data.transactionIds is list;
         allow delete: if false;
       }
 
@@ -176,7 +306,8 @@ service cloud.firestore {
           && request.resource.data.date is string
           && number(request.resource.data.trackerBalance)
           && number(request.resource.data.bankBalance)
-          && number(request.resource.data.difference);
+          && number(request.resource.data.difference)
+          && (!canonical(request.resource.data) || isoDate(request.resource.data.date));
         allow delete: if false;
       }
 
@@ -203,6 +334,20 @@ service cloud.firestore {
           && request.resource.data.paymentDate is string
           && request.resource.data.status == 'paid';
         allow update,delete: if false;
+      }
+
+      match /investmentTaxWithholdings/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && canonical(request.resource.data)
+          && nonEmptyString(request.resource.data.investmentId,128)
+          && isoDate(request.resource.data.date)
+          && nonNegative(request.resource.data.baseAmount)
+          && nonNegative(request.resource.data.rate)
+          && request.resource.data.rate <= 100
+          && nonNegative(request.resource.data.amount)
+          && request.resource.data.taxTreatment in ['taxable','exempt','unknown','manual'];
+        allow delete: if false;
       }
 
       match /auditLog/{id} {

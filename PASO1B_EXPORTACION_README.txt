@@ -1,5 +1,5 @@
 TRACKER FINANCIERO PERSONAL · EXPORTACIÓN FIREBASE PARA PASO 1B
-Versión base: Web V1.0.46
+Versión base: Web V1.0.47
 Proyecto Firebase conservado: tracker-financiero-personal
 
 QUÉ CAMBIÓ

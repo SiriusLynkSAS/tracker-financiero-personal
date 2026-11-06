@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.46
+# Tracker Financiero Personal V1.0.47
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1195,6 +1195,20 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - La última columna contiene siempre `Detalle`, `Editar`, `Eliminar` o acciones vinculadas.
 - Sin cambios en Firebase, datos, reglas ni lógica del ledger.
 
+
+
+## V1.0.47 — Schema canónico y compatibilidad legacy
+
+- Se incorpora `js/schema.js` con contrato **leer tolerante / escribir canónico** y `schemaVersion = 2`.
+- Cuentas, movimientos, presupuestos, recurrentes, deudas, planes, contratos, cuentas por cobrar e inversiones pasan por normalizadores de lectura.
+- Los 23 movimientos legacy con IVA ambiguo detectados en el Paso 1B quedan marcados en memoria como `legacyVatAmbiguous` y no se reinterpretan silenciosamente como factura válida.
+- Los presupuestos sin `month` se conservan como legacy (`legacyPeriodMissing`) y no se periodizan automáticamente.
+- Se normaliza el conflicto `active=false/status=active` de deudas/planes sin reactivar la obligación.
+- Nuevas escrituras incluyen `schemaVersion=2`; las reglas mantienen compatibilidad con documentos legacy sin versión y aplican controles más estrictos a documentos canónicos.
+- Se preparan Rules para `contractPayments`, `investmentBankReports`, `investmentSettlements` e `investmentTaxWithholdings`.
+- Se bloquea la edición/eliminación directa de movimientos ya vinculados a inversión, cobro contractual o settlement.
+- El exportador RAW del Paso 1B se conserva como herramienta de diagnóstico de solo lectura.
+- Esta versión **no ejecuta migraciones automáticas sobre Firestore**. Las tareas MIG-001…MIG-011 siguen siendo una fase separada y controlada.
 
 ## V1.0.46 — Integridad de recurrentes y refrescos
 

@@ -4,6 +4,18 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
 import {contractPeriodCalculation,contractDesiredStopMonth} from "./contract-math.js";
+import {
+  SCHEMA_VERSION,canonicalStamp,
+  normalizeAccount,sanitizeAccountWrite,
+  normalizeTransaction,sanitizeTransactionWrite,
+  normalizeBudget,sanitizeBudgetWrite,
+  normalizeRecurring,sanitizeRecurringWrite,
+  normalizeLiability,sanitizeLiabilityWrite,
+  normalizeFinancingPlan,sanitizeFinancingPlanWrite,
+  normalizeContract,sanitizeContractWrite,
+  normalizeReceivable,sanitizeReceivableWrite,
+  normalizeInvestment,sanitizeInvestmentWrite
+} from "./schema.js";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -116,7 +128,7 @@ export async function saveEntity(n,data,id=null,{auditType=n,note=""}={}){
   const entityId=entityRef.id;
   let old=null;
   if(id) old=await getEntity(n,id);
-  const payload={...data,updatedAt:serverTimestamp()};
+  const payload={...canonicalStamp(data),updatedAt:serverTimestamp()};
   if(id) batch.update(entityRef,payload);
   else batch.set(entityRef,{...payload,createdAt:serverTimestamp()});
   const auditRef=doc(col("auditLog"));
@@ -129,7 +141,7 @@ export async function upsertEntity(n,id,data,{auditType=n,note=""}={}){
   const old=await getEntity(n,id);
   const batch=writeBatch(db);
   const entityRef=ref(n,id);
-  const payload={...data,updatedAt:serverTimestamp()};
+  const payload={...canonicalStamp(data),updatedAt:serverTimestamp()};
   if(old){
     batch.set(entityRef,payload,{merge:true});
   }else{
@@ -160,6 +172,17 @@ export async function reactivateEntity(n,id,{auditType=n}={}){
   await batch.commit();
   invalidateCollection(n);
 }
+async function setLifecycleState(n,id,{active,status,auditType=n,action}){
+  const old=await getEntity(n,id);
+  if(!old) throw new Error("Registro no encontrado.");
+  const changes={active,status,schemaVersion:SCHEMA_VERSION,updatedAt:serverTimestamp()};
+  if(!active) changes.archivedAt=serverTimestamp();
+  const batch=writeBatch(db);
+  batch.update(ref(n,id),changes);
+  batch.set(doc(col("auditLog")),auditPayload(auditType,id,action,old,{...old,active,status}));
+  await batch.commit();
+  invalidateCollection(n);
+}
 export async function deleteEntity(n,id,{auditType=n}={}){
   const old=await getEntity(n,id);
   const batch=writeBatch(db);
@@ -183,9 +206,9 @@ export async function atomicWrite(ops=[]){
     if(op.action==="delete"){
       batch.delete(op.entityRef);
     }else if(op.action==="update"){
-      batch.update(op.entityRef,{...op.data,updatedAt:serverTimestamp()});
+      batch.update(op.entityRef,{...canonicalStamp(op.data),updatedAt:serverTimestamp()});
     }else{
-      batch.set(op.entityRef,{...op.data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      batch.set(op.entityRef,{...canonicalStamp(op.data),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
     }
     batch.set(
       doc(col("auditLog")),
@@ -204,8 +227,10 @@ export async function atomicWrite(ops=[]){
   return enriched.map(x=>x.entityId);
 }
 
-export const listAccounts=(o={includeArchived:true})=>listEntities("accounts","bank").then(r=>o.includeArchived?r:r.filter(x=>x.active!==false));
-export const saveAccount=(d,id=null)=>saveEntity("accounts",d,id,{auditType:"account"});
+export const listAccounts=(o={includeArchived:true})=>listEntities("accounts","bank")
+  .then(r=>r.map(normalizeAccount))
+  .then(r=>o.includeArchived?r:r.filter(x=>x.active!==false));
+export const saveAccount=(d,id=null)=>saveEntity("accounts",sanitizeAccountWrite(d),id,{auditType:"account"});
 export const archiveAccount=id=>archiveEntity("accounts",id,{auditType:"account"});
 export const reactivateAccount=id=>reactivateEntity("accounts",id,{auditType:"account"});
 
@@ -224,17 +249,10 @@ function transactionSortKey(row){
   return `${date}T${String(created).padStart(16,"0")}`;
 }
 export const listTransactions=()=>listEntities("transactions","date")
-  .then(r=>r.map(row=>({
-    ...row,
-    transactionDateTime:String(row.transactionDateTime||"").trim() || (row.date?`${row.date}T00:00`:""),
-    feeAmount:Math.max(0,Number(row.feeAmount||0)),
-    taxAmount:Math.max(0,Number(row.taxAmount||0)),
-    otherChargeAmount:Math.max(0,Number(row.otherChargeAmount||0)),
-    grossDebitAmount:Math.max(0,Number(row.grossDebitAmount||0)),
-    recurringId:String(row.recurringId||""),
-    recurringOccurrence:String(row.recurringOccurrence||""),
-    reconciliationAdjustment:inferredReconciliationAdjustment(row)
-  })))
+  .then(r=>r.map(row=>{
+    const normalized=normalizeTransaction(row);
+    return {...normalized,reconciliationAdjustment:inferredReconciliationAdjustment(normalized)};
+  }))
   .then(r=>r.sort((a,b)=>transactionSortKey(b).localeCompare(transactionSortKey(a))));
 export async function saveTransaction(d,id=null){
   const old=id?await getEntity("transactions",id):null;
@@ -244,29 +262,11 @@ export async function saveTransaction(d,id=null){
     if(old.reconciliationAdjustment) throw new Error("Este movimiento pertenece a una conciliación. Modifícalo desde Conciliación.");
     if(old.debtPaymentId || old.liabilityId) throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
     if(old.recurringId) throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes antes de volver a registrarlo.");
+    if(old.investmentId) throw new Error("Este movimiento está vinculado a una inversión. Modifícalo desde Inversiones.");
+    if(old.contractPaymentId) throw new Error("Este movimiento está vinculado a un cobro contractual. Modifícalo desde Contratos.");
+    if(old.settlementId) throw new Error("Este movimiento forma parte de una liquidación estructurada y no puede editarse directamente.");
   }
-  const vat=Math.max(0,Number(d.vat||0));
-  const invoice=!!d.hasInvoice || vat>0;
-  const feeAmount=Math.max(0,Number(d.feeAmount||0));
-  const taxAmount=Math.max(0,Number(d.taxAmount||0));
-  const otherChargeAmount=Math.max(0,Number(d.otherChargeAmount||0));
-  const grossDebitAmount=Math.max(0,Number(d.grossDebitAmount || (Number(d.amount||0)+feeAmount+taxAmount+otherChargeAmount)));
-  const normalized={
-    ...d,
-    transactionDateTime:String(d.transactionDateTime||`${d.date||""}T00:00`),
-    feeAmount,taxAmount,otherChargeAmount,grossDebitAmount,
-    recurringId:String(d.recurringId||""),
-    recurringOccurrence:String(d.recurringOccurrence||""),
-    vat,
-    hasInvoice:invoice,
-    invoiceNumber:invoice?String(d.invoiceNumber||d.receipt||""):"",
-    invoiceBase:invoice?Math.max(0,Number(d.amount||0)-vat):0,
-    taxPeriod:invoice?String(d.taxPeriod||d.date||"").slice(0,7):"",
-    taxPaymentId:String(d.taxPaymentId||""),
-    vatStatus:invoice
-      ? (d.taxPaymentId?"paid":String(d.vatStatus||"pending"))
-      : "none"
-  };
+  const normalized=sanitizeTransactionWrite(d);
   const entityId=await saveEntity("transactions",normalized,id,{auditType:"transaction"});
 
   if(!normalized.reconciliationAdjustment){
@@ -301,6 +301,15 @@ export async function removeTransaction(id){
   if(row?.recurringId){
     throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes para volver a habilitar esa ocurrencia.");
   }
+  if(row?.investmentId){
+    throw new Error("Este movimiento está vinculado a una inversión y no puede eliminarse directamente.");
+  }
+  if(row?.contractPaymentId){
+    throw new Error("Este movimiento está vinculado a un cobro contractual y no puede eliminarse directamente.");
+  }
+  if(row?.settlementId){
+    throw new Error("Este movimiento forma parte de una liquidación estructurada y no puede eliminarse directamente.");
+  }
   await deleteEntity("transactions",id,{auditType:"transaction"});
   const accountIds=[...new Set([row?.accountId,row?.fromAccountId,row?.toAccountId].filter(Boolean))];
   if(accountIds.length && row?.date){
@@ -311,14 +320,14 @@ export async function removeTransaction(id){
 export const listCategories=()=>listEntities("categories");
 export const saveCategory=(d,id=null)=>saveEntity("categories",d,id,{auditType:"category"});
 export const removeCategory=id=>deleteEntity("categories",id,{auditType:"category"});
-export const listBudgets=()=>listEntities("budgets");
-export const saveBudget=(d,id=null)=>saveEntity("budgets",d,id,{auditType:"budget"});
+export const listBudgets=()=>listEntities("budgets").then(r=>r.map(normalizeBudget));
+export const saveBudget=(d,id=null)=>saveEntity("budgets",sanitizeBudgetWrite(d),id,{auditType:"budget"});
 export const removeBudget=id=>deleteEntity("budgets",id,{auditType:"budget"});
 export const listMonthlyPlans=()=>listEntities("monthlyPlans");
 export const saveMonthlyPlan=(d,id)=>upsertEntity("monthlyPlans",id||d.month,d,{auditType:"monthlyPlan"});
 export const removeMonthlyPlan=id=>deleteEntity("monthlyPlans",id,{auditType:"monthlyPlan"});
-export const listRecurring=()=>listEntities("recurring");
-export const saveRecurring=(d,id=null)=>saveEntity("recurring",d,id,{auditType:"recurring"});
+export const listRecurring=()=>listEntities("recurring").then(r=>r.map(normalizeRecurring));
+export const saveRecurring=(d,id=null)=>saveEntity("recurring",sanitizeRecurringWrite(d),id,{auditType:"recurring"});
 export const archiveRecurring=id=>archiveEntity("recurring",id,{auditType:"recurring"});
 export const reactivateRecurring=id=>reactivateEntity("recurring",id,{auditType:"recurring"});
 export function recurringOccurrenceId(recurringId,occurrence){
@@ -341,12 +350,12 @@ export async function saveRecurringTransaction(recurring,occurrence,data){
     String(data.recurringScheduledDate||"") ||
     `${occurrence}-${String(scheduledDay).padStart(2,"0")}`;
 
-  const payload={
+  const payload=sanitizeTransactionWrite({
     ...data,
     recurringId:recurring.id,
     recurringOccurrence:occurrence,
     recurringScheduledDate,
-  };
+  });
 
   try{
     await runTransaction(db,async trx=>{
@@ -370,10 +379,10 @@ export async function saveRecurringTransaction(recurring,occurrence,data){
 
   invalidateCollection("transactions");
 
-  const accountIds=[data.accountId,data.fromAccountId,data.toAccountId].filter(Boolean);
-  if(accountIds.length && data.date){
+  const accountIds=[payload.accountId,payload.fromAccountId,payload.toAccountId].filter(Boolean);
+  if(accountIds.length && payload.date){
     try{
-      await markReconciliationsNeedsReview([...new Set(accountIds)],data.date,{
+      await markReconciliationsNeedsReview([...new Set(accountIds)],payload.date,{
         reason:"recurring_movement_created"
       });
     }catch(err){
@@ -387,14 +396,14 @@ export const listGoals=()=>listEntities("goals");
 export const saveGoal=(d,id=null)=>saveEntity("goals",d,id,{auditType:"goal"});
 export const archiveGoal=id=>archiveEntity("goals",id,{auditType:"goal"});
 export const reactivateGoal=id=>reactivateEntity("goals",id,{auditType:"goal"});
-export const listLiabilities=()=>listEntities("liabilities");
-export const saveLiability=(d,id=null)=>saveEntity("liabilities",d,id,{auditType:"liability"});
-export const archiveLiability=id=>archiveEntity("liabilities",id,{auditType:"liability"});
-export const reactivateLiability=id=>reactivateEntity("liabilities",id,{auditType:"liability"});
-export const listFinancingPlans=()=>listEntities("financingPlans");
-export const saveFinancingPlan=(d,id=null)=>saveEntity("financingPlans",d,id,{auditType:"financingPlan"});
-export const archiveFinancingPlan=id=>archiveEntity("financingPlans",id,{auditType:"financingPlan"});
-export const reactivateFinancingPlan=id=>reactivateEntity("financingPlans",id,{auditType:"financingPlan"});
+export const listLiabilities=()=>listEntities("liabilities").then(r=>r.map(normalizeLiability));
+export const saveLiability=(d,id=null)=>saveEntity("liabilities",sanitizeLiabilityWrite(d),id,{auditType:"liability"});
+export const archiveLiability=id=>setLifecycleState("liabilities",id,{active:false,status:"archived",auditType:"liability",action:"ARCHIVE"});
+export const reactivateLiability=id=>setLifecycleState("liabilities",id,{active:true,status:"active",auditType:"liability",action:"REACTIVATE"});
+export const listFinancingPlans=()=>listEntities("financingPlans").then(r=>r.map(normalizeFinancingPlan));
+export const saveFinancingPlan=(d,id=null)=>saveEntity("financingPlans",sanitizeFinancingPlanWrite(d),id,{auditType:"financingPlan"});
+export const archiveFinancingPlan=id=>setLifecycleState("financingPlans",id,{active:false,status:"archived",auditType:"financingPlan",action:"ARCHIVE"});
+export const reactivateFinancingPlan=id=>setLifecycleState("financingPlans",id,{active:true,status:"active",auditType:"financingPlan",action:"REACTIVATE"});
 export const listInsurance=()=>listEntities("insurance");
 export const saveInsurance=(d,id=null)=>saveEntity("insurance",d,id,{auditType:"insurance"});
 export const archiveInsurance=id=>archiveEntity("insurance",id,{auditType:"insurance"});
@@ -403,16 +412,16 @@ export const listAssets=()=>listEntities("assets");
 export const saveAsset=(d,id=null)=>saveEntity("assets",d,id,{auditType:"asset"});
 export const archiveAsset=id=>archiveEntity("assets",id,{auditType:"asset"});
 export const reactivateAsset=id=>reactivateEntity("assets",id,{auditType:"asset"});
-export const listContracts=()=>listEntities("contracts");
-export const saveContract=(d,id=null)=>saveEntity("contracts",d,id,{auditType:"contract"});
+export const listContracts=()=>listEntities("contracts").then(r=>r.map(normalizeContract));
+export const saveContract=(d,id=null)=>saveEntity("contracts",sanitizeContractWrite(d),id,{auditType:"contract"});
 export const archiveContract=id=>archiveEntity("contracts",id,{auditType:"contract"});
 export const reactivateContract=id=>reactivateEntity("contracts",id,{auditType:"contract"});
-export const listReceivables=()=>listEntities("receivables");
-export const saveReceivable=(d,id=null)=>saveEntity("receivables",d,id,{auditType:"receivable"});
-export const listInvestments=()=>listEntities("investments");
-export const saveInvestment=(d,id=null)=>saveEntity("investments",d,id,{auditType:"investment"});
-export const archiveInvestment=id=>archiveEntity("investments",id,{auditType:"investment"});
-export const reactivateInvestment=id=>reactivateEntity("investments",id,{auditType:"investment"});
+export const listReceivables=()=>listEntities("receivables").then(r=>r.map(normalizeReceivable));
+export const saveReceivable=(d,id=null)=>saveEntity("receivables",sanitizeReceivableWrite(d),id,{auditType:"receivable"});
+export const listInvestments=()=>listEntities("investments").then(r=>r.map(normalizeInvestment));
+export const saveInvestment=(d,id=null)=>saveEntity("investments",sanitizeInvestmentWrite(d),id,{auditType:"investment"});
+export const archiveInvestment=async()=>{throw new Error("Las inversiones no se archivan directamente. Usa Liquidar, Renovar o Cancelar desde Inversiones.");};
+export const reactivateInvestment=async()=>{throw new Error("Una inversión histórica no se reactiva directamente. Usa el flujo de corrección de Inversiones.");};
 export const listBusinessTrips=()=>listEntities("businessTrips","startDate")
   .then(r=>r.sort((a,b)=>String(b.startDate).localeCompare(String(a.startDate))));
 export const saveBusinessTrip=(d,id=null)=>saveEntity("businessTrips",d,id,{auditType:"businessTrip"});
