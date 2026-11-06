@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.44
+# Tracker Financiero Personal V1.0.46
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1187,3 +1187,21 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Transferencias muestran dos líneas: saldo final de `Origen` y de `Destino`.
 - El valor reutiliza el mismo ledger dinámico de `Detalle`; no se persiste ningún saldo histórico nuevo en Firebase.
 - No modifica campos, colecciones ni Firestore Rules.
+
+
+## V1.0.45 — Acciones siempre al final
+
+- En la tabla Web de Movimientos, `Saldo final` queda antes de la columna de acciones.
+- La última columna contiene siempre `Detalle`, `Editar`, `Eliminar` o acciones vinculadas.
+- Sin cambios en Firebase, datos, reglas ni lógica del ledger.
+
+
+## V1.0.46 — Integridad de recurrentes y refrescos
+
+- El registro mensual de recurrentes usa una transacción atómica de Firestore con ID determinístico.
+- Para garantizar que Web y Android no registren simultáneamente la misma ocurrencia, registrar un recurrente requiere conexión.
+- Los movimientos vinculados a recurrentes ya no pueden editarse ni eliminarse como movimientos comunes.
+- Los formularios Web sucios, diálogos y editores visibles bloquean re-renderizados automáticos por revalidación cache-first.
+- Movimientos conserva cuenta/categoría seleccionadas durante refrescos; la cuenta habitual del recurrente no puede ser sustituida silenciosamente por la última cuenta usada.
+- Pendientes conserva la ocurrencia vencida más antigua de un recurrente y además evalúa la actual/próxima.
+- No se añadieron campos ni colecciones Firebase y no cambiaron las Firestore Rules.

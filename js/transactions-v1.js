@@ -53,6 +53,9 @@ const detailDialogMeta = document.querySelector("#tx-detail-meta");
 const detailDialogBody = document.querySelector("#tx-detail-body");
 const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 
+let transactionFormDirty=false;
+window.__tfRefreshBlocked=()=>transactionFormDirty || !!editingId || !!recurringContext;
+
 function activeAccounts() {
   return accounts.filter(a => a.active !== false);
 }
@@ -177,6 +180,9 @@ function updateGrossDebit(){
 }
 
 function fillAccounts() {
+  const currentAccount=document.querySelector("#tx-account")?.value||"";
+  const currentFrom=document.querySelector("#tx-from")?.value||"";
+  const currentTo=document.querySelector("#tx-to")?.value||"";
   const options = activeAccounts().map(a =>
     `<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`
   ).join("");
@@ -185,11 +191,27 @@ function fillAccounts() {
     document.querySelector(`#${id}`).innerHTML = options;
   });
 
+  const activeIds=new Set(activeAccounts().map(a=>a.id));
   const remembered = localStorage.getItem(LAST_ACCOUNT_KEY);
-  if (!editingId && remembered && activeAccounts().some(a => a.id === remembered)) {
-    document.querySelector("#tx-account").value = remembered;
-    document.querySelector("#tx-from").value = remembered;
-  }
+
+  const preferredAccount =
+    (currentAccount && activeIds.has(currentAccount) && currentAccount) ||
+    (recurringContext?.recurring?.accountId && activeIds.has(recurringContext.recurring.accountId) && recurringContext.recurring.accountId) ||
+    (!editingId && remembered && activeIds.has(remembered) && remembered) ||
+    activeAccounts()[0]?.id || "";
+
+  const preferredFrom =
+    (currentFrom && activeIds.has(currentFrom) && currentFrom) ||
+    (!editingId && remembered && activeIds.has(remembered) && remembered) ||
+    activeAccounts()[0]?.id || "";
+
+  const preferredTo =
+    (currentTo && activeIds.has(currentTo) && currentTo) ||
+    activeAccounts().find(a=>a.id!==preferredFrom)?.id || "";
+
+  document.querySelector("#tx-account").value=preferredAccount;
+  document.querySelector("#tx-from").value=preferredFrom;
+  document.querySelector("#tx-to").value=preferredTo;
 
   filter.innerHTML =
     `<option value="all">Todas las cuentas</option>` +
@@ -502,6 +524,7 @@ function collectSplits() {
 
 function reset() {
   editingId = null;
+  transactionFormDirty=false;
   form.reset();
 
   document.querySelector("#tx-date").value = todayISO();
@@ -523,6 +546,7 @@ function reset() {
   toggleType();
   updateSaveButton();
   toggleSplit();
+  setTimeout(()=>window.__tfReleaseRefresh?.(),0);
 }
 
 function filteredTransactions() {
@@ -579,12 +603,12 @@ function render() {
       <td>${escapeHtml(tx.splits?.length ? `${tx.splits.length} divisiones` : tx.category || "—")}</td>
       <td>${escapeHtml(tx.description || "—")}${charges>0?`<div class="tf-muted">Cargos ${money(charges)} · débito ${money(Number(tx.amount||0)+charges)}</div>`:""}</td>
       <td>${money(tx.amount)}</td>
+      <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
       <td><div class="tf-actions">
         <button class="tf-btn tf-btn-secondary" data-detail="${tx.id}">Detalle</button>
         ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Ver recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
       </div></td>
-      <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
     </tr>`;
   }).join("") || `<tr><td colspan="8" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
 }
@@ -603,10 +627,12 @@ async function refresh() {
     listAccounts(), listTransactions(), listCategories(), listReconciliations(), listRecurring()
   ]);
 
+  const preservedCategory=document.querySelector("#tx-category")?.value||"";
+  const preservedSubcategory=document.querySelector("#tx-subcategory")?.value||"";
   categories = sortCategoryRows(categories);
   buildLedgerSnapshots();
   fillAccounts();
-  fillCategories();
+  fillCategories(preservedCategory,preservedSubcategory);
   refreshSplitCatalogs();
   renderFilterCatalog();
   render();
@@ -624,6 +650,7 @@ function applyRecurringContext(){
   const exists=transactions.some(t=>t.recurringId===id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occurrence));
   if(exists){ toast("Este recurrente ya fue registrado para ese mes."); return; }
   recurringContext={recurring,occurrence};
+  transactionFormDirty=true;
   type.value=recurring.type;
   document.querySelector("#tx-amount").value=Number(recurring.amount||0);
   document.querySelector("#tx-description").value=recurring.name||"";
@@ -636,6 +663,8 @@ function applyRecurringContext(){
   updateSaveButton();
 }
 
+form.addEventListener("input",()=>{transactionFormDirty=true});
+form.addEventListener("change",()=>{transactionFormDirty=true});
 type.addEventListener("change", toggleType);
 document.querySelectorAll("[data-tx-type]").forEach(button => {
   button.addEventListener("click", () => {

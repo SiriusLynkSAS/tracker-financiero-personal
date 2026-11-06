@@ -1,49 +1,54 @@
-# Auditoría de compatibilidad Firebase y regresión
+# Auditoría de integridad — V1.0.46 / V0.2.34
 
-## Base
-- Web origen: V1.0.42
-- Android origen: V0.2.32
-- Web nueva: V1.0.43
-- Android nueva: V0.2.33
+## Alcance
+Esta versión corrige únicamente la primera etapa de integridad:
+1. refrescos cache-first que podían alterar formularios;
+2. duplicidad mensual de recurrentes entre dispositivos;
+3. desaparición de ocurrencias recurrentes vencidas al cambiar de mes;
+4. edición/eliminación directa de movimientos vinculados a recurrentes.
 
-## Resultado
-- Auditoría final: **67/67 verificaciones satisfactorias**.
-- Todos los módulos JavaScript Web pasan análisis como ES modules.
-- `firebase-config.js`, `google-services.json` y `firestore.rules` permanecen sin cambios.
-- No se añade ninguna colección Firebase.
-- No se renombra ni elimina ningún campo existente.
-- `previousBalance`, `newBalance`, `balanceBefore` y `balanceAfter` **no se persisten** en Firebase.
+No incluye todavía la unificación Resumen/Pendientes, alertas de presupuesto,
+Libreta ni edición avanzada de categorías.
 
-## Saldos por movimiento
-Los tres valores se calculan dinámicamente desde:
-1. `openingBalance` de cada cuenta.
-2. Todos los movimientos del ledger.
-3. Orden por `transactionDateTime`, con ID como desempate determinístico.
-4. El efecto financiero real del tipo de movimiento.
+## Firebase
+- Proyecto Firebase: `tracker-financiero-personal`.
+- `firebase-config.js`: sin cambios.
+- `google-services.json`: sin cambios.
+- `firestore.rules`: sin cambios y continúan idénticas entre Web y Android.
+- Colecciones: sin altas ni bajas.
+- Campos persistentes nuevos: ninguno.
 
-### Efectos
-- ingreso / reembolso / anticipo: `+ amount`
-- egreso / gasto de comisión / devolución de anticipo: `-(amount + cargos)`
-- transferencia origen: `-(amount + cargos)`
-- transferencia destino: `+ amount`
-- salida a inversión: `- amount`
-- retorno de inversión: `+ amount`
+## Recurrentes
+- ID determinístico conservado: `recurring_<id>_YYYY-MM`.
+- Web usa `runTransaction`.
+- Android usa `FirebaseFirestore.runTransaction`.
+- Registrar una ocurrencia recurrente requiere conexión para garantizar
+  exclusión mutua entre dispositivos.
+- La transacción incluye el movimiento y su registro de auditoría.
+- Un movimiento recurrente ya no puede editarse/eliminarse mediante el flujo
+  genérico de Movimientos.
 
-La transferencia presenta dos saldos independientes: origen y destino.
+## Pendientes vencidos
+- Se conserva la ocurrencia vencida más antigua aún no registrada.
+- También se evalúan la ocurrencia actual y la siguiente según la ventana de aviso.
+- Esto evita que un atraso desaparezca al cambiar de mes sin generar una lista
+  ilimitada de ocurrencias vencidas del mismo recurrente.
 
-## Regresiones revisadas
-- Caché persistente Web se conserva.
-- Android cache-first se conserva.
-- Notificaciones Android 08:00 / 20:00 se conservan.
-- Categorías Web usa Nuevo/Editar explícitos; formularios cerrados por defecto.
-- Se eliminó la entrada principal duplicada de Pendientes del sidebar Web.
-- Android Categorías ya cumplía el patrón explícito Nuevo/Editar y no requirió cambio de datos.
+## Web cache-first
+- Formularios con cambios, diálogos abiertos y editores visibles bloquean
+  re-renderizados automáticos provocados por `tf-data-refreshed`.
+- Movimientos conserva cuenta, categoría y subcategoría durante revalidaciones.
+- Un recurrente abierto protege de forma explícita su cuenta habitual.
 
-## Limitación de compilación
-No se ejecutó build Gradle Android completo porque el proyecto no incluye Gradle Wrapper y el entorno no dispone del toolchain Android completo.
+## Android notificaciones
+- Se mantienen las ventanas aproximadas 08:00 y 20:00.
+- El worker consulta ejecuciones recurrentes por `recurringOccurrence` dentro
+  del horizonte requerido y conserva una consulta legacy acotada por fecha.
 
-
-## V1.0.44
-- `Saldo final` es exclusivamente un valor calculado de presentación.
-- No se añadieron `previousBalance`, `newBalance`, `balanceBefore` ni `balanceAfter` a Firestore.
-- Se reutiliza `ledgerSnapshots`, calculado desde `openingBalance` + movimientos ordenados por `transactionDateTime`.
+## Validación
+- Auditoría estática de integridad: 79/79 comprobaciones satisfactorias.
+- Todos los módulos JavaScript Web pasan análisis sintáctico como ES modules.
+- PendingEngine Web fue probado con cambio de mes y atraso persistente.
+- El núcleo Kotlin `Models + DebtMath + PendingEngine` compila aisladamente.
+- No se realizó build Gradle Android completo: el proyecto no incluye Gradle
+  Wrapper y el entorno no dispone del Android SDK/toolchain completo.
