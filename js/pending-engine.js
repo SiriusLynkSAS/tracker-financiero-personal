@@ -6,11 +6,46 @@ function statusFor(due,today){if(due<today)return "overdue";if(due===today)retur
 export function buildPendingItems({recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],today=todayISO()}){
   const items=[]; const current=today.slice(0,7); const next=monthAdd(current,1);
   for(const r of recurring.filter(x=>x.active!==false)){
+    const doneOccurrences=new Set(
+      transactions
+        .filter(t=>t.recurringId===r.id)
+        .map(t=>t.recurringOccurrence||String(t.date||"").slice(0,7))
+        .filter(x=>/^\d{4}-\d{2}$/.test(x))
+    );
+    const startMonth=/^\d{4}-\d{2}/.test(String(r.startDate||""))
+      ? String(r.startDate).slice(0,7)
+      : current;
+    const endMonth=/^\d{4}-\d{2}/.test(String(r.endDate||""))
+      ? String(r.endDate).slice(0,7)
+      : next;
+
+    // Mantiene visible la ocurrencia vencida más antigua sin inundar la lista
+    // con todos los meses atrasados de un mismo recurrente.
+    let cursor=startMonth;
+    let guard=0;
+    while(cursor<current && cursor<=endMonth && guard<600){
+      const due=dueForMonth(r.dayOfMonth,cursor);
+      const validStart=!r.startDate || due>=r.startDate;
+      const validEnd=!r.endDate || due<=r.endDate;
+      if(validStart && validEnd && due<today && !doneOccurrences.has(cursor)){
+        items.push({
+          key:`recurring:${r.id}:${cursor}`,kind:"recurring",entityId:r.id,occurrence:cursor,
+          title:r.name||"Recurrente",subtitle:r.type==="income"?"Ingreso previsto vencido":"Pago recurrente vencido",
+          amount:Number(r.amount||0),dueDate:due,status:"overdue",
+          actionLabel:r.type==="income"?"Registrar ingreso":"Registrar pago",
+          url:`movimientos.html?recurring=${encodeURIComponent(r.id)}&occurrence=${cursor}`
+        });
+        break;
+      }
+      cursor=monthAdd(cursor,1);
+      guard++;
+    }
+
     for(const occ of [current,next]){
+      if(occ<startMonth || occ>endMonth) continue;
       const due=dueForMonth(r.dayOfMonth,occ); const remind=Number(r.reminderDaysBefore??3);
       if(r.startDate && due<r.startDate) continue; if(r.endDate && due>r.endDate) continue;
-      const done=transactions.some(t=>t.recurringId===r.id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occ));
-      if(done) continue;
+      if(doneOccurrences.has(occ)) continue;
       if(due>addDaysISO(today,remind)) continue;
       items.push({key:`recurring:${r.id}:${occ}`,kind:"recurring",entityId:r.id,occurrence:occ,title:r.name||"Recurrente",subtitle:r.type==="income"?"Ingreso previsto":"Pago recurrente",amount:Number(r.amount||0),dueDate:due,status:statusFor(due,today),actionLabel:r.type==="income"?"Registrar ingreso":"Registrar pago",url:`movimientos.html?recurring=${encodeURIComponent(r.id)}&occurrence=${occ}`});
     }

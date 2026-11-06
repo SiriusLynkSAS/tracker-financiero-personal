@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, getDocs, getDocsFromCache, getDoc, getDocFromCache,
-  setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch
+  setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
 import {contractPeriodCalculation,contractDesiredStopMonth} from "./contract-math.js";
@@ -238,6 +238,13 @@ export const listTransactions=()=>listEntities("transactions","date")
   .then(r=>r.sort((a,b)=>transactionSortKey(b).localeCompare(transactionSortKey(a))));
 export async function saveTransaction(d,id=null){
   const old=id?await getEntity("transactions",id):null;
+  if(old){
+    if(old.taxPaymentId) throw new Error("Este movimiento está vinculado a una liquidación de IVA. Modifícalo desde IVA / Impuestos.");
+    if(old.tripExpenseId || old.tripSettlementId) throw new Error("Este movimiento está vinculado a una comisión. Modifícalo desde Comisiones / Viáticos.");
+    if(old.reconciliationAdjustment) throw new Error("Este movimiento pertenece a una conciliación. Modifícalo desde Conciliación.");
+    if(old.debtPaymentId || old.liabilityId) throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
+    if(old.recurringId) throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes antes de volver a registrarlo.");
+  }
   const vat=Math.max(0,Number(d.vat||0));
   const invoice=!!d.hasInvoice || vat>0;
   const feeAmount=Math.max(0,Number(d.feeAmount||0));
@@ -291,6 +298,9 @@ export async function removeTransaction(id){
   if(row?.debtPaymentId || row?.liabilityId){
     throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
   }
+  if(row?.recurringId){
+    throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes para volver a habilitar esa ocurrencia.");
+  }
   await deleteEntity("transactions",id,{auditType:"transaction"});
   const accountIds=[...new Set([row?.accountId,row?.fromAccountId,row?.toAccountId].filter(Boolean))];
   if(accountIds.length && row?.date){
@@ -317,22 +327,60 @@ export function recurringOccurrenceId(recurringId,occurrence){
 export async function saveRecurringTransaction(recurring,occurrence,data){
   if(!recurring?.id) throw new Error("Recurrente no válido.");
   if(!/^\d{4}-\d{2}$/.test(String(occurrence||""))) throw new Error("Ocurrencia mensual no válida.");
+  if(typeof navigator!=="undefined" && navigator.onLine===false){
+    throw new Error("Para registrar un recurrente se requiere conexión. Así se evita registrar la misma ocurrencia desde dos dispositivos.");
+  }
+
   const id=recurringOccurrenceId(recurring.id,occurrence);
-  const existing=await getEntity("transactions",id);
-  if(existing) throw new Error("Este recurrente ya fue registrado para este mes.");
+  const entityRef=ref("transactions",id);
+  const auditRef=doc(col("auditLog"));
   const [year,month]=String(occurrence).split("-").map(Number);
   const maxDay=new Date(year,month,0).getDate();
   const scheduledDay=Math.min(Math.max(1,Number(recurring.dayOfMonth||1)),maxDay);
   const recurringScheduledDate=
     String(data.recurringScheduledDate||"") ||
     `${occurrence}-${String(scheduledDay).padStart(2,"0")}`;
+
   const payload={
     ...data,
     recurringId:recurring.id,
     recurringOccurrence:occurrence,
     recurringScheduledDate,
   };
-  return upsertEntity("transactions",id,payload,{auditType:"transaction",note:`Ejecución recurrente ${occurrence}`});
+
+  try{
+    await runTransaction(db,async trx=>{
+      const existing=await trx.get(entityRef);
+      if(existing.exists()) throw new Error("Este recurrente ya fue registrado para este mes.");
+      trx.set(entityRef,{
+        ...payload,
+        createdAt:serverTimestamp(),
+        updatedAt:serverTimestamp()
+      });
+      trx.set(
+        auditRef,
+        auditPayload("transaction",id,"CREATE",null,payload,`Ejecución recurrente ${occurrence}`)
+      );
+    });
+  }catch(err){
+    const message=String(err?.message||"");
+    if(message.includes("ya fue registrado")) throw err;
+    throw new Error("No se pudo registrar de forma segura el recurrente. Verifica la conexión e inténtalo nuevamente.");
+  }
+
+  invalidateCollection("transactions");
+
+  const accountIds=[data.accountId,data.fromAccountId,data.toAccountId].filter(Boolean);
+  if(accountIds.length && data.date){
+    try{
+      await markReconciliationsNeedsReview([...new Set(accountIds)],data.date,{
+        reason:"recurring_movement_created"
+      });
+    }catch(err){
+      console.error("No se pudo marcar conciliaciones posteriores para revisión.",err);
+    }
+  }
+  return id;
 }
 
 export const listGoals=()=>listEntities("goals");
