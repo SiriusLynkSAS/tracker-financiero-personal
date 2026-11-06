@@ -171,7 +171,7 @@ async function buildAuditExport(user) {
     metadata: {
       kind: "tracker-financiero-firestore-audit-export",
       exporterVersion: "1.0.0",
-      sourceAppVersion: "V1.0.47",
+      sourceAppVersion: "V1.0.48",
       firebaseProjectId: "tracker-financiero-personal",
       exportedAt: new Date().toISOString(),
       readOnly: true,

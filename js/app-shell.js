@@ -237,6 +237,6 @@ if (!isLogin) {
     document.querySelector("[data-mobile-theme-toggle]")?.addEventListener("click", toggleTheme);
 
     setTheme(document.documentElement.getAttribute("data-theme") || "light");
-    setupPendingMenu().catch(console.error);
+    setupPendingMenu();
   });
 }

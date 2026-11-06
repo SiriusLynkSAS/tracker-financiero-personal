@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.47
+# Tracker Financiero Personal V1.0.48
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1197,7 +1197,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 
 
 
-## V1.0.47 — Schema canónico y compatibilidad legacy
+## V1.0.48 — Schema canónico y compatibilidad legacy
 
 - Se incorpora `js/schema.js` con contrato **leer tolerante / escribir canónico** y `schemaVersion = 2`.
 - Cuentas, movimientos, presupuestos, recurrentes, deudas, planes, contratos, cuentas por cobrar e inversiones pasan por normalizadores de lectura.

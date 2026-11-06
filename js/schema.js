@@ -1,4 +1,4 @@
-// Modelo canónico y compatibilidad legacy — V1.0.47
+// Modelo canónico y compatibilidad legacy — V1.0.48
 // Principio: leer tolerante, escribir canónico. Este módulo NO migra Firestore por sí solo.
 
 export const SCHEMA_VERSION=2;

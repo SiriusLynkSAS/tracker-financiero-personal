@@ -118,6 +118,19 @@ function sourceRow(x){
 
 function empty(text){ return `<div class="tf-empty tf-plan-source-empty">${escapeHtml(text)}</div>`; }
 
+function unlinkedDebtPaidInMonth(row,month){
+  const payments=Array.isArray(row?.payments)?row.payments:[];
+  if(payments.length){
+    return payments
+      .filter(x=>!x.transactionId && inMonth(x.date,month))
+      .reduce((total,x)=>total+Number(x.amount||0),0);
+  }
+  if(row?.status!=="paid" || !inMonth(row?.paidDate,month)) return 0;
+  return Number(row?.paidAmount||0)>0
+    ? Number(row.paidAmount)
+    : Number(row?.payment||0);
+}
+
 function execution(){
   const types=new Map(accounts.map(a=>[a.id,a.accountType]));
   const monthTx=analyticTransactions(txs.filter(t=>inMonth(t.date,selectedMonth)));
