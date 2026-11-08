@@ -1287,6 +1287,7 @@ function render(){
           </div>
 
           <div class="tf-actions tf-debt-card-actions" style="margin-top:.9rem">
+            <button class="tf-btn tf-btn-secondary" data-plan-detail="${p.id}">Ver detalle</button>
             <button class="tf-btn tf-btn-primary" data-plan-edit="${p.id}">
               Editar
             </button>
@@ -2451,6 +2452,7 @@ document.querySelector("#plan-form").addEventListener("submit",async e=>{
 document.addEventListener("click",async e=>{
   const pe=e.target.closest("[data-debt-edit]");
   const ce=e.target.closest("[data-plan-edit]");
+  const cd=e.target.closest("[data-plan-detail]");
   const ps=e.target.closest("[data-plan-schedule]");
   const ds=e.target.closest("[data-debt-schedule]");
   const pa=e.target.closest("[data-plan-archive]");
@@ -2467,6 +2469,17 @@ document.addEventListener("click",async e=>{
   if(ce){
     const plan=plans.find(x=>x.id===ce.dataset.planEdit);
     if(plan) startPlanEdit(plan);
+    return;
+  }
+
+  if(cd){
+    const p=plans.find(x=>x.id===cd.dataset.planDetail);
+    if(p){
+      const totals=planTotals(p), paid=(p.schedule||[]).filter(x=>x.status==="paid").length;
+      document.querySelector("#card-detail-title").textContent=p.description||"Plan de tarjeta";
+      document.querySelector("#card-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Tarjeta</span><strong>${escapeHtml(accountLabel(p.parentId))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Tipo</span><strong>${p.planType==="cash_advance"?"Avance":"Compra a plazos"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Plan</span><strong>${money(totals.total||p.originalPrincipal)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Saldo pendiente</span><strong>${money(totals.pending)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cuotas pagadas</span><strong>${paid}/${(p.schedule||[]).length}</strong></div><div class="tf-metric"><span class="tf-metric-label">Tasa</span><strong>${Number(p.annualRate||0)}%</strong></div></div><div class="tf-subtle" style="margin-top:1rem">Para registrar pagos o revisar cada cuota usa <strong>Ver / pagar cuotas</strong>.</div>`;
+      document.querySelector("#card-detail-dialog").showModal();
+    }
     return;
   }
 
@@ -2540,5 +2553,7 @@ cardScheduleBody.addEventListener("click",async e=>{
 debtNewButton.addEventListener("click",()=>{resetDebtForm();debtEditorSection.hidden=false;document.querySelector("#debt-editor-title").textContent="Nueva deuda";});
 planNewButton.addEventListener("click",()=>{resetPlanForm();planEditorSection.hidden=false;document.querySelector("#plan-editor-title").textContent="Nuevo plan de tarjeta";});
 debtArchivedToggle.addEventListener("click",()=>{showArchived=!showArchived;closeDebtEditors();render();});
+
+document.querySelector("#card-detail-close")?.addEventListener("click",()=>document.querySelector("#card-detail-dialog")?.close());
 
 requireUser(()=>refresh().catch(console.error));

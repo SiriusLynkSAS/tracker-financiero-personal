@@ -129,11 +129,14 @@ ul.task-list li input[type="checkbox"] {
     <h1>Movimientos</h1>
     <div class="tf-muted">Registro rápido para lo esencial; factura, referencia y divisiones quedan en detalles opcionales.</div>
   </div>
-  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
+  <div class="tf-actions">
+    <button id="tx-new" class="tf-btn tf-btn-primary" type="button">+ Nuevo movimiento</button>
+    <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
+  </div>
 </div>
 
 <div class="tf-grid tf-grid-2 tf-transactions-layout">
-  <section class="tf-card tf-tx-editor-card">
+  <section id="tx-editor-card" class="tf-card tf-tx-editor-card" hidden="">
     <div class="tf-section-heading">
       <div>
         <div class="tf-section-kicker">Registro rápido</div>
@@ -257,8 +260,12 @@ ul.task-list li input[type="checkbox"] {
       <div class="tf-field"><label>Cuenta</label><select id="filter-account"></select></div>
       <div class="tf-field"><label>Período</label><select id="filter-period"><option value="all">Todo</option><option value="month" selected="">Este mes</option><option value="year">Este año</option></select></div>
       <div class="tf-field"><label>Ordenar</label><select id="filter-sort"><option value="recent">Más recientes</option><option value="oldest">Más antiguos</option><option value="amount_desc">Mayor monto</option><option value="amount_asc">Menor monto</option><option value="category">Categoría A–Z</option></select></div>
-      <div class="tf-field"><label>Categoría</label><select id="filter-category"><option value="all">Todas</option></select></div>
-      <div class="tf-field"><label>Subcategoría</label><select id="filter-subcategory"><option value="all">Todas</option></select></div>
+      <div class="tf-field tf-span-2">
+        <label>Categoría / subcategoría</label>
+        <button id="filter-category-picker" type="button" class="tf-tx-category-picker">Todas las categorías</button>
+        <select id="filter-category" hidden="" aria-hidden="true"><option value="all">Todas</option></select>
+        <select id="filter-subcategory" hidden="" aria-hidden="true"><option value="all">Todas</option></select>
+      </div>
     </div>
     <button id="filter-clear" type="button" class="tf-btn tf-btn-secondary">Limpiar filtros</button>
   </section>
@@ -275,6 +282,18 @@ ul.task-list li input[type="checkbox"] {
   <div id="tx-category-dialog-body" class="tf-tx-category-options"></div>
 </dialog>
 
+
+
+<dialog id="filter-category-dialog" class="tf-tx-category-dialog">
+  <div class="tf-tx-category-dialog-head">
+    <div>
+      <div class="tf-section-kicker">Filtro</div>
+      <h3 id="filter-category-dialog-title" class="anchored">Filtrar por categoría</h3>
+    </div>
+    <button id="filter-category-dialog-close" type="button" class="tf-btn tf-btn-secondary">Cerrar</button>
+  </div>
+  <div id="filter-category-dialog-body" class="tf-tx-category-options"></div>
+</dialog>
 
 <dialog id="tx-detail-dialog" class="tf-tx-category-dialog">
   <div class="tf-tx-category-dialog-head">
@@ -294,12 +313,10 @@ ul.task-list li input[type="checkbox"] {
 <table class="tf-table caption-top">
 <thead>
 <tr class="header">
-<th data-quarto-table-cell-role="th">Fecha / hora</th>
-<th data-quarto-table-cell-role="th">Tipo</th>
-<th data-quarto-table-cell-role="th">Cuenta</th>
-<th data-quarto-table-cell-role="th">Categoría</th>
-<th data-quarto-table-cell-role="th">Detalle</th>
-<th data-quarto-table-cell-role="th">Monto</th>
+<th data-quarto-table-cell-role="th">LIN</th>
+<th data-quarto-table-cell-role="th">Fecha</th>
+<th data-quarto-table-cell-role="th">Transacción</th>
+<th data-quarto-table-cell-role="th">Valor</th>
 <th data-quarto-table-cell-role="th">Saldo final</th>
 <th data-quarto-table-cell-role="th"></th>
 </tr>
@@ -723,7 +740,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.48</p>
+<p>Tracker Financiero Personal V1.0.50</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
