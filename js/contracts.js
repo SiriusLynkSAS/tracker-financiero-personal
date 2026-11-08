@@ -4,7 +4,7 @@ import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
-let contracts=[],receivables=[],assets=[],accounts=[],finishId="";
+let contracts=[],receivables=[],assets=[],accounts=[],finishId="",paymentContext=null;
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
@@ -40,7 +40,7 @@ function render(){
       <span class="tf-contract-list-chevron" aria-hidden="true">›</span>
     </button>`;
   }).join("")||`<div class="tf-empty">Sin contratos registrados.</div>`;
-  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td></tr>`}).join("")||`<tr><td colspan="8" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
+  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td>${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){[contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);await sync();render();ensureAllocationRow();}
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
@@ -55,25 +55,56 @@ document.querySelector("#contract-form").addEventListener("submit",async e=>{e.p
 
 document.querySelector("#tariff-form").addEventListener("submit",async e=>{e.preventDefault();const c=contracts.find(x=>x.id===document.querySelector("#tariff-contract").value),t={effectiveFrom:document.querySelector("#tariff-from").value,amount:Number(document.querySelector("#tariff-amount").value)};const affected=receivables.filter(r=>r.contractId===c.id&&r.workPeriod>=t.effectiveFrom.slice(0,7)&&Number(r.paidAmount||0)<=.009&&statusOf(r)!=="paid");if(!await confirmAction({title:"Agregar nueva tarifa",message:`Desde ${t.effectiveFrom}: ${money(t.amount)}`,impact:[`Se recalcularán ${affected.length} período(s) todavía no pagados.`,`Los períodos pagados o parciales quedan congelados.`]}))return;const updatedContract={...c,tariffPeriods:[...(c.tariffPeriods||[]),t]};const ops=[{collection:"contracts",id:c.id,action:"update",auditType:"contract",data:updatedContract}];for(const r of affected){const calc=contractPeriodCalculation(updatedContract,r.workPeriod);ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,amount:calc?.amount??r.amount,serviceStart:calc?.serviceStart??r.serviceStart,serviceEnd:calc?.serviceEnd??r.serviceEnd,workedDays:calc?.workedDays??r.workedDays,monthDays:calc?.monthDays??r.monthDays,prorated:calc?.prorated??r.prorated,earnedAt:calc?.earnedAt??r.earnedAt,status:"pending"}})}await atomicWrite(ops);toast("Tarifa y períodos futuros actualizados.");tariffEditor.hidden=true;await refresh();});
 
-document.querySelector("#allocate-payment").addEventListener("click",async()=>{const amount=Number(document.querySelector("#payment-amount").value||0),selected=[...document.querySelectorAll("[data-recv]:checked")].map(x=>receivables.find(r=>r.id===x.dataset.recv)).filter(Boolean);if(!(amount>0)||!selected.length){toast("Selecciona períodos e ingresa un monto.");return}const totalPending=sum(selected,r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0)));if(amount>totalPending+.009){toast(`El pago excede lo seleccionado por ${money(amount-totalPending)}.`);return}if(!await confirmAction({title:"Aplicar cobro",message:`Recibido ${money(amount)} sobre ${money(totalPending)} pendiente`,impact:["Se asignará por orden de período.","El ingreso bancario será exactamente el valor aplicado."]}))return;let left=amount;const ops=[];for(const r of selected.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod))){if(left<=.009)break;const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),applied=Math.min(pending,left),newPaid=Number(r.paidAmount||0)+applied;ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":"partial"}});left-=applied}ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"income",date:todayISO(),amount,vat:0,receipt:"",description:"Cobro de contrato",category:"Ingresos",subcategory:"Contratos",accountId:document.querySelector("#payment-account").value,fromAccountId:null,toAccountId:null,splits:[]}});await atomicWrite(ops);toast("Cobro aplicado.");document.querySelector("#payment-amount").value="";await refresh();});
+function paymentAccountsOptions(){return accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");}
+function openContractPayment(receivableId){
+  const r=receivables.find(x=>x.id===receivableId); if(!r)return;
+  const c=contracts.find(x=>x.id===r.contractId);
+  const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)); if(pending<=.009)return;
+  paymentContext={receivableId:r.id,contractId:r.contractId};
+  document.querySelector("#contract-payment-title").textContent="Registrar cobro";
+  document.querySelector("#contract-payment-meta").textContent=`${c?.name||"Contrato"} · período ${r.workPeriod} · pendiente ${money(pending)}`;
+  document.querySelector("#contract-payment-account").innerHTML=paymentAccountsOptions();
+  document.querySelector("#contract-payment-account").value=document.querySelector("#payment-account")?.value||accounts.find(a=>a.active!==false&&a.accountType!=="credit_card")?.id||"";
+  document.querySelector("#contract-payment-amount").value=pending.toFixed(2);
+  document.querySelector("#contract-payment-date").value=todayISO();
+  document.querySelector("#contract-payment-description").value=`Cobro · ${c?.name||"Contrato"} · ${r.workPeriod}`;
+  document.querySelector("#contract-payment-dialog").showModal();
+}
+async function applyContractPayment(rows,amount,accountId,date,description){
+  const selected=rows.filter(Boolean).filter(r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0))>.009).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
+  const totalPending=sum(selected,r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0)));
+  if(!(amount>0)||!selected.length){toast("Selecciona un período e ingresa un monto.");return false}
+  if(amount>totalPending+.009){toast(`El pago excede lo seleccionado por ${money(amount-totalPending)}.`);return false}
+  let left=amount; const ops=[];
+  for(const r of selected){if(left<=.009)break;const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),applied=Math.min(pending,left),newPaid=Number(r.paidAmount||0)+applied;ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":"partial"}});left-=applied}
+  ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"income",date:date||todayISO(),amount,vat:0,receipt:"",description:description||"Cobro de contrato",category:"Ingresos",subcategory:"Contratos",accountId,fromAccountId:null,toAccountId:null,splits:[]}});
+  await atomicWrite(ops); return true;
+}
+
+document.querySelector("#allocate-payment").addEventListener("click",async()=>{const amount=Number(document.querySelector("#payment-amount").value||0),selected=[...document.querySelectorAll("[data-recv]:checked")].map(x=>receivables.find(r=>r.id===x.dataset.recv)).filter(Boolean),totalPending=sum(selected,r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0)));if(!(amount>0)||!selected.length){toast("Selecciona períodos e ingresa un monto.");return}if(!await confirmAction({title:"Aplicar cobro",message:`Recibido ${money(amount)} sobre ${money(totalPending)} pendiente`,impact:["Se asignará por orden de período.","El ingreso bancario será exactamente el valor aplicado."]}))return;const names=[...new Set(selected.map(r=>contracts.find(c=>c.id===r.contractId)?.name).filter(Boolean))];const periods=selected.map(r=>r.workPeriod).join(", ");if(await applyContractPayment(selected,amount,document.querySelector("#payment-account").value,todayISO(),`Cobro · ${names.join(" / ")||"Contrato"} · ${periods}`)){toast("Cobro aplicado.");document.querySelector("#payment-amount").value="";await refresh();}});
 
 function finishPreview(){const c=contracts.find(x=>x.id===finishId),date=document.querySelector("#contract-finish-date").value,box=document.querySelector("#contract-finish-preview");if(!c||!date){box.innerHTML="";return}if(date<c.startDate){box.innerHTML=`<div class="tf-alert tf-alert-danger is-visible">La fecha no puede ser anterior al inicio ${escapeHtml(c.startDate)}.</div>`;return}const calc=contractPeriodCalculation({...c,endDate:date},date.slice(0,7));const later=receivables.filter(r=>r.contractId===c.id&&r.workPeriod>date.slice(0,7)&&Number(r.paidAmount||0)>.009),same=receivables.find(r=>r.contractId===c.id&&r.workPeriod===date.slice(0,7)&&Number(r.paidAmount||0)>.009);const future=date>todayISO();box.innerHTML=`<div class="tf-subtle"><strong>${future?"Fin programado":"Cierre efectivo"}: ${escapeHtml(date)}</strong>${calc?`<div style="margin-top:.45rem">Período ${escapeHtml(calc.period)} · ${calc.workedDays}/${calc.monthDays} días · tarifa ${money(calc.monthlyTariff)} · <strong>proporcional ${money(calc.amount)}</strong></div>`:""}${later.length?`<div class="tf-alert tf-alert-danger is-visible" style="margin-top:.55rem">Hay ${later.length} período(s) posteriores con cobros aplicados. No se modificarán automáticamente.</div>`:""}${same&&calc&&Math.abs(Number(same.amount)-calc.amount)>.009?`<div class="tf-alert tf-alert-danger is-visible" style="margin-top:.55rem">El período final ya tiene pagos y su monto histórico difiere del nuevo proporcional. Requiere revisión manual.</div>`:""}</div>`;}
+function renderContractDetail(contractId,ensureOpen=true){
+  const c=contracts.find(x=>x.id===contractId);
+  if(!c)return;
+  const rr=receivables.filter(r=>r.contractId===c.id).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
+  const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
+  document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
+  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st;return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td>${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div>${c.active!==false?`<div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button></div>`:`<div class="tf-muted" style="margin-top:1rem">Contrato histórico en modo consulta. Los cobros pendientes permanecen visibles en el cronograma.</div>`}`;
+  const dialog=document.querySelector("#contract-detail-dialog");
+  if(ensureOpen && !dialog.open) dialog.showModal();
+}
 list.addEventListener("click",e=>{
   const detailButton=e.target.closest("[data-contract-detail]");
-  if(detailButton){
-    const c=contracts.find(x=>x.id===detailButton.dataset.contractDetail);
-    if(!c)return;
-    const rr=receivables.filter(r=>r.contractId===c.id).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
-    const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
-    document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
-    document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st;return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td></tr>`}).join("")||`<tr><td colspan="6" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div>${c.active!==false?`<div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button></div>`:`<div class="tf-muted" style="margin-top:1rem">Contrato histórico en modo consulta. Los cobros pendientes permanecen visibles en el cronograma.</div>`}`;
-    document.querySelector("#contract-detail-dialog").showModal();
-    return;
-  }
+  if(detailButton){renderContractDetail(detailButton.dataset.contractDetail,true);return;}
   const b=e.target.closest("[data-finish]");if(!b)return;finishId=b.dataset.finish;const c=contracts.find(x=>x.id===finishId);document.querySelector("#contract-finish-date").value=c?.endDate||todayISO();finishPreview();document.querySelector("#contract-finish-dialog").showModal();
 });
 
+tbody.addEventListener("click",e=>{const b=e.target.closest("[data-recv-pay]");if(b)openContractPayment(b.dataset.recvPay);});
+
 document.querySelector("#contract-detail-body").addEventListener("click",e=>{
+  const pay=e.target.closest("[data-detail-pay]");
+  if(pay){openContractPayment(pay.dataset.detailPay);return;}
   const b=e.target.closest("[data-detail-finish]");
   if(!b)return;
   const c=contracts.find(x=>x.id===b.dataset.detailFinish);
@@ -83,6 +114,22 @@ document.querySelector("#contract-detail-body").addEventListener("click",e=>{
   document.querySelector("#contract-finish-date").value=c.endDate||todayISO();
   finishPreview();
   document.querySelector("#contract-finish-dialog").showModal();
+});
+document.querySelector("#contract-payment-close").addEventListener("click",()=>document.querySelector("#contract-payment-dialog").close());
+document.querySelector("#contract-payment-save").addEventListener("click",async()=>{
+  const r=paymentContext?receivables.find(x=>x.id===paymentContext.receivableId):null; if(!r)return;
+  const amount=Number(document.querySelector("#contract-payment-amount").value||0);
+  const accountId=document.querySelector("#contract-payment-account").value;
+  const date=document.querySelector("#contract-payment-date").value||todayISO();
+  const description=document.querySelector("#contract-payment-description").value.trim()||"Cobro de contrato";
+  if(!await confirmAction({title:"Registrar cobro",message:`${description} · ${money(amount)}`,impact:["Actualiza la cuenta por cobrar.","Registra un ingreso en la cuenta destino."]}))return;
+  if(await applyContractPayment([r],amount,accountId,date,description)){
+    document.querySelector("#contract-payment-dialog").close();
+    await refresh();
+    const c=contracts.find(x=>x.id===paymentContext?.contractId);
+    if(c) renderContractDetail(c.id,false);
+    toast("Cobro aplicado.");
+  }
 });
 document.querySelector("#contract-detail-close").addEventListener("click",()=>document.querySelector("#contract-detail-dialog").close());
 document.querySelector("#contract-finish-date").addEventListener("change",finishPreview);

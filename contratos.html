@@ -148,6 +148,7 @@ ul.task-list li input[type="checkbox"] {
 <th data-quarto-table-cell-role="th">Pendiente</th>
 <th data-quarto-table-cell-role="th">Vence</th>
 <th data-quarto-table-cell-role="th">Estado</th>
+<th data-quarto-table-cell-role="th"></th>
 </tr>
 </thead>
 <tbody id="recv-body">
@@ -157,6 +158,20 @@ ul.task-list li input[type="checkbox"] {
 
 <dialog id="contract-detail-dialog" class="tf-modal-dialog tf-contract-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Contrato</div><h2 id="contract-detail-title" class="anchored">Detalle contractual</h2></div><button class="tf-btn tf-btn-secondary" type="button" id="contract-detail-close">Cerrar</button></div><div id="contract-detail-body"></div></dialog>
 
+
+<dialog id="contract-payment-dialog" class="tf-modal-dialog tf-contract-payment-dialog">
+  <div class="tf-modal-head">
+    <div><div class="tf-section-kicker">Ingreso contractual</div><h2 id="contract-payment-title" class="anchored">Registrar cobro</h2><div id="contract-payment-meta" class="tf-muted"></div></div>
+    <button id="contract-payment-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button>
+  </div>
+  <div class="tf-form-grid">
+    <div class="tf-field"><label>Cuenta destino</label><select id="contract-payment-account"></select></div>
+    <div class="tf-field"><label>Monto recibido ($)</label><input id="contract-payment-amount" type="number" min="0" step="0.01"></div>
+    <div class="tf-field"><label>Fecha</label><input id="contract-payment-date" type="date"></div>
+    <div class="tf-field tf-span-2"><label>Descripción</label><input id="contract-payment-description"></div>
+    <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-payment-save" type="button" class="tf-btn tf-btn-primary">Registrar</button></div>
+  </div>
+</dialog>
 <dialog id="contract-finish-dialog" class="tf-modal-dialog"><form method="dialog" id="contract-finish-form"><div class="tf-modal-head"><div><div class="tf-section-kicker">Cierre contractual</div><h2 class="anchored">Finalizar / programar fin</h2></div><button class="tf-btn tf-btn-secondary" value="cancel">Cerrar</button></div><div class="tf-form-grid"><div class="tf-field"><label>Fecha efectiva de finalización</label><input id="contract-finish-date" type="date" required=""></div><div class="tf-span-2" id="contract-finish-preview"></div><div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button class="tf-btn tf-btn-secondary" value="cancel">Cancelar</button><button id="contract-finish-confirm" type="button" class="tf-btn tf-btn-primary">Guardar fecha</button></div></div></form></dialog>
 <script type="module" src="js/contracts.js"></script>
 
@@ -570,7 +585,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.51</p>
+<p>Tracker Financiero Personal V1.0.52</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

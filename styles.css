@@ -3547,3 +3547,8 @@ tr.is-muted{opacity:.66}
 .tf-pending-card-button:hover{border-color:var(--tf-accent);}
 .tf-pending-open-hint{margin-top:.7rem;color:var(--tf-accent);font-size:.78rem;font-weight:800;}
 @media(max-width:700px){.tf-card-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.tf-contract-list-row{grid-template-columns:minmax(0,1fr) auto 18px}.tf-contract-list-row>.tf-pill{grid-column:1/-1;justify-self:start}.tf-budget-period-pair{grid-template-columns:1fr 100px}.tf-icon-btn{width:32px;height:32px;min-width:32px}}
+
+/* V1.0.52 · cierre de consolidación */
+.tf-tx-filter-card #filter-body[hidden]{display:none!important;}
+.tf-contract-payment-dialog{width:min(620px,calc(100vw - 2rem));}
+.tf-contract-payment-dialog .tf-form-grid{margin-top:.8rem;}

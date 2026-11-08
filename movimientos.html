@@ -254,7 +254,11 @@ ul.task-list li input[type="checkbox"] {
   </dialog>
 
   <section class="tf-card tf-tx-filter-card">
-    <div class="tf-section-heading"><div><div class="tf-section-kicker">Historial</div><h2 class="anchored">Buscar y organizar</h2></div></div>
+    <div class="tf-section-heading">
+      <div><div class="tf-section-kicker">Historial</div><h2 class="anchored">Buscar y organizar</h2></div>
+      <button id="filter-toggle" type="button" class="tf-btn tf-btn-secondary tf-btn-compact" aria-expanded="false">Filtros</button>
+    </div>
+    <div id="filter-body" hidden="">
     <div class="tf-field"><label>Buscar</label><input id="filter-search" placeholder="Descripción, categoría, cuenta…"></div>
     <div class="tf-form-grid">
       <div class="tf-field"><label>Tipo</label><select id="filter-type"><option value="all">Todos</option><option value="expense">Gastos</option><option value="income">Ingresos</option><option value="transfer">Transferencias</option></select></div>
@@ -269,6 +273,7 @@ ul.task-list li input[type="checkbox"] {
       </div>
     </div>
     <button id="filter-clear" type="button" class="tf-btn tf-btn-secondary">Limpiar filtros</button>
+    </div>
   </section>
 </div>
 
@@ -745,7 +750,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.51</p>
+<p>Tracker Financiero Personal V1.0.52</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
