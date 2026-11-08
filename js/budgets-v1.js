@@ -14,6 +14,10 @@ const categorySelect=document.querySelector("#budget-category");
 const subcategorySelect=document.querySelector("#budget-subcategory");
 const viewMonthInput=document.querySelector("#budget-view-month");
 const budgetMonthInput=document.querySelector("#budget-month");
+const viewMonthNumber=document.querySelector("#budget-view-month-number");
+const viewYear=document.querySelector("#budget-view-year");
+const budgetMonthNumber=document.querySelector("#budget-month-number");
+const budgetYear=document.querySelector("#budget-year");
 const legacyCard=document.querySelector("#budget-legacy-card");
 const legacyBody=document.querySelector("#budget-legacy-body");
 const legacyCount=document.querySelector("#budget-legacy-count");
@@ -34,12 +38,25 @@ function monthOptions(selected=viewMonth){
   return values.map(value=>`<option value="${value}" ${value===selected?"selected":""}>${escapeHtml(monthLabel(value))}</option>`).join("");
 }
 function fillMonthSelectors(){
-  const viewSelected=viewMonthInput.value||viewMonth;
-  const budgetSelected=budgetMonthInput.value||viewMonth;
-  viewMonthInput.innerHTML=monthOptions(viewSelected);
-  budgetMonthInput.innerHTML=monthOptions(budgetSelected);
-  viewMonthInput.value=viewSelected;
-  budgetMonthInput.value=budgetSelected;
+  const months=[
+    ["01","Enero"],["02","Febrero"],["03","Marzo"],["04","Abril"],["05","Mayo"],["06","Junio"],
+    ["07","Julio"],["08","Agosto"],["09","Septiembre"],["10","Octubre"],["11","Noviembre"],["12","Diciembre"]
+  ];
+  const years=[...new Set(monthChoices(viewMonth,36,36).map(x=>x.slice(0,4)))].sort();
+  const bind=(combined,monthEl,yearEl,value)=>{
+    const [y,m]=String(value||viewMonth).split("-");
+    monthEl.innerHTML=months.map(([id,label])=>`<option value="${id}">${label}</option>`).join("");
+    yearEl.innerHTML=years.map(year=>`<option value="${year}">${year}</option>`).join("");
+    monthEl.value=m; yearEl.value=y; combined.innerHTML=`<option value="${y}-${m}">${y}-${m}</option>`; combined.value=`${y}-${m}`;
+  };
+  bind(viewMonthInput,viewMonthNumber,viewYear,viewMonth);
+  bind(budgetMonthInput,budgetMonthNumber,budgetYear,budgetMonthInput.value||viewMonth);
+}
+function syncCombinedPeriod(combined,monthEl,yearEl){
+  const value=`${yearEl.value}-${monthEl.value}`;
+  combined.innerHTML=`<option value="${value}">${value}</option>`;
+  combined.value=value;
+  return value;
 }
 
 function fillCatalog(preferredCategory="",preferredSubcategory=""){
@@ -107,14 +124,18 @@ async function refresh(){
   cats=sortCategoryRows(cats);fillCatalog();render();
 }
 function reset(){
-  editingId=null;form.reset();budgetMonthInput.value=viewMonth;
+  editingId=null;form.reset();budgetMonthInput.value=viewMonth;fillMonthSelectors();
   document.querySelector("#budget-cancel").hidden=true;
   document.querySelector("#budget-submit").textContent="Guardar presupuesto";
   fillCatalog();
 }
 categorySelect.addEventListener("change",()=>fillSubs());
 document.querySelector("#budget-cancel").addEventListener("click",reset);
-viewMonthInput.addEventListener("change",()=>{if(viewMonthInput.value){viewMonth=viewMonthInput.value;reset();render()}});
+[viewMonthNumber,viewYear].forEach(el=>el?.addEventListener("change",()=>{
+  viewMonth=syncCombinedPeriod(viewMonthInput,viewMonthNumber,viewYear);
+  reset();render();
+}));
+[budgetMonthNumber,budgetYear].forEach(el=>el?.addEventListener("change",()=>syncCombinedPeriod(budgetMonthInput,budgetMonthNumber,budgetYear)));
 document.querySelector("#budget-prev").addEventListener("click",()=>{viewMonth=shiftMonth(viewMonth,-1);reset();render()});
 document.querySelector("#budget-current").addEventListener("click",()=>{viewMonth=todayISO().slice(0,7);reset();render()});
 document.querySelector("#budget-next").addEventListener("click",()=>{viewMonth=shiftMonth(viewMonth,1);reset();render()});
@@ -192,7 +213,7 @@ tbody.addEventListener("click",async e=>{
   if(edit){
     const b=budgets.find(x=>x.id===edit.dataset.edit);if(!b)return;
     editingId=b.id;const month=String(b.month||"").trim()||viewMonth;
-    budgetMonthInput.innerHTML=monthOptions(month);budgetMonthInput.value=month;fillCatalog(b.category,b.subcategory);
+    budgetMonthInput.innerHTML=`<option value="${month}">${month}</option>`;budgetMonthInput.value=month;fillMonthSelectors();fillCatalog(b.category,b.subcategory);
     document.querySelector("#budget-limit").value=b.limit;
     document.querySelector("#budget-rollover").checked=!!b.rollover;
     document.querySelector("#budget-cancel").hidden=false;

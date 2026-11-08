@@ -61,6 +61,14 @@ const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 let transactionFormDirty=false;
 window.__tfRefreshBlocked=()=>transactionFormDirty || !!editingId || !!recurringContext;
 
+function openEditorDialog(){
+  if(!editorCard) return;
+  if(typeof editorCard.showModal === "function" && !editorCard.open) editorCard.showModal();
+}
+function closeEditorDialog(){
+  if(editorCard?.open) editorCard.close();
+}
+
 function activeAccounts() {
   return accounts.filter(a => a.active !== false);
 }
@@ -565,7 +573,18 @@ function reset() {
   transactionFormDirty=false;
   form.reset();
 
-  document.querySelector("#tx-date").value = todayISO();
+  
+const historyToggle=document.querySelector("#tx-history-toggle");
+const historyWrap=document.querySelector("#tx-history-wrap");
+historyToggle?.addEventListener("click",()=>{
+  const hidden=historyWrap?.hasAttribute("hidden");
+  if(hidden) historyWrap.removeAttribute("hidden"); else historyWrap?.setAttribute("hidden","");
+  const expanded=!historyWrap?.hasAttribute("hidden");
+  historyToggle.textContent=expanded?"Ocultar":"Mostrar";
+  historyToggle.setAttribute("aria-expanded",String(expanded));
+});
+
+document.querySelector("#tx-date").value = todayISO();
   document.querySelector("#tx-time").value = nowTime();
   ["tx-fee","tx-tax","tx-other-charge"].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.value="";});
   type.value = "expense";
@@ -584,7 +603,7 @@ function reset() {
   toggleType();
   updateSaveButton();
   toggleSplit();
-  if(editorCard) editorCard.hidden=true;
+  closeEditorDialog();
   setTimeout(()=>window.__tfReleaseRefresh?.(),0);
 }
 
@@ -652,9 +671,9 @@ function render() {
       <td><strong>${money(tx.amount)}</strong></td>
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
       <td><div class="tf-actions tf-actions-compact">
-        <button class="tf-btn tf-btn-secondary" data-detail="${tx.id}">Detalle</button>
-        ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
-        ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
+        <button class="tf-icon-btn" data-detail="${tx.id}" title="Ver detalle" aria-label="Ver detalle">ⓘ</button>
+        ${tx.reconciliationAdjustment?`<a class="tf-icon-btn" href="conciliacion.html" title="Abrir conciliación" aria-label="Abrir conciliación">↗</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-icon-btn" href="deudas.html" title="Abrir deuda" aria-label="Abrir deuda">↗</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-icon-btn" href="comisiones.html" title="Abrir comisión" aria-label="Abrir comisión">↗</a>`:(tx.recurringId?`<a class="tf-icon-btn" href="recurrentes.html" title="Abrir recurrente" aria-label="Abrir recurrente">↗</a>`:`<button class="tf-icon-btn" data-edit="${tx.id}" title="Editar" aria-label="Editar">✎</button>`)}
+        ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-icon-btn tf-icon-btn-danger" data-delete="${tx.id}" title="Eliminar" aria-label="Eliminar">×</button>`}
       </div></td>
     </tr>`;
   }).join("") || `<tr><td colspan="6" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
@@ -697,7 +716,7 @@ function applyRecurringContext(){
   const exists=transactions.some(t=>t.recurringId===id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occurrence));
   if(exists){ toast("Este recurrente ya fue registrado para ese mes."); return; }
   recurringContext={recurring,occurrence};
-  if(editorCard) editorCard.hidden=false;
+  openEditorDialog();
   transactionFormDirty=true;
   type.value=recurring.type;
   document.querySelector("#tx-amount").value=Number(recurring.amount||0);
@@ -755,8 +774,9 @@ categoryDialogBody?.addEventListener("click",e=>{
 });
 newButton?.addEventListener("click",()=>{
   reset();
-  if(editorCard){ editorCard.hidden=false; editorCard.scrollIntoView({behavior:"smooth",block:"start"}); }
+  openEditorDialog();
 });
+document.querySelector("#tx-editor-close")?.addEventListener("click",reset);
 filterCategoryPicker?.addEventListener("click",openFilterCategoryDialog);
 document.querySelector("#filter-category-dialog-close")?.addEventListener("click",()=>filterCategoryDialog?.close());
 filterCategoryDialogBody?.addEventListener("click",e=>{
@@ -1001,8 +1021,8 @@ tbody.addEventListener("click", async e => {
 
   if (editButton) {
     const tx = transactions.find(x => x.id === editButton.dataset.edit);
-    if(editorCard) editorCard.hidden=false;
     editingId = tx.id;
+    openEditorDialog();
 
     type.value = tx.type;
     toggleType();
@@ -1042,7 +1062,6 @@ tbody.addEventListener("click", async e => {
     document.querySelector("#tx-editor-title").textContent = "Editar movimiento";
     if (moreDetails) moreDetails.open = !!(tx.receipt || tx.hasInvoice || Number(tx.vat||0)>0 || tx.splits?.length);
     updateSaveButton();
-    scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (deleteButton) {
@@ -1070,11 +1089,18 @@ tbody.addEventListener("click", async e => {
       danger: true,
       confirmText: "Eliminar"
     })) {
+      const before=[...transactions];
+      transactions=transactions.filter(row=>row.id!==tx.id);
+      buildLedgerSnapshots();
+      render();
       try{
         await removeTransaction(tx.id);
         toast("Movimiento eliminado.");
-        await refresh();
+        refresh().catch(err=>console.error("No se pudo contrastar la eliminación.",err));
       }catch(err){
+        transactions=before;
+        buildLedgerSnapshots();
+        render();
         toast(err?.message||"No se pudo eliminar el movimiento.");
       }
     }

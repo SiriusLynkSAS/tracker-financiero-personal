@@ -204,7 +204,7 @@ title: "Deudas y tarjetas"
   </div>
 </div>
 
-<dialog id="card-detail-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Tarjeta de crédito</div><h2 id="card-detail-title">Detalle del plan</h2></div><button type="button" class="tf-btn tf-btn-secondary" id="card-detail-close">Cerrar</button></div><div id="card-detail-body"></div></dialog>
+<dialog id="card-detail-dialog" class="tf-modal-dialog tf-card-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Tarjeta de crédito</div><h2 id="card-detail-title">Detalle del plan</h2></div><button type="button" class="tf-btn tf-btn-secondary" id="card-detail-close">Cerrar</button></div><div id="card-detail-body"></div></dialog>
 
 
 <script type="module" src="js/debts.js"></script>

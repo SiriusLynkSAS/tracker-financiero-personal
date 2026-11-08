@@ -3520,3 +3520,30 @@ tr.is-muted{opacity:.66}
 .tf-tx-final-balance{white-space:nowrap;min-width:9rem;vertical-align:middle}
 .tf-tx-final-balance-line{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
 .tf-tx-final-balance-line+.tf-tx-final-balance-line{margin-top:.2rem}
+
+
+/* V1.0.51 · consolidación de auditoría Web */
+.tf-tx-editor-dialog{width:min(720px,calc(100vw - 2rem));}
+.tf-tx-editor-dialog .tf-tx-save-bar{position:static;margin-top:.25rem;}
+.tf-transactions-layout>.tf-tx-filter-card{width:100%;position:static;}
+.tf-icon-btn{width:34px;height:34px;min-width:34px;padding:0;border:1px solid var(--tf-border);border-radius:10px;background:var(--tf-surface-soft);color:var(--tf-text);display:inline-grid;place-items:center;text-decoration:none;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:none;}
+.tf-icon-btn:hover{border-color:var(--tf-accent);color:var(--tf-accent);background:color-mix(in srgb,var(--tf-accent) 7%,var(--tf-surface));}
+.tf-icon-btn-danger{color:var(--tf-negative,#b42318);}
+.tf-actions-compact{gap:.28rem;flex-wrap:nowrap;align-items:center;}
+.tf-tx-history-head{margin-bottom:.35rem;}
+.tf-budget-period-pair{display:grid;grid-template-columns:minmax(130px,1fr) minmax(95px,.65fr);gap:.5rem;}
+.tf-card-detail-dialog{width:min(760px,calc(100vw - 2rem));}
+.tf-card-detail-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+.tf-card-detail-dialog .tf-metric{padding:.7rem .75rem;border-radius:13px;}
+.tf-card-detail-dialog .tf-metric strong{font-size:.98rem;line-height:1.25;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;}
+.tf-card-detail-dialog .tf-metric-label{font-size:.72rem;}
+.tf-card-detail-note{font-size:.88rem;}
+.tf-contract-list{display:grid;gap:.55rem;}
+.tf-contract-list-row{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto 20px;gap:.8rem;align-items:center;text-align:left;padding:.85rem 1rem;border:1px solid var(--tf-border);border-radius:14px;background:var(--tf-surface);color:var(--tf-text);cursor:pointer;}
+.tf-contract-list-row:hover{border-color:var(--tf-accent);background:color-mix(in srgb,var(--tf-accent) 4%,var(--tf-surface));}
+.tf-contract-list-main{display:grid;gap:.18rem;min-width:0}.tf-contract-list-main small{color:var(--tf-muted);white-space:normal}.tf-contract-list-money{display:grid;text-align:right}.tf-contract-list-money small{color:var(--tf-muted);font-size:.7rem}.tf-contract-list-chevron{font-size:1.45rem;color:var(--tf-muted)}
+.tf-contract-detail-dialog{width:min(880px,calc(100vw - 2rem));}
+.tf-pending-card-button{width:100%;text-align:left;color:inherit;cursor:pointer;border:1px solid var(--tf-border);}
+.tf-pending-card-button:hover{border-color:var(--tf-accent);}
+.tf-pending-open-hint{margin-top:.7rem;color:var(--tf-accent);font-size:.78rem;font-weight:800;}
+@media(max-width:700px){.tf-card-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.tf-contract-list-row{grid-template-columns:minmax(0,1fr) auto 18px}.tf-contract-list-row>.tf-pill{grid-column:1/-1;justify-self:start}.tf-budget-period-pair{grid-template-columns:1fr 100px}.tf-icon-btn{width:32px;height:32px;min-width:32px}}

@@ -10,7 +10,7 @@ title: "Presupuestos"
 
 <section class="tf-card">
   <div class="tf-toolbar">
-    <div class="tf-field"><label>Mes visible</label><select id="budget-view-month"></select></div>
+    <div class="tf-field"><label>Mes visible</label><div class="tf-budget-period-pair"><select id="budget-view-month-number" aria-label="Mes visible"></select><select id="budget-view-year" aria-label="Año visible"></select></div><select id="budget-view-month" hidden aria-hidden="true"></select></div>
     <div class="tf-actions">
       <button id="budget-prev" class="tf-btn tf-btn-secondary" type="button">← Mes anterior</button>
       <button id="budget-current" class="tf-btn tf-btn-secondary" type="button">Mes actual</button>
@@ -38,7 +38,7 @@ title: "Presupuestos"
 
 <section class="tf-card" style="margin-top:1rem">
   <form id="budget-form" class="tf-form-grid">
-    <div class="tf-field"><label>Mes del presupuesto</label><select id="budget-month" required></select></div>
+    <div class="tf-field"><label>Mes del presupuesto</label><div class="tf-budget-period-pair"><select id="budget-month-number" aria-label="Mes del presupuesto"></select><select id="budget-year" aria-label="Año del presupuesto"></select></div><select id="budget-month" required hidden aria-hidden="true"></select></div>
     <div class="tf-field"><label>Categoría</label><select id="budget-category"></select></div>
     <div class="tf-field"><label>Subcategoría</label><select id="budget-subcategory"></select></div>
     <div class="tf-field"><label>Límite base mensual ($)</label><input id="budget-limit" type="number" min="0" step="0.01" required></div>
