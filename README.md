@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.48
+# Tracker Financiero Personal V1.0.50
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1197,7 +1197,16 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 
 
 
-## V1.0.48 — Schema canónico y compatibilidad legacy
+## V1.0.50 — Consolidación UX y regresión
+
+- Movimientos: editor separado mediante `+ Nuevo movimiento`, listado compacto tipo ledger con LIN/fecha/transacción/valor/saldo final.
+- Filtros: selector jerárquico categoría → subcategoría corregido y actualización inmediata de la lista al guardar.
+- Presupuestos: selector de mes/año mediante lista, sin escritura libre.
+- Tarjetas: detalle del plan en ventana emergente.
+- Contratos: detalle y cronograma de cuentas por cobrar agrupados por contrato en ventana emergente.
+- Mantiene MIG-001, schemaVersion 2 y compatibilidad legacy.
+
+## V1.0.49 — Schema canónico y compatibilidad legacy
 
 - Se incorpora `js/schema.js` con contrato **leer tolerante / escribir canónico** y `schemaVersion = 2`.
 - Cuentas, movimientos, presupuestos, recurrentes, deudas, planes, contratos, cuentas por cobrar e inversiones pasan por normalizadores de lectura.
@@ -1219,3 +1228,13 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Movimientos conserva cuenta/categoría seleccionadas durante refrescos; la cuenta habitual del recurrente no puede ser sustituida silenciosamente por la última cuenta usada.
 - Pendientes conserva la ocurrencia vencida más antigua de un recurrente y además evalúa la actual/próxima.
 - No se añadieron campos ni colecciones Firebase y no cambiaron las Firestore Rules.
+
+
+## V1.0.49 — MIG-001 Presupuestos legacy
+
+- Añade un asistente visible en **Presupuestos** para documentos legacy sin `month`.
+- No infiere el período desde `createdAt`. El usuario selecciona explícitamente el mes.
+- La migración actualiza el mismo documento mediante `saveBudget`, escribe `schemaVersion=2` y genera `auditLog`.
+- No crea movimientos ni modifica saldos.
+- Si ya existe un presupuesto canónico para la misma categoría/subcategoría/mes, bloquea la migración y exige revisión.
+- Estado: migración asistida, pendiente de ejecución por el usuario sobre los 2 documentos detectados en Paso 1B.

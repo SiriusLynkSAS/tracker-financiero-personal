@@ -10,7 +10,7 @@ title: "Presupuestos"
 
 <section class="tf-card">
   <div class="tf-toolbar">
-    <div class="tf-field"><label>Mes visible</label><input id="budget-view-month" type="month"></div>
+    <div class="tf-field"><label>Mes visible</label><select id="budget-view-month"></select></div>
     <div class="tf-actions">
       <button id="budget-prev" class="tf-btn tf-btn-secondary" type="button">← Mes anterior</button>
       <button id="budget-current" class="tf-btn tf-btn-secondary" type="button">Mes actual</button>
@@ -19,9 +19,26 @@ title: "Presupuestos"
   </div>
 </section>
 
+<section id="budget-legacy-card" class="tf-card" style="margin-top:1rem" hidden>
+  <div class="tf-section-heading">
+    <div>
+      <h2>Presupuestos legacy sin período</h2>
+      <div class="tf-muted">Estos presupuestos fueron creados antes de que el mes fuera obligatorio. Asigna explícitamente el período antes de continuar con la migración.</div>
+    </div>
+    <span class="tf-pill tf-pill-warn" id="budget-legacy-count">0 pendientes</span>
+  </div>
+  <div class="tf-callout tf-callout-warn" style="margin-top:.75rem">
+    La fecha de creación no se usará como mes automáticamente. El valor sugerido es el mes actual, pero puedes elegir otro antes de guardar.
+  </div>
+  <div class="tf-table-wrap" style="margin-top:.75rem"><table class="tf-table">
+    <thead><tr><th>Categoría</th><th>Subcategoría</th><th>Límite</th><th>Rollover</th><th>Mes a asignar</th><th></th></tr></thead>
+    <tbody id="budget-legacy-body"></tbody>
+  </table></div>
+</section>
+
 <section class="tf-card" style="margin-top:1rem">
   <form id="budget-form" class="tf-form-grid">
-    <div class="tf-field"><label>Mes del presupuesto</label><input id="budget-month" type="month" required></div>
+    <div class="tf-field"><label>Mes del presupuesto</label><select id="budget-month" required></select></div>
     <div class="tf-field"><label>Categoría</label><select id="budget-category"></select></div>
     <div class="tf-field"><label>Subcategoría</label><select id="budget-subcategory"></select></div>
     <div class="tf-field"><label>Límite base mensual ($)</label><input id="budget-limit" type="number" min="0" step="0.01" required></div>

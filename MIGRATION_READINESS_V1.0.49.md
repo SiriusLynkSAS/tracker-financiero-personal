@@ -1,4 +1,4 @@
-# Preparación de migración — V1.0.48
+# Preparación de migración — V1.0.49
 
 Esta versión implementa la capa previa a la migración. No modifica por sí sola los documentos existentes.
 
@@ -18,8 +18,13 @@ Esta versión implementa la capa previa a la migración. No modifica por sí sol
 - 1 ocurrencia recurrente que requiere revisión manual por diferencias con la plantilla.
 
 ## Regla de despliegue
-1. Desplegar Web V1.0.48 + Android V0.2.35.
+1. Desplegar Web V1.0.49 + Android V0.2.35.
 2. Verificar lectura completa del snapshot sin escrituras masivas.
 3. Publicar Rules compatibles con `schemaVersion=2`.
 4. Tomar un nuevo respaldo RAW.
 5. Ejecutar MIG-001…MIG-011 por lotes controlados, con comparación de saldos antes/después.
+
+
+## MIG-001 listo para ejecución asistida
+
+La pantalla Presupuestos detecta documentos sin `month` y permite asignar el período explícitamente. No existe migración automática por `createdAt`.

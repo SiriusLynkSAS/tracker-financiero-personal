@@ -51,6 +51,11 @@ const detailDialog = document.querySelector("#tx-detail-dialog");
 const detailDialogTitle = document.querySelector("#tx-detail-title");
 const detailDialogMeta = document.querySelector("#tx-detail-meta");
 const detailDialogBody = document.querySelector("#tx-detail-body");
+const editorCard = document.querySelector("#tx-editor-card");
+const newButton = document.querySelector("#tx-new");
+const filterCategoryPicker = document.querySelector("#filter-category-picker");
+const filterCategoryDialog = document.querySelector("#filter-category-dialog");
+const filterCategoryDialogBody = document.querySelector("#filter-category-dialog-body");
 const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 
 let transactionFormDirty=false;
@@ -302,6 +307,39 @@ function openCategoryDialog(){
   if(categoryDialog?.showModal) categoryDialog.showModal();
 }
 
+function syncFilterCategoryPickerLabel(){
+  if(!filterCategoryPicker) return;
+  const category=filterCategory?.value||"all";
+  const subcategory=filterSubcategory?.value||"all";
+  filterCategoryPicker.textContent=category==="all"
+    ? "Todas las categorías"
+    : `${category}${subcategory!=="all"?` · ${subcategory}`:""}`;
+  filterCategoryPicker.classList.toggle("has-value",category!=="all");
+}
+
+function renderFilterCategoryDialog(category=null){
+  if(!filterCategoryDialogBody) return;
+  if(!category){
+    document.querySelector("#filter-category-dialog-title").textContent="Filtrar por categoría";
+    const names=[...new Set(categories.map(x=>x.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+    filterCategoryDialogBody.innerHTML=
+      `<button type="button" class="tf-tx-category-option" data-filter-category-choice="all">Todas las categorías</button>`+
+      names.map(name=>`<button type="button" class="tf-tx-category-option" data-filter-category-choice="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
+  }else{
+    document.querySelector("#filter-category-dialog-title").textContent=category;
+    const subs=[...new Set(categories.filter(x=>x.category===category).map(x=>x.subcategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+    filterCategoryDialogBody.innerHTML=
+      `<button type="button" class="tf-tx-category-back" data-filter-category-back>← Categorías</button>`+
+      `<button type="button" class="tf-tx-category-option" data-filter-subcategory-choice="all">Toda la categoría</button>`+
+      subs.map(name=>`<button type="button" class="tf-tx-category-option" data-filter-subcategory-choice="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("");
+  }
+}
+
+function openFilterCategoryDialog(){
+  renderFilterCategoryDialog();
+  filterCategoryDialog?.showModal?.();
+}
+
 function syncTypeButtons(){
   document.querySelectorAll("[data-tx-type]").forEach(button => {
     const selected = button.dataset.txType === type.value;
@@ -546,6 +584,7 @@ function reset() {
   toggleType();
   updateSaveButton();
   toggleSplit();
+  if(editorCard) editorCard.hidden=true;
   setTimeout(()=>window.__tfReleaseRefresh?.(),0);
 }
 
@@ -581,36 +620,44 @@ function filteredTransactions() {
   return rows;
 }
 function renderFilterCatalog(){
-  const cats=[...new Set(categories.map(x=>x.category).filter(Boolean))].sort();
-  filterCategory.innerHTML='<option value="all">Todas</option>'+cats.map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+  const oldCategory=filterCategory?.value||"all";
+  const oldSubcategory=filterSubcategory?.value||"all";
+  const cats=[...new Set(categories.map(x=>x.category).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+  filterCategory.innerHTML='<option value="all">Todas</option>'+cats.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+  filterCategory.value=cats.includes(oldCategory)?oldCategory:"all";
   const selected=filterCategory.value;
-  const subs=[...new Set(categories.filter(x=>selected==="all"||x.category===selected).map(x=>x.subcategory).filter(Boolean))].sort();
-  filterSubcategory.innerHTML='<option value="all">Todas</option>'+subs.map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+  const subs=[...new Set(categories.filter(x=>selected==="all"||x.category===selected).map(x=>x.subcategory).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+  filterSubcategory.innerHTML='<option value="all">Todas</option>'+subs.map(x=>`<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join("");
+  filterSubcategory.value=subs.includes(oldSubcategory)?oldSubcategory:"all";
+  syncFilterCategoryPickerLabel();
 }
+
 function render() {
   const rows=filteredTransactions();
-  let lastDay="";
-  tbody.innerHTML = rows.map(tx => {
+  tbody.innerHTML = rows.map((tx,index) => {
     const day=String(tx.date||"");
-    const group=day!==lastDay?`<tr class="tf-tx-day-row"><td colspan="8"><strong>${escapeHtml(day)}</strong></td></tr>`:"";
-    lastDay=day;
     const time=transactionDateTime(tx).slice(11,16);
     const charges=chargeTotal(tx);
-    return group+`<tr>
-      <td><strong>${escapeHtml(time||"—")}</strong><div class="tf-muted">${escapeHtml(day)}</div></td>
-      <td><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span></td>
-      <td>${escapeHtml(tx.type === "transfer" ? `${accountName(tx.fromAccountId)} → ${accountName(tx.toAccountId)}` : accountName(tx.accountId))}</td>
-      <td>${escapeHtml(tx.splits?.length ? `${tx.splits.length} divisiones` : tx.category || "—")}</td>
-      <td>${escapeHtml(tx.description || "—")}${charges>0?`<div class="tf-muted">Cargos ${money(charges)} · débito ${money(Number(tx.amount||0)+charges)}</div>`:""}</td>
-      <td>${money(tx.amount)}</td>
+    const account=tx.type === "transfer"
+      ? `${accountName(tx.fromAccountId)} → ${accountName(tx.toAccountId)}`
+      : accountName(tx.accountId);
+    const category=tx.splits?.length ? `${tx.splits.length} divisiones` : [tx.category,tx.subcategory].filter(Boolean).join(" · ");
+    return `<tr>
+      <td class="tf-tx-line">${index+1}</td>
+      <td><strong>${escapeHtml(day)}</strong><div class="tf-muted">${escapeHtml(time||"—")}</div></td>
+      <td>
+        <div class="tf-tx-ledger-title"><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span> <strong>${escapeHtml(tx.description||"Sin descripción")}</strong></div>
+        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}</div>
+      </td>
+      <td><strong>${money(tx.amount)}</strong></td>
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
-      <td><div class="tf-actions">
+      <td><div class="tf-actions tf-actions-compact">
         <button class="tf-btn tf-btn-secondary" data-detail="${tx.id}">Detalle</button>
-        ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Ver conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Ver deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Ver comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Ver recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
+        ${tx.reconciliationAdjustment?`<a class="tf-btn tf-btn-secondary" href="conciliacion.html">Conciliación</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-btn tf-btn-secondary" href="deudas.html">Deuda</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-btn tf-btn-secondary" href="comisiones.html">Comisión</a>`:(tx.recurringId?`<a class="tf-btn tf-btn-secondary" href="recurrentes.html">Recurrente</a>`:`<button class="tf-btn tf-btn-secondary" data-edit="${tx.id}">Editar</button>`)}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-btn tf-btn-danger" data-delete="${tx.id}">Eliminar</button>`}
       </div></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="8" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="tf-empty">No hay movimientos para los filtros seleccionados.</td></tr>`;
 }
 
 function affectedReconciliations(accountIds,date){
@@ -650,6 +697,7 @@ function applyRecurringContext(){
   const exists=transactions.some(t=>t.recurringId===id && ((t.recurringOccurrence||String(t.date||"").slice(0,7))===occurrence));
   if(exists){ toast("Este recurrente ya fue registrado para ese mes."); return; }
   recurringContext={recurring,occurrence};
+  if(editorCard) editorCard.hidden=false;
   transactionFormDirty=true;
   type.value=recurring.type;
   document.querySelector("#tx-amount").value=Number(recurring.amount||0);
@@ -705,7 +753,42 @@ categoryDialogBody?.addEventListener("click",e=>{
     categoryDialog?.close();
   }
 });
-[filter,filterType,filterPeriod,filterSort,filterCategory,filterSubcategory].forEach(el=>el?.addEventListener("change",()=>{if(el===filterCategory)renderFilterCatalog();render();}));
+newButton?.addEventListener("click",()=>{
+  reset();
+  if(editorCard){ editorCard.hidden=false; editorCard.scrollIntoView({behavior:"smooth",block:"start"}); }
+});
+filterCategoryPicker?.addEventListener("click",openFilterCategoryDialog);
+document.querySelector("#filter-category-dialog-close")?.addEventListener("click",()=>filterCategoryDialog?.close());
+filterCategoryDialogBody?.addEventListener("click",e=>{
+  const back=e.target.closest("[data-filter-category-back]");
+  const category=e.target.closest("[data-filter-category-choice]");
+  const sub=e.target.closest("[data-filter-subcategory-choice]");
+  if(back){renderFilterCategoryDialog();return;}
+  if(category){
+    const value=category.dataset.filterCategoryChoice||"all";
+    filterCategory.value=value;
+    filterSubcategory.value="all";
+    if(value==="all"){
+      renderFilterCatalog();
+      render();
+      filterCategoryDialog?.close();
+    }else{
+      renderFilterCatalog();
+      filterCategory.value=value;
+      renderFilterCategoryDialog(value);
+      syncFilterCategoryPickerLabel();
+    }
+    return;
+  }
+  if(sub){
+    filterSubcategory.value=sub.dataset.filterSubcategoryChoice||"all";
+    syncFilterCategoryPickerLabel();
+    render();
+    filterCategoryDialog?.close();
+  }
+});
+
+[filter,filterType,filterPeriod,filterSort,filterCategory,filterSubcategory].forEach(el=>el?.addEventListener("change",()=>{if(el===filterCategory)renderFilterCatalog();syncFilterCategoryPickerLabel();render();}));
 filterSearch?.addEventListener("input",render);
 document.querySelector("#filter-clear")?.addEventListener("click",()=>{filter.value="all";filterType.value="all";filterPeriod.value="month";filterSort.value="recent";filterSearch.value="";renderFilterCatalog();render();});
 document.querySelector("#tx-split-enabled").addEventListener("change", toggleSplit);
@@ -857,8 +940,11 @@ form.addEventListener("submit", async e => {
     return alert("Todas las divisiones deben tener categoría y subcategoría.");
   }
 
-  if (editingId) {
-    const old = transactions.find(x => x.id === editingId);
+  const wasEditingId=editingId;
+  const previousRow=wasEditingId?transactions.find(x=>x.id===wasEditingId):null;
+  let savedId="";
+  if (wasEditingId) {
+    const old = previousRow;
 
     const accountIds = [
       old.accountId,
@@ -884,22 +970,29 @@ form.addEventListener("submit", async e => {
       impact
     })) return;
 
-    await saveTransaction(data, editingId);
+    savedId=await saveTransaction(data, wasEditingId);
     toast("Movimiento actualizado.");
   } else if(recurringContext){
-    await saveRecurringTransaction(recurringContext.recurring,recurringContext.occurrence,data);
+    savedId=await saveRecurringTransaction(recurringContext.recurring,recurringContext.occurrence,data);
     toast(recurringContext.recurring.type==="income"?"Ingreso recurrente registrado.":"Pago recurrente registrado.");
     recurringContext=null;
   } else {
-    await saveTransaction(data);
+    savedId=await saveTransaction(data);
     toast("Movimiento registrado.");
   }
+
+  const optimistic={...(previousRow||{}),...data,id:savedId||wasEditingId};
+  transactions=wasEditingId
+    ? transactions.map(row=>row.id===wasEditingId?optimistic:row)
+    : [optimistic,...transactions.filter(row=>row.id!==optimistic.id)];
+  buildLedgerSnapshots();
+  render();
 
   const rememberedAccount = data.type === "transfer" ? data.fromAccountId : data.accountId;
   if (rememberedAccount) localStorage.setItem(LAST_ACCOUNT_KEY, rememberedAccount);
 
   reset();
-  await refresh();
+  refresh().catch(err=>console.error("No se pudo contrastar el movimiento recién guardado.",err));
 });
 
 tbody.addEventListener("click", async e => {
@@ -908,6 +1001,7 @@ tbody.addEventListener("click", async e => {
 
   if (editButton) {
     const tx = transactions.find(x => x.id === editButton.dataset.edit);
+    if(editorCard) editorCard.hidden=false;
     editingId = tx.id;
 
     type.value = tx.type;
