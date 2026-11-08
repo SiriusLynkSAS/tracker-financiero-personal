@@ -127,6 +127,7 @@ ul.task-list li input[type="checkbox"] {
 <div class="tf-page-header"><div><h1>Pendientes</h1><div class="tf-muted">Pagos, cuotas e ingresos que requieren una acción.</div></div></div>
 <div class="tf-card"><div class="tf-actions"><button class="tf-btn tf-btn-secondary is-selected" data-pending-filter="all">Todos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="overdue">Vencidos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="today">Hoy</button><button class="tf-btn tf-btn-secondary" data-pending-filter="upcoming">Próximos</button></div></div>
 <div id="pending-list" class="tf-grid tf-grid-2" style="margin-top:1rem"></div>
+<dialog id="pending-detail-dialog" class="tf-modal-dialog tf-pending-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker" id="pending-detail-status">Pendiente</div><h2 id="pending-detail-title" class="anchored">Detalle</h2></div><button id="pending-detail-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div><div id="pending-detail-body"></div><div class="tf-actions" style="margin-top:1rem"><a id="pending-detail-action" class="tf-btn tf-btn-primary" href="#">Abrir acción</a></div></dialog>
 <script type="module" src="js/pending.js"></script>
 
 
@@ -539,7 +540,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.50</p>
+<p>Tracker Financiero Personal V1.0.51</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

@@ -4,9 +4,9 @@ import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
-let contracts=[],receivables=[],assets=[],accounts=[],finishId="",showArchived=false;
+let contracts=[],receivables=[],assets=[],accounts=[],finishId="";
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
-const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new"),archiveToggle=document.querySelector("#contract-archived-toggle");
+const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
 function assetName(id){return assets.find(x=>x.id===id)?.name||"Activo"}
@@ -27,26 +27,25 @@ function render(){
   document.querySelector("#tariff-contract").innerHTML=contracts.filter(x=>x.active!==false).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   document.querySelector("#payment-account").innerHTML=accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");
   const visibleReceivables=receivables.filter(r=>r.active!==false);
-  const archived=contracts.filter(x=>x.active===false);
-  archiveToggle.hidden=!archived.length;
-  archiveToggle.textContent=showArchived?"Ver activos":`Finalizados / archivados (${archived.length})`;
-  contractNew.hidden=showArchived;tariffNew.hidden=showArchived;
-  document.querySelector("#receivables-section").hidden=showArchived;
-  const visibleContracts=contracts.filter(x=>showArchived?x.active===false:x.active!==false);
+  const visibleContracts=[...contracts].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||String(b.startDate||"").localeCompare(String(a.startDate||"")));
   list.innerHTML=visibleContracts.map(c=>{
     const rr=visibleReceivables.filter(r=>r.contractId===c.id),gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
-    const transport=sum(rr,r=>proratedMonthlyEstimate(c.monthlyTransportEstimate,r));
-    const other=sum(rr,r=>proratedMonthlyEstimate(c.monthlyOtherDirectCostEstimate,r));
-    const scheduled=c.endDate&&c.endDate>todayISO()?`<span class="tf-pill tf-pill-warn">Fin programado ${escapeHtml(c.endDate)}</span>`:"";
-    return `<div class="tf-card"><strong>${escapeHtml(c.name)}</strong><div class="tf-muted">${allocationLabel(c)} · desde ${c.startDate} · fin ${c.endDate||"indefinido"}</div>${scheduled}<div class="tf-detail-grid" style="margin-top:.8rem"><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Por cobrar</span><strong>${money(gen-paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Costos directos estimados</span><strong>${money(transport+other)}</strong></div></div><div class="tf-actions"><button class="tf-btn tf-btn-secondary" data-contract-detail="${c.id}">Ver detalle</button>${showArchived?`<span class="tf-muted">Histórico en modo consulta.</span>`:`<button class="tf-btn tf-btn-secondary" data-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar"}</button>`}</div></div>`;
-  }).join("")||`<div class="tf-card tf-empty">${showArchived?"Sin contratos finalizados o archivados.":"Sin contratos activos."}</div>`;
+    const pending=Math.max(0,gen-paid);
+    const state=c.active!==false?"Activo":pending>0.009?"Finalizado · cobro pendiente":"Finalizado";
+    const stateClass=c.active!==false?"tf-pill-ok":pending>0.009?"tf-pill-warn":"";
+    return `<button type="button" class="tf-contract-list-row" data-contract-detail="${c.id}">
+      <span class="tf-contract-list-main"><strong>${escapeHtml(c.name)}</strong><small>${escapeHtml(allocationLabel(c))} · ${escapeHtml(c.startDate||"—")} → ${escapeHtml(c.endDate||"indefinido")}</small></span>
+      <span class="tf-contract-list-money"><small>Por cobrar</small><strong>${money(pending)}</strong></span>
+      <span class="tf-pill ${stateClass}">${escapeHtml(state)}</span>
+      <span class="tf-contract-list-chevron" aria-hidden="true">›</span>
+    </button>`;
+  }).join("")||`<div class="tf-empty">Sin contratos registrados.</div>`;
   tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td></tr>`}).join("")||`<tr><td colspan="8" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){[contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);await sync();render();ensureAllocationRow();}
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
 contractNew.addEventListener("click",()=>{contractEditor.hidden=false;tariffEditor.hidden=true;contractEditor.scrollIntoView({behavior:"smooth"})});
 tariffNew.addEventListener("click",()=>{tariffEditor.hidden=false;contractEditor.hidden=true;tariffEditor.scrollIntoView({behavior:"smooth"})});
-archiveToggle.addEventListener("click",()=>{showArchived=!showArchived;contractEditor.hidden=true;tariffEditor.hidden=true;render()});
 document.querySelector("#contract-cancel").addEventListener("click",()=>{contractEditor.hidden=true});
 document.querySelector("#tariff-cancel").addEventListener("click",()=>{tariffEditor.hidden=true});
 document.querySelector("#add-contract-allocation").addEventListener("click",()=>{document.querySelector("#contract-allocations").appendChild(allocationRow({percent:0}));updateAllocationTotal();});
@@ -67,11 +66,23 @@ list.addEventListener("click",e=>{
     const rr=receivables.filter(r=>r.contractId===c.id).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
     const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
     document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
-    document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${st}</td></tr>`}).join("")||`<tr><td colspan="6" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div>`;
+    document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st;return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td></tr>`}).join("")||`<tr><td colspan="6" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div>${c.active!==false?`<div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button></div>`:`<div class="tf-muted" style="margin-top:1rem">Contrato histórico en modo consulta. Los cobros pendientes permanecen visibles en el cronograma.</div>`}`;
     document.querySelector("#contract-detail-dialog").showModal();
     return;
   }
   const b=e.target.closest("[data-finish]");if(!b)return;finishId=b.dataset.finish;const c=contracts.find(x=>x.id===finishId);document.querySelector("#contract-finish-date").value=c?.endDate||todayISO();finishPreview();document.querySelector("#contract-finish-dialog").showModal();
+});
+
+document.querySelector("#contract-detail-body").addEventListener("click",e=>{
+  const b=e.target.closest("[data-detail-finish]");
+  if(!b)return;
+  const c=contracts.find(x=>x.id===b.dataset.detailFinish);
+  if(!c)return;
+  document.querySelector("#contract-detail-dialog").close();
+  finishId=c.id;
+  document.querySelector("#contract-finish-date").value=c.endDate||todayISO();
+  finishPreview();
+  document.querySelector("#contract-finish-dialog").showModal();
 });
 document.querySelector("#contract-detail-close").addEventListener("click",()=>document.querySelector("#contract-detail-dialog").close());
 document.querySelector("#contract-finish-date").addEventListener("change",finishPreview);

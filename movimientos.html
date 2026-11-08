@@ -135,13 +135,14 @@ ul.task-list li input[type="checkbox"] {
   </div>
 </div>
 
-<div class="tf-grid tf-grid-2 tf-transactions-layout">
-  <section id="tx-editor-card" class="tf-card tf-tx-editor-card" hidden="">
-    <div class="tf-section-heading">
+<div class="tf-transactions-layout">
+  <dialog id="tx-editor-card" class="tf-modal-dialog tf-tx-editor-dialog">
+    <div class="tf-modal-head">
       <div>
         <div class="tf-section-kicker">Registro rápido</div>
         <h2 id="tx-editor-title" class="anchored">Nuevo movimiento</h2>
       </div>
+      <button id="tx-editor-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button>
     </div>
 
     <form id="tx-form" class="tf-tx-quick-form">
@@ -250,7 +251,7 @@ ul.task-list li input[type="checkbox"] {
         <button id="tx-submit" class="tf-btn tf-btn-primary" type="submit">Guardar movimiento</button>
       </div>
     </form>
-  </section>
+  </dialog>
 
   <section class="tf-card tf-tx-filter-card">
     <div class="tf-section-heading"><div><div class="tf-section-kicker">Historial</div><h2 class="anchored">Buscar y organizar</h2></div></div>
@@ -308,7 +309,11 @@ ul.task-list li input[type="checkbox"] {
 </dialog>
 
 <div class="tf-card" style="margin-top:1rem">
-  <div class="tf-table-wrap">
+  <div class="tf-section-heading tf-tx-history-head">
+    <div><div class="tf-section-kicker">Libro</div><h2 class="anchored">Movimientos</h2></div>
+    <button id="tx-history-toggle" type="button" class="tf-btn tf-btn-secondary tf-btn-compact" aria-expanded="true">Ocultar</button>
+  </div>
+  <div id="tx-history-wrap" class="tf-table-wrap">
     
 <table class="tf-table caption-top">
 <thead>
@@ -740,7 +745,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.50</p>
+<p>Tracker Financiero Personal V1.0.51</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
