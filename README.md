@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.51
+# Tracker Financiero Personal V1.0.52
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1197,7 +1197,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 
 
 
-## V1.0.51 — Consolidación UX y regresión
+## V1.0.52 — Consolidación UX y regresión
 
 - Movimientos: editor separado mediante `+ Nuevo movimiento`, listado compacto tipo ledger con LIN/fecha/transacción/valor/saldo final.
 - Filtros: selector jerárquico categoría → subcategoría corregido y actualización inmediata de la lista al guardar.
@@ -1206,7 +1206,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Contratos: detalle y cronograma de cuentas por cobrar agrupados por contrato en ventana emergente.
 - Mantiene MIG-001, schemaVersion 2 y compatibilidad legacy.
 
-## V1.0.51 — Schema canónico y compatibilidad legacy
+## V1.0.52 — Schema canónico y compatibilidad legacy
 
 - Se incorpora `js/schema.js` con contrato **leer tolerante / escribir canónico** y `schemaVersion = 2`.
 - Cuentas, movimientos, presupuestos, recurrentes, deudas, planes, contratos, cuentas por cobrar e inversiones pasan por normalizadores de lectura.
@@ -1230,7 +1230,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - No se añadieron campos ni colecciones Firebase y no cambiaron las Firestore Rules.
 
 
-## V1.0.51 — MIG-001 Presupuestos legacy
+## V1.0.52 — MIG-001 Presupuestos legacy
 
 - Añade un asistente visible en **Presupuestos** para documentos legacy sin `month`.
 - No infiere el período desde `createdAt`. El usuario selecciona explícitamente el mes.
@@ -1238,3 +1238,10 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - No crea movimientos ni modifica saldos.
 - Si ya existe un presupuesto canónico para la misma categoría/subcategoría/mes, bloquea la migración y exige revisión.
 - Estado: migración asistida, pendiente de ejecución por el usuario sobre los 2 documentos detectados en Paso 1B.
+
+
+## V1.0.52 — Cierre de validación
+- Filtros de Movimientos ocultos por defecto, visibles solo al solicitar Filtrar.
+- Cobro directo por período contractual desde listado y modal de contrato.
+- El modal de cobro conserva el contexto del contrato y genera un ingreso con descripción contrato/período.
+- No inicia MIG-002 ni modifica la configuración Firebase.

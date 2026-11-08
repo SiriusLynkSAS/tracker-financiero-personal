@@ -56,6 +56,8 @@ const newButton = document.querySelector("#tx-new");
 const filterCategoryPicker = document.querySelector("#filter-category-picker");
 const filterCategoryDialog = document.querySelector("#filter-category-dialog");
 const filterCategoryDialogBody = document.querySelector("#filter-category-dialog-body");
+const filterToggle = document.querySelector("#filter-toggle");
+const filterBody = document.querySelector("#filter-body");
 const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
 
 let transactionFormDirty=false;
@@ -777,6 +779,13 @@ newButton?.addEventListener("click",()=>{
   openEditorDialog();
 });
 document.querySelector("#tx-editor-close")?.addEventListener("click",reset);
+filterToggle?.addEventListener("click",()=>{
+  const hidden=filterBody?.hasAttribute("hidden");
+  if(hidden) filterBody?.removeAttribute("hidden"); else filterBody?.setAttribute("hidden","");
+  const expanded=!filterBody?.hasAttribute("hidden");
+  filterToggle.setAttribute("aria-expanded",String(expanded));
+  filterToggle.textContent=expanded?"Ocultar filtros":"Filtros";
+});
 filterCategoryPicker?.addEventListener("click",openFilterCategoryDialog);
 document.querySelector("#filter-category-dialog-close")?.addEventListener("click",()=>filterCategoryDialog?.close());
 filterCategoryDialogBody?.addEventListener("click",e=>{
