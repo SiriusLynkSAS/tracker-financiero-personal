@@ -59,25 +59,33 @@ function render(){
   tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
-  // Las colecciones base se cargan de forma independiente. Una colección opcional
-  // (p. ej. contractPayments aún sin Rules publicadas) nunca debe vaciar Contratos.
-  const [nextContracts,nextReceivables,nextAssets,nextAccounts]=await Promise.all([
-    safeLoad("contratos",listContracts,contracts),
-    safeLoad("cuentas por cobrar",listReceivables,receivables),
-    safeLoad("activos",listAssets,assets),
-    safeLoad("cuentas",listAccounts,accounts)
-  ]);
-  contracts=nextContracts;receivables=nextReceivables;assets=nextAssets;accounts=nextAccounts;
+  // V1.0.55: prioridad absoluta a la cartera base. Contratos y receivables se
+  // cargan y renderizan ANTES de cualquier colección auxiliar u operación de sync.
+  // Así, un error en assets/accounts/contractPayments nunca puede dejar la página vacía.
+  const nextContracts=await safeLoad("contratos",listContracts,contracts);
+  contracts=Array.isArray(nextContracts)?nextContracts:[];
+  const nextReceivables=await safeLoad("cuentas por cobrar",listReceivables,receivables);
+  receivables=Array.isArray(nextReceivables)?nextReceivables:[];
+
+  try{render();}catch(err){
+    console.error("[Contratos] Error al renderizar cartera base.",err);
+    if(list) list.innerHTML=`<div class="tf-empty tf-error-state">No se pudo dibujar la cartera. Recarga la página y revisa la consola.</div>`;
+    if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty">No se pudieron dibujar las cuentas por cobrar.</td></tr>`;
+  }
+
+  // Auxiliares: se cargan después y de forma totalmente independiente.
+  assets=await safeLoad("activos",listAssets,assets);
+  accounts=await safeLoad("cuentas",listAccounts,accounts);
   try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
   catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments no disponible; se conserva la cartera visible.",err);}
+  try{render();ensureAllocationRow();}catch(err){console.warn("[Contratos] Render auxiliar omitido.",err);}
 
-  // Primer render inmediato con los datos que sí pudieron leerse.
-  render();ensureAllocationRow();
-
-  // La sincronización de devengados es secundaria: si falla, no debe ocultar la cartera.
+  // La sincronización de devengados es secundaria. Si falla, se mantiene la
+  // cartera base ya visible y no se reemplaza por un estado vacío.
   try{
     await sync();
-    receivables=await safeLoad("cuentas por cobrar actualizadas",listReceivables,receivables);
+    const updated=await safeLoad("cuentas por cobrar actualizadas",listReceivables,receivables);
+    if(Array.isArray(updated)) receivables=updated;
     try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
     catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments continúa no disponible.",err);}
     render();
@@ -227,4 +235,8 @@ document.querySelector("#contract-dates-save").addEventListener("click",async()=
   toast("Fechas contractuales actualizadas.");
 });
 
-requireUser(()=>refresh().catch(console.error));
+requireUser(()=>refresh().catch(err=>{
+  console.error("[Contratos] Fallo de carga principal.",err);
+  if(list) list.innerHTML=`<div class="tf-empty tf-error-state">No se pudieron cargar los contratos. Usa Ctrl+F5 y vuelve a intentar.</div>`;
+  if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty">No se pudieron cargar las cuentas por cobrar.</td></tr>`;
+}));

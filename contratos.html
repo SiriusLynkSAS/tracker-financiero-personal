@@ -135,9 +135,9 @@ ul.task-list li input[type="checkbox"] {
 <div class="tf-span-2"><label>Asignación a activos</label><div id="contract-allocations"></div><div class="tf-actions" style="margin-top:.5rem"><button id="add-contract-allocation" type="button" class="tf-btn tf-btn-secondary">Añadir activo</button><span id="allocation-total" class="tf-muted"></span></div></div>
 <div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Guardar contrato</button><button id="contract-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section>
 <section id="tariff-editor" class="tf-card" hidden=""><h2 class="anchored">Nueva tarifa</h2><form id="tariff-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Contrato</label><select id="tariff-contract"></select></div><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Agregar período tarifario</button><button id="tariff-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section></div>
-<section class="tf-card" style="margin-top:1rem"><div class="tf-section-heading"><div><div class="tf-section-kicker">Cartera contractual</div><h2 class="anchored">Todos los contratos</h2><div class="tf-muted">Activos y finalizados permanecen visibles. Haz clic en un contrato para abrir su detalle y cronograma.</div></div></div><div id="contract-list" class="tf-contract-list"></div></section>
+<section class="tf-card" style="margin-top:1rem"><div class="tf-section-heading"><div><div class="tf-section-kicker">Cartera contractual</div><h2 class="anchored">Todos los contratos</h2><div class="tf-muted">Activos y finalizados permanecen visibles. Haz clic en un contrato para abrir su detalle y cronograma.</div></div></div><div id="contract-list" class="tf-contract-list"><div class="tf-empty" id="contract-loading-state">Cargando contratos…</div></div></section>
 <div id="receivables-section" class="tf-card" style="margin-top:1rem"><h2 class="anchored">Cuentas por cobrar</h2><div class="tf-toolbar"><div class="tf-field"><label>Cuenta destino</label><select id="payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="payment-amount" type="number" min="0" step="0.01"></div><button id="allocate-payment" class="tf-btn tf-btn-primary">Aplicar a seleccionados</button></div><div class="tf-table-wrap" style="margin-top:.7rem">
-<table class="tf-table caption-top">
+<table class="tf-table caption-top table">
 <thead>
 <tr class="header">
 <th data-quarto-table-cell-role="th"></th>
@@ -152,6 +152,9 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 </thead>
 <tbody id="recv-body">
+<tr class="odd">
+<td colspan="9" class="tf-empty">Cargando cuentas por cobrar…</td>
+</tr>
 </tbody>
 </table>
 </div></div>
@@ -185,7 +188,7 @@ ul.task-list li input[type="checkbox"] {
     <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Actualizar fechas</button></div>
   </div>
 </dialog>
-<script type="module" src="js/contracts.js"></script>
+<script type="module" src="js/contracts.js?v=1.0.55"></script>
 
 
 
@@ -597,7 +600,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.54</p>
+<p>Tracker Financiero Personal V1.0.55</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
