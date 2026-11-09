@@ -85,6 +85,25 @@ document.querySelector("#contract-form").addEventListener("submit",async e=>{e.p
 document.querySelector("#tariff-form").addEventListener("submit",async e=>{e.preventDefault();const c=contracts.find(x=>x.id===document.querySelector("#tariff-contract").value),t={effectiveFrom:document.querySelector("#tariff-from").value,amount:Number(document.querySelector("#tariff-amount").value)};const affected=receivables.filter(r=>r.contractId===c.id&&r.workPeriod>=t.effectiveFrom.slice(0,7)&&Number(r.paidAmount||0)<=.009&&statusOf(r)!=="paid");if(!await confirmAction({title:"Agregar nueva tarifa",message:`Desde ${t.effectiveFrom}: ${money(t.amount)}`,impact:[`Se recalcularán ${affected.length} período(s) todavía no pagados.`,`Los períodos pagados o parciales quedan congelados.`]}))return;const updatedContract={...c,tariffPeriods:[...(c.tariffPeriods||[]),t]};const ops=[{collection:"contracts",id:c.id,action:"update",auditType:"contract",data:updatedContract}];for(const r of affected){const calc=contractPeriodCalculation(updatedContract,r.workPeriod);ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,amount:calc?.amount??r.amount,serviceStart:calc?.serviceStart??r.serviceStart,serviceEnd:calc?.serviceEnd??r.serviceEnd,workedDays:calc?.workedDays??r.workedDays,monthDays:calc?.monthDays??r.monthDays,prorated:calc?.prorated??r.prorated,earnedAt:calc?.earnedAt??r.earnedAt,status:"pending"}})}await atomicWrite(ops);toast("Tarifa y períodos futuros actualizados.");tariffEditor.hidden=true;await refresh();});
 
 function paymentAccountsOptions(){return accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");}
+let contractDetailDemotedForPayment=false;
+
+function demoteContractDetailForPayment(){
+  const detail=document.querySelector("#contract-detail-dialog");
+  if(!detail?.open)return;
+  detail.close();
+  detail.show();
+  contractDetailDemotedForPayment=true;
+}
+
+function restoreContractDetailAfterPayment(){
+  if(!contractDetailDemotedForPayment)return;
+  const detail=document.querySelector("#contract-detail-dialog");
+  contractDetailDemotedForPayment=false;
+  if(!detail)return;
+  if(detail.open)detail.close();
+  detail.showModal();
+}
+
 function openContractPayment(receivableId){
   const r=receivables.find(x=>x.id===receivableId); if(!r)return;
   const c=contracts.find(x=>x.id===r.contractId);
@@ -97,6 +116,7 @@ function openContractPayment(receivableId){
   document.querySelector("#contract-payment-amount").value=pending.toFixed(2);
   document.querySelector("#contract-payment-date").value=todayISO();
   document.querySelector("#contract-payment-description").value=`Cobro · ${c?.name||"Contrato"} · ${r.workPeriod}`;
+  demoteContractDetailForPayment();
   document.querySelector("#contract-payment-dialog").showModal();
 }
 async function applyContractPayment(rows,amount,accountId,date,description){
@@ -183,7 +203,10 @@ document.querySelector("#contract-detail-body").addEventListener("click",async e
   finishPreview();
   document.querySelector("#contract-finish-dialog").showModal();
 });
-document.querySelector("#contract-payment-close").addEventListener("click",()=>document.querySelector("#contract-payment-dialog").close());
+document.querySelector("#contract-payment-close").addEventListener("click",()=>{
+  document.querySelector("#contract-payment-dialog").close();
+  restoreContractDetailAfterPayment();
+});
 document.querySelector("#contract-payment-save").addEventListener("click",async()=>{
   const context=paymentContext?{...paymentContext}:null;
   const r=context?receivables.find(x=>x.id===context.receivableId):null;if(!r)return;
@@ -196,6 +219,7 @@ document.querySelector("#contract-payment-save").addEventListener("click",async(
   const button=document.querySelector("#contract-payment-save");
   button.disabled=true;
   dialog.close();
+  restoreContractDetailAfterPayment();
   try{
     if(await applyContractPayment([r],amount,accountId,date,description)){
       await refresh();
@@ -206,6 +230,7 @@ document.querySelector("#contract-payment-save").addEventListener("click",async(
   }catch(err){
     console.error(err);
     toast(err?.message||"No se pudo registrar el cobro.");
+    demoteContractDetailForPayment();
     if(!dialog.open)dialog.showModal();
   }finally{button.disabled=false;}
 });
