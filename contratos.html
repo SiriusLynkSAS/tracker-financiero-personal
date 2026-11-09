@@ -188,7 +188,31 @@ ul.task-list li input[type="checkbox"] {
     <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Actualizar fechas</button></div>
   </div>
 </dialog>
-<script type="module" src="js/contracts.js?v=1.0.56"></script>
+<script>
+(function(){
+  const list=document.querySelector("#contract-list");
+  const body=document.querySelector("#recv-body");
+  const show=(msg,isError=false)=>{
+    if(list) list.innerHTML=`<div class="tf-empty ${isError?"tf-error-state":""}">${msg}</div>`;
+    if(body) body.innerHTML=`<tr><td colspan="9" class="tf-empty ${isError?"tf-error-state":""}">${msg}</td></tr>`;
+  };
+  window.__tfContractsBootShow=show;
+  show("Inicializando Contratos Web V1.0.57…");
+  window.addEventListener("error",ev=>{
+    if(String(ev?.filename||"").includes("contracts")) show(`Error al iniciar Contratos: ${ev.message||"error JavaScript"}`,true);
+  });
+  window.addEventListener("unhandledrejection",ev=>{
+    const text=String(ev?.reason?.message||ev?.reason||"");
+    if(text.toLowerCase().includes("contract")) show(`Error de Contratos: ${text}`,true);
+  });
+})();
+</script>
+<script type="module">
+import("./js/contracts.js?v=1.0.57").catch(err=>{
+  console.error("No se pudo importar contracts.js V1.0.57",err);
+  window.__tfContractsBootShow?.(`No se pudo cargar el módulo Contratos V1.0.57: ${String(err?.message||err)}`,true);
+});
+</script>
 
 
 
@@ -600,7 +624,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.56</p>
+<p>Tracker Financiero Personal V1.0.57</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
