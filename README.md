@@ -1,4 +1,13 @@
-# Tracker Financiero Personal V1.0.58
+# Tracker Financiero Personal V1.0.59
+
+## V1.0.59 · cierre de paridad contractual
+
+- Mantiene V1.0.58 como base estable reconstruida desde V1.0.52.
+- El detalle/modal de Contratos ahora calcula cronograma, generado, cobrado y pendiente usando únicamente `receivables` activos.
+- Los períodos anulados por un cambio de fecha contractual permanecen en Firestore para trazabilidad, pero ya no se muestran ni suman.
+- Esto corrige el caso de un contrato finalizado el 2026-09-14 que seguía mostrando el período 2026-10 archivado en el modal Web.
+- No introduce `contractPayments` como dependencia de carga ni cambia la configuración Firebase.
+
 
 ## Reconstrucción estable desde V1.0.52
 
