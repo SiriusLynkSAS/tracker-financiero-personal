@@ -66,7 +66,7 @@ function render(){
       <span class="tf-contract-list-chevron" aria-hidden="true">›</span>
     </button>`;
   }).join("")||`<div class="tf-empty">Sin contratos registrados.</div>`;
-  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td>${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
+  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"",orphan=orphanPaidAmount(r),linkedTx=latestLinkedContractTransaction(r.id);return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${linkedTx?`<button type="button" class="tf-icon-btn" data-recv-revert-tx="${linkedTx.id}" data-receivable-id="${r.id}" title="Revertir último cobro registrado" aria-label="Revertir último cobro registrado">↩</button>`:""}${!linkedTx&&orphan>.009?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
   [contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);
@@ -173,43 +173,63 @@ list.addEventListener("click",e=>{
   const b=e.target.closest("[data-finish]");if(!b)return;finishId=b.dataset.finish;const c=contracts.find(x=>x.id===finishId);document.querySelector("#contract-finish-date").value=c?.endDate||todayISO();finishPreview();document.querySelector("#contract-finish-dialog").showModal();
 });
 
-tbody.addEventListener("click",e=>{const b=e.target.closest("[data-recv-pay]");if(b)openContractPayment(b.dataset.recvPay);});
+function describeImpactPeriodsFromTx(tx){
+  const allocations=Array.isArray(tx?.contractAllocations)?tx.contractAllocations:[];
+  return allocations.map(a=>receivables.find(row=>row.id===a.receivableId)?.workPeriod||a.receivableId).filter(Boolean);
+}
+
+async function revertLinkedContractTransaction(txId,receivableId,{fromDetail=false}={}){
+  const tx=transactions.find(x=>x.id===txId);
+  const r=receivables.find(x=>x.id===receivableId);
+  if(!tx||!r){toast("No se encontró el movimiento contractual a revertir.");return;}
+  const impactPeriods=describeImpactPeriodsFromTx(tx);
+  if(fromDetail) demoteContractDetailForPayment();
+  try{
+    if(!await confirmAction({title:"Revertir cobro",message:`${tx.date||""} · ${money(tx.amount||0)}`,impact:["Se eliminará el ingreso contractual asociado y se revertirá su efecto en la cuenta destino.",`Se actualizará el contrato${impactPeriods.length?` en: ${impactPeriods.join(", ")}`:""}.`],danger:true,confirmText:"Revertir"})) return;
+    await removeTransaction(tx.id);
+    const contractId=r.contractId;
+    await refresh();
+    if(fromDetail) renderContractDetail(contractId,false);
+    toast("Cobro revertido.");
+  }catch(err){
+    toast(err?.message||"No se pudo revertir el cobro.");
+  }finally{
+    if(fromDetail) restoreContractDetailAfterPayment();
+  }
+}
+
+async function repairOrphanContractPayment(receivableId,{fromDetail=false}={}){
+  const r=receivables.find(x=>x.id===receivableId);
+  if(!r)return;
+  const orphan=orphanPaidAmount(r);
+  if(!(orphan>.009)){toast("No hay un cobro sin movimiento que reparar.");return;}
+  if(fromDetail) demoteContractDetailForPayment();
+  try{
+    if(!await confirmAction({title:"Revertir cobro sin movimiento",message:`${r.workPeriod} · ${money(orphan)}`,impact:["Reduce únicamente el valor pagado del período.","No crea ni elimina movimientos y no modifica saldos bancarios."],confirmText:"Revertir"})) return;
+    const newPaid=Math.max(0,Number(r.paidAmount||0)-orphan);
+    await atomicWrite([{collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":newPaid>.009?"partial":"pending"},note:"Reparación de cobro contractual sin movimiento asociado"}]);
+    const contractId=r.contractId;
+    await refresh();
+    if(fromDetail) renderContractDetail(contractId,false);
+    toast("Cobro sin movimiento revertido.");
+  }finally{
+    if(fromDetail) restoreContractDetailAfterPayment();
+  }
+}
+
+tbody.addEventListener("click",async e=>{const pay=e.target.closest("[data-recv-pay]");if(pay){openContractPayment(pay.dataset.recvPay);return;}const revert=e.target.closest("[data-recv-revert-tx]");if(revert){await revertLinkedContractTransaction(revert.dataset.recvRevertTx,revert.dataset.receivableId);return;}const repair=e.target.closest("[data-recv-repair]");if(repair){await repairOrphanContractPayment(repair.dataset.recvRepair);return;}});
 
 document.querySelector("#contract-detail-body").addEventListener("click",async e=>{
   const pay=e.target.closest("[data-detail-pay]");
   if(pay){openContractPayment(pay.dataset.detailPay);return;}
   const revert=e.target.closest("[data-detail-revert-tx]");
   if(revert){
-    const tx=transactions.find(x=>x.id===revert.dataset.detailRevertTx);
-    const r=receivables.find(x=>x.id===revert.dataset.receivableId);
-    if(!tx||!r){toast("No se encontró el movimiento contractual a revertir.");return;}
-    const allocations=Array.isArray(tx.contractAllocations)?tx.contractAllocations:[];
-    const impactPeriods=allocations.map(a=>receivables.find(row=>row.id===a.receivableId)?.workPeriod||a.receivableId).filter(Boolean);
-    if(!await confirmAction({title:"Revertir cobro",message:`${tx.date||""} · ${money(tx.amount||0)}`,impact:["Se eliminará el ingreso contractual asociado y se revertirá su efecto en la cuenta destino.",`Se actualizará el contrato${impactPeriods.length?` en: ${impactPeriods.join(", ")}`:""}.`],danger:true,confirmText:"Revertir"}))return;
-    const contractId=r.contractId;
-    try{
-      await removeTransaction(tx.id);
-      await refresh();
-      renderContractDetail(contractId,false);
-      toast("Cobro revertido.");
-    }catch(err){
-      toast(err?.message||"No se pudo revertir el cobro.");
-    }
+    await revertLinkedContractTransaction(revert.dataset.detailRevertTx,revert.dataset.receivableId,{fromDetail:true});
     return;
   }
   const repair=e.target.closest("[data-detail-repair]");
   if(repair){
-    const r=receivables.find(x=>x.id===repair.dataset.detailRepair);
-    if(!r)return;
-    const orphan=orphanPaidAmount(r);
-    if(!(orphan>.009)){toast("No hay un cobro sin movimiento que reparar.");return;}
-    if(!await confirmAction({title:"Revertir cobro sin movimiento",message:`${r.workPeriod} · ${money(orphan)}`,impact:["Reduce únicamente el valor pagado del período.","No crea ni elimina movimientos y no modifica saldos bancarios."],confirmText:"Revertir"}))return;
-    const newPaid=Math.max(0,Number(r.paidAmount||0)-orphan);
-    await atomicWrite([{collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":newPaid>.009?"partial":"pending"},note:"Reparación de cobro contractual sin movimiento asociado"}]);
-    const contractId=r.contractId;
-    await refresh();
-    renderContractDetail(contractId,false);
-    toast("Cobro sin movimiento revertido.");
+    await repairOrphanContractPayment(repair.dataset.detailRepair,{fromDetail:true});
     return;
   }
   const dates=e.target.closest("[data-detail-dates]");
