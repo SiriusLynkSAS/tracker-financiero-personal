@@ -1,4 +1,5 @@
-import {requireUser} from "./guard.js";
+import "./guard.js";
+import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {listContracts,saveContract,listReceivables,listContractPayments,listAssets,listAccounts,atomicWrite,syncReceivablesClosed,recordContractPayment,repairReceivableFromStructuredPayments} from "./data-service.js";
 import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
@@ -10,6 +11,16 @@ let contracts=[],receivables=[],contractPayments=[],assets=[],accounts=[],finish
 let contractPaymentsAvailable=true;
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
 const BASE_LOAD_TIMEOUT_MS=4500;
+let baseLoadErrors={};
+
+function setContractsLoadState(message,{error=false}={}){
+  if(list) list.innerHTML=`<div class="tf-empty ${error?"tf-error-state":""}">${escapeHtml(message)}</div>`;
+  if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty ${error?"tf-error-state":""}">${escapeHtml(message)}</td></tr>`;
+}
+function loadStage(message){
+  console.info(`[Contratos V1.0.57] ${message}`);
+  setContractsLoadState(message);
+}
 
 function withTimeout(promise,ms,label){
   let timer=null;
@@ -68,21 +79,28 @@ async function restListUserCollection(collectionName){
   return rows;
 }
 async function resilientBaseLoad(label,sdkLoader,collectionName,fallback=[]){
+  baseLoadErrors[label]=null;
+  // V1.0.57: REST autenticado es la ruta primaria para Contratos Web.
+  // Evita bloqueos observados en el canal Firestore SDK/persistencia de navegador.
   try{
-    const rows=await withTimeout(Promise.resolve().then(()=>sdkLoader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);
+    loadStage(`Leyendo ${label}…`);
+    const rows=await restListUserCollection(collectionName);
+    console.info(`[Contratos] ${label} recuperado por REST (${rows.length}).`);
     return Array.isArray(rows)?rows:[];
-  }catch(sdkErr){
-    console.warn(`[Contratos] SDK sin respuesta para ${label}; se intenta REST autenticado.`,sdkErr);
+  }catch(restErr){
+    console.warn(`[Contratos] REST falló para ${label}; se intenta SDK.`,restErr);
     try{
-      const rows=await restListUserCollection(collectionName);
-      console.info(`[Contratos] ${label} recuperado por REST (${rows.length}).`);
-      return rows;
-    }catch(restErr){
-      console.error(`[Contratos] También falló el respaldo REST de ${label}.`,restErr);
+      loadStage(`REST no respondió. Intentando ${label} por SDK…`);
+      const rows=await withTimeout(Promise.resolve().then(()=>sdkLoader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);
+      return Array.isArray(rows)?rows:[];
+    }catch(sdkErr){
+      console.error(`[Contratos] Fallaron REST y SDK para ${label}.`,{restErr,sdkErr});
+      baseLoadErrors[label]=`${restErr?.message||restErr} | ${sdkErr?.message||sdkErr}`;
       return Array.isArray(fallback)?fallback:[];
     }
   }
 }
+
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
@@ -135,7 +153,9 @@ function render(){
   tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
-  // V1.0.56: prioridad absoluta a la cartera base. Contratos y receivables se
+  loadStage("Iniciando lectura contractual…");
+  baseLoadErrors={};
+  // V1.0.57: prioridad absoluta a la cartera base. Contratos y receivables se
   // cargan y renderizan ANTES de cualquier colección auxiliar u operación de sync.
   // Así, un error en assets/accounts/contractPayments nunca puede dejar la página vacía.
   const [nextContracts,nextReceivables]=await Promise.all([
@@ -145,6 +165,13 @@ async function refresh(){
   contracts=Array.isArray(nextContracts)?nextContracts:[];
   receivables=Array.isArray(nextReceivables)?nextReceivables:[];
 
+  const failedBase=Object.entries(baseLoadErrors).filter(([,v])=>v);
+  if(failedBase.length && !contracts.length && !receivables.length){
+    const detail=failedBase.map(([k,v])=>`${k}: ${v}`).join(" · ");
+    setContractsLoadState(`No se pudo leer la cartera contractual. ${detail}`,{error:true});
+    throw new Error(detail);
+  }
+  loadStage(`Datos recibidos: ${contracts.length} contrato(s), ${receivables.length} cuenta(s) por cobrar. Renderizando…`);
   try{render();}catch(err){
     console.error("[Contratos] Error al renderizar cartera base.",err);
     if(list) list.innerHTML=`<div class="tf-empty tf-error-state">No se pudo dibujar la cartera. Recarga la página y revisa la consola.</div>`;
@@ -316,8 +343,29 @@ document.querySelector("#contract-dates-save").addEventListener("click",async()=
   toast("Fechas contractuales actualizadas.");
 });
 
-requireUser(()=>refresh().catch(err=>{
-  console.error("[Contratos] Fallo de carga principal.",err);
-  if(list) list.innerHTML=`<div class="tf-empty tf-error-state">No se pudieron cargar los contratos. Usa Ctrl+F5 y vuelve a intentar.</div>`;
-  if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty">No se pudieron cargar las cuentas por cobrar.</td></tr>`;
-}));
+loadStage("Módulo Contratos V1.0.57 cargado. Esperando sesión…");
+let authResolved=false;
+const authWatchdog=setTimeout(()=>{
+  if(authResolved) return;
+  setContractsLoadState("La sesión de Firebase no respondió en 8 s. Recarga la página; si persiste, cierra sesión e ingresa nuevamente.",{error:true});
+},8000);
+onAuthStateChanged(auth,user=>{
+  authResolved=true;
+  clearTimeout(authWatchdog);
+  if(!user){
+    setContractsLoadState("Sesión no disponible. Redirigiendo al inicio…",{error:true});
+    window.location.replace("index.html");
+    return;
+  }
+  document.querySelectorAll("[data-user-email]").forEach(el=>el.textContent=user.email||"Usuario");
+  loadStage("Sesión confirmada. Leyendo cartera contractual…");
+  refresh().catch(err=>{
+    console.error("[Contratos] Fallo de carga principal.",err);
+    const msg=String(err?.message||"Error no identificado");
+    setContractsLoadState(`No se pudo cargar Contratos: ${msg}`,{error:true});
+  });
+},err=>{
+  authResolved=true;
+  clearTimeout(authWatchdog);
+  setContractsLoadState(`Error de autenticación: ${String(err?.message||err)}`,{error:true});
+});
