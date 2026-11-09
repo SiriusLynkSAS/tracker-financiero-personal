@@ -3553,5 +3553,5 @@ tr.is-muted{opacity:.66}
 .tf-contract-payment-dialog{width:min(620px,calc(100vw - 2rem));}
 .tf-contract-payment-dialog .tf-form-grid{margin-top:.8rem;}
 
-/* V1.0.58 · reconstrucción estable desde V1.0.52 */
+/* V1.0.59 · cierre de paridad contractual sobre base estable V1.0.58 */
 .tf-actions-compact{display:flex;gap:.35rem;align-items:center;}
