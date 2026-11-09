@@ -6,12 +6,14 @@ function statusFor(due,today){if(due<today)return "overdue";if(due===today)retur
 export function buildPendingItems({recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],today=todayISO()}){
   const items=[]; const current=today.slice(0,7); const next=monthAdd(current,1);
   for(const r of recurring.filter(x=>x.active!==false)){
-    const doneOccurrences=new Set(
-      transactions
+    const doneOccurrences=new Set([
+      ...transactions
         .filter(t=>t.recurringId===r.id)
         .map(t=>t.recurringOccurrence||String(t.date||"").slice(0,7))
-        .filter(x=>/^\d{4}-\d{2}$/.test(x))
-    );
+        .filter(x=>/^\d{4}-\d{2}$/.test(x)),
+      ...(Array.isArray(r.historicalResolvedOccurrences)?r.historicalResolvedOccurrences:[])
+        .filter(x=>/^\d{4}-\d{2}$/.test(String(x)))
+    ]);
     const startMonth=/^\d{4}-\d{2}/.test(String(r.startDate||""))
       ? String(r.startDate).slice(0,7)
       : current;

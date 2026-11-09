@@ -4,9 +4,85 @@ import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
+import {auth} from "./firebase.js";
+import {firebaseConfig} from "./firebase-config.js";
 let contracts=[],receivables=[],contractPayments=[],assets=[],accounts=[],finishId="",dateEditId="",paymentContext=null;
 let contractPaymentsAvailable=true;
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
+const BASE_LOAD_TIMEOUT_MS=4500;
+
+function withTimeout(promise,ms,label){
+  let timer=null;
+  const timeout=new Promise((_,reject)=>{
+    timer=setTimeout(()=>reject(new Error(`${label} no respondió en ${Math.round(ms/1000)} s.`)),ms);
+  });
+  return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
+}
+
+function decodeFirestoreValue(value={}){
+  if("nullValue" in value) return null;
+  if("stringValue" in value) return value.stringValue;
+  if("booleanValue" in value) return !!value.booleanValue;
+  if("integerValue" in value) return Number(value.integerValue);
+  if("doubleValue" in value) return Number(value.doubleValue);
+  if("timestampValue" in value) return value.timestampValue;
+  if("referenceValue" in value) return value.referenceValue;
+  if("geoPointValue" in value) return value.geoPointValue;
+  if("arrayValue" in value) return (value.arrayValue?.values||[]).map(decodeFirestoreValue);
+  if("mapValue" in value){
+    const out={};
+    for(const [k,v] of Object.entries(value.mapValue?.fields||{})) out[k]=decodeFirestoreValue(v);
+    return out;
+  }
+  return null;
+}
+function decodeFirestoreDocument(doc={}){
+  const out={};
+  for(const [k,v] of Object.entries(doc.fields||{})) out[k]=decodeFirestoreValue(v);
+  return {id:String(doc.name||"").split("/").pop(),...out};
+}
+async function restListUserCollection(collectionName){
+  const user=auth.currentUser;
+  if(!user) throw new Error("Usuario no autenticado para lectura de respaldo.");
+  const token=await withTimeout(user.getIdToken(),3500,"Token Firebase");
+  const base=`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseConfig.projectId)}/databases/(default)/documents/users/${encodeURIComponent(user.uid)}/${encodeURIComponent(collectionName)}`;
+  const rows=[];
+  let pageToken="";
+  do{
+    const url=new URL(base);
+    url.searchParams.set("pageSize","500");
+    if(pageToken) url.searchParams.set("pageToken",pageToken);
+    const res=await withTimeout(fetch(url.toString(),{
+      method:"GET",
+      headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},
+      cache:"no-store"
+    }),6500,`REST ${collectionName}`);
+    if(!res.ok){
+      const detail=await res.text().catch(()=>"");
+      throw new Error(`REST ${collectionName}: ${res.status} ${detail.slice(0,160)}`);
+    }
+    const data=await res.json();
+    rows.push(...(data.documents||[]).map(decodeFirestoreDocument));
+    pageToken=data.nextPageToken||"";
+  }while(pageToken);
+  return rows;
+}
+async function resilientBaseLoad(label,sdkLoader,collectionName,fallback=[]){
+  try{
+    const rows=await withTimeout(Promise.resolve().then(()=>sdkLoader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);
+    return Array.isArray(rows)?rows:[];
+  }catch(sdkErr){
+    console.warn(`[Contratos] SDK sin respuesta para ${label}; se intenta REST autenticado.`,sdkErr);
+    try{
+      const rows=await restListUserCollection(collectionName);
+      console.info(`[Contratos] ${label} recuperado por REST (${rows.length}).`);
+      return rows;
+    }catch(restErr){
+      console.error(`[Contratos] También falló el respaldo REST de ${label}.`,restErr);
+      return Array.isArray(fallback)?fallback:[];
+    }
+  }
+}
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
@@ -25,7 +101,7 @@ function hasUnmatchedPaid(r){
   return Number(r.paidAmount||0)>structuredPaidForReceivable(r.id)+.009;
 }
 async function safeLoad(label,loader,fallback=[]){
-  try{return await loader();}
+  try{return await withTimeout(Promise.resolve().then(()=>loader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);}
   catch(err){console.warn(`[Contratos] No se pudo cargar ${label}.`,err);return fallback;}
 }
 function allocationRow(data={}){
@@ -59,12 +135,14 @@ function render(){
   tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
-  // V1.0.55: prioridad absoluta a la cartera base. Contratos y receivables se
+  // V1.0.56: prioridad absoluta a la cartera base. Contratos y receivables se
   // cargan y renderizan ANTES de cualquier colección auxiliar u operación de sync.
   // Así, un error en assets/accounts/contractPayments nunca puede dejar la página vacía.
-  const nextContracts=await safeLoad("contratos",listContracts,contracts);
+  const [nextContracts,nextReceivables]=await Promise.all([
+    resilientBaseLoad("contratos",listContracts,"contracts",contracts),
+    resilientBaseLoad("cuentas por cobrar",listReceivables,"receivables",receivables)
+  ]);
   contracts=Array.isArray(nextContracts)?nextContracts:[];
-  const nextReceivables=await safeLoad("cuentas por cobrar",listReceivables,receivables);
   receivables=Array.isArray(nextReceivables)?nextReceivables:[];
 
   try{render();}catch(err){
@@ -76,22 +154,25 @@ async function refresh(){
   // Auxiliares: se cargan después y de forma totalmente independiente.
   assets=await safeLoad("activos",listAssets,assets);
   accounts=await safeLoad("cuentas",listAccounts,accounts);
-  try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
+  try{contractPayments=await withTimeout(listContractPayments(),BASE_LOAD_TIMEOUT_MS,"contractPayments");contractPaymentsAvailable=true;}
   catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments no disponible; se conserva la cartera visible.",err);}
   try{render();ensureAllocationRow();}catch(err){console.warn("[Contratos] Render auxiliar omitido.",err);}
 
-  // La sincronización de devengados es secundaria. Si falla, se mantiene la
-  // cartera base ya visible y no se reemplaza por un estado vacío.
-  try{
-    await sync();
-    const updated=await safeLoad("cuentas por cobrar actualizadas",listReceivables,receivables);
-    if(Array.isArray(updated)) receivables=updated;
-    try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
-    catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments continúa no disponible.",err);}
-    render();
-  }catch(err){
-    console.warn("[Contratos] No se pudo sincronizar devengados; se mantiene la última cartera legible.",err);
-  }
+  // La sincronización de devengados es secundaria y nunca bloquea la UI.
+  // Se intenta en segundo plano con límite de tiempo; si el canal SDK queda
+  // esperando, la cartera REST/base ya visible permanece intacta.
+  void (async()=>{
+    try{
+      await withTimeout(sync(),6500,"Sincronización de contratos");
+      const updated=await resilientBaseLoad("cuentas por cobrar actualizadas",listReceivables,"receivables",receivables);
+      if(Array.isArray(updated)) receivables=updated;
+      try{contractPayments=await withTimeout(listContractPayments(),BASE_LOAD_TIMEOUT_MS,"contractPayments");contractPaymentsAvailable=true;}
+      catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments continúa no disponible.",err);}
+      render();
+    }catch(err){
+      console.warn("[Contratos] No se pudo sincronizar devengados; se mantiene la última cartera legible.",err);
+    }
+  })();
 }
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
 contractNew.addEventListener("click",()=>{contractEditor.hidden=false;tariffEditor.hidden=true;contractEditor.scrollIntoView({behavior:"smooth"})});

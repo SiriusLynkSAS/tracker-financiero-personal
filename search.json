@@ -102,7 +102,7 @@
     "href": "pendientes.html",
     "title": "Pendientes",
     "section": "",
-    "text": "PendientesPagos, cuotas e ingresos que requieren una acción.\nTodosVencidosHoyPróximos\n\nPendienteDetalleCerrarAbrir acción"
+    "text": "PendientesPagos, cuotas e ingresos que requieren una acción.\n\nTodosVencidosHoyPróximos\n\n\n  PendienteDetalleCerrar\n  \n  \n    Abrir acción\n    Ya pagado / histórico\n  \n  Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.\n\n\n\n  Pendiente recurrenteRegistrar movimientoCerrar\n  \n    Fecha\n    Hora\n    Descripción\n    Monto ($)\n    Cuenta\n    Categoría\n    Subcategoría\n    Registrar\n  \n\n\n\n  Pendiente vencidoCerrar como históricoCerrar\n  \n  Fecha real del pago\n  No crea un movimiento y no reduce ninguna cuenta.\n  Cerrar histórico"
   },
   {
     "objectID": "plan_mensual.html",
@@ -158,7 +158,7 @@
     "href": "importar_exportar.html",
     "title": "Importar / Exportar",
     "section": "",
-    "text": "Importar / ExportarCSV/Excel manual; sin conexión automática a bancos.Cerrar sesión\n\n\n  \n    Importar movimientos\n    Cuenta destino\n    Archivo CSV/XLSX\n    Columnas: Fecha, Descripcion, Monto, Tipo, Categoria, Subcategoria, IVA.\n    \n    Importar vista previa\n  \n\n  \n    Exportar\n    \n      Respaldo JSON\n      Movimientos CSV\n    \n  \n\n\n\n  Auditoría Firebase · Paso 1B\n  Exporta directamente desde Firestore los documentos y campos sin aplicar normalizadores. Es una operación de solo lectura: no crea, modifica ni elimina información.\n  Incluye el documento de usuario y las 22 colecciones conocidas por Web V1.0.55. Si una colección está vacía o tiene un error de permisos, el JSON lo deja registrado.\n  \n    Exportar datos RAW para auditoría\n  \n  Verificando sesión…\n  Privacidad: el archivo descargado contiene información financiera personal. Sube a ChatGPT únicamente el JSON generado; no contiene claves privadas de Firebase."
+    "text": "Importar / ExportarCSV/Excel manual; sin conexión automática a bancos.Cerrar sesión\n\n\n  \n    Importar movimientos\n    Cuenta destino\n    Archivo CSV/XLSX\n    Columnas: Fecha, Descripcion, Monto, Tipo, Categoria, Subcategoria, IVA.\n    \n    Importar vista previa\n  \n\n  \n    Exportar\n    \n      Respaldo JSON\n      Movimientos CSV\n    \n  \n\n\n\n  Auditoría Firebase · Paso 1B\n  Exporta directamente desde Firestore los documentos y campos sin aplicar normalizadores. Es una operación de solo lectura: no crea, modifica ni elimina información.\n  Incluye el documento de usuario y las 22 colecciones conocidas por Web V1.0.56. Si una colección está vacía o tiene un error de permisos, el JSON lo deja registrado.\n  \n    Exportar datos RAW para auditoría\n  \n  Verificando sesión…\n  Privacidad: el archivo descargado contiene información financiera personal. Sube a ChatGPT únicamente el JSON generado; no contiene claves privadas de Firebase."
   },
   {
     "objectID": "auditoria.html",
