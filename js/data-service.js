@@ -305,7 +305,33 @@ export async function removeTransaction(id){
     throw new Error("Este movimiento está vinculado a una inversión y no puede eliminarse directamente.");
   }
   if(row?.contractPaymentId){
-    await reverseContractPayment(row.contractPaymentId,{reason:"movement_deleted"});
+    const allocations=Array.isArray(row.contractAllocations)?row.contractAllocations
+      .map(a=>({receivableId:String(a?.receivableId||""),amount:Math.max(0,Number(a?.amount||0))}))
+      .filter(a=>a.receivableId&&a.amount>0):[];
+    if(!allocations.length){
+      throw new Error("Este cobro contractual no contiene el detalle necesario para una reversión segura. Reviértelo desde Contratos.");
+    }
+    const rows=[];
+    for(const allocation of allocations){
+      const receivable=await getEntity("receivables",allocation.receivableId);
+      if(receivable)rows.push({allocation,receivable});
+    }
+    const batch=writeBatch(db);
+    for(const {allocation,receivable} of rows){
+      const newPaid=Math.max(0,Number(receivable.paidAmount||0)-allocation.amount);
+      const amount=Number(receivable.amount||0);
+      const status=newPaid>=amount-.009?"paid":newPaid>.009?"partial":"pending";
+      const after={...receivable,paidAmount:newPaid,status};
+      batch.update(ref("receivables",receivable.id),{paidAmount:newPaid,status,updatedAt:serverTimestamp()});
+      batch.set(doc(col("auditLog")),auditPayload("receivable",receivable.id,"UPDATE",receivable,after,"Reversión automática al eliminar movimiento de cobro contractual"));
+    }
+    batch.delete(ref("transactions",id));
+    batch.set(doc(col("auditLog")),auditPayload("transaction",id,"DELETE",row,null,"Eliminación de ingreso contractual con reversión de cuenta por cobrar"));
+    await batch.commit();
+    invalidateCollection("transactions");
+    invalidateCollection("receivables");
+    const accountIds=[...new Set([row?.accountId,row?.fromAccountId,row?.toAccountId].filter(Boolean))];
+    if(accountIds.length&&row?.date)await markReconciliationsNeedsReview(accountIds,row.date,{reason:"contract_payment_deleted"});
     return;
   }
   if(row?.settlementId){
@@ -419,7 +445,6 @@ export const archiveContract=id=>archiveEntity("contracts",id,{auditType:"contra
 export const reactivateContract=id=>reactivateEntity("contracts",id,{auditType:"contract"});
 export const listReceivables=()=>listEntities("receivables").then(r=>r.map(normalizeReceivable));
 export const saveReceivable=(d,id=null)=>saveEntity("receivables",sanitizeReceivableWrite(d),id,{auditType:"receivable"});
-export const listContractPayments=()=>listEntities("contractPayments");
 export const listInvestments=()=>listEntities("investments").then(r=>r.map(normalizeInvestment));
 export const saveInvestment=(d,id=null)=>saveEntity("investments",sanitizeInvestmentWrite(d),id,{auditType:"investment"});
 export const archiveInvestment=async()=>{throw new Error("Las inversiones no se archivan directamente. Usa Liquidar, Renovar o Cancelar desde Inversiones.");};
@@ -1470,209 +1495,6 @@ export async function syncReceivablesClosed(today=new Date()){
   }
   return listReceivables();
 }
-
-
-export async function recordContractPayment({
-  receivableIds=[],
-  amount,
-  accountId,
-  date=localDateISO(new Date()),
-  description="Cobro de contrato"
-}={}){
-  const ids=[...new Set(receivableIds.filter(Boolean))];
-  if(!ids.length) throw new Error("Selecciona al menos una cuenta por cobrar.");
-  amount=Number(amount);
-  if(!(amount>0) || !Number.isFinite(amount)) throw new Error("El monto recibido debe ser mayor que cero.");
-  if(!accountId) throw new Error("Selecciona la cuenta destino.");
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))) throw new Error("Revisa la fecha del cobro.");
-
-  const rows=(await listReceivables())
-    .filter(r=>ids.includes(r.id))
-    .sort((a,b)=>String(a.workPeriod).localeCompare(String(b.workPeriod)));
-  if(!rows.length) throw new Error("No se encontraron períodos pendientes.");
-
-  const receivableRefs=rows.map(r=>ref("receivables",r.id));
-  let reconciliationAccount=accountId, reconciliationDate=date;
-
-  const result=await runTransaction(db,async trx=>{
-    const snaps=[];
-    for(const rr of receivableRefs) snaps.push(await trx.get(rr));
-
-    let left=amount;
-    const groups=new Map();
-    const updates=[];
-
-    for(let i=0;i<snaps.length && left>.009;i++){
-      const snap=snaps[i];
-      if(!snap.exists()) continue;
-      const current=normalizeReceivable({id:snap.id,...snap.data()});
-      const pending=Math.max(0,Number(current.amount||0)-Number(current.paidAmount||0));
-      if(pending<=.009) continue;
-
-      const applied=Math.min(pending,left);
-      const newPaid=Number(current.paidAmount||0)+applied;
-      const after=sanitizeReceivableWrite({
-        ...current,
-        paidAmount:newPaid,
-        status:newPaid>=Number(current.amount)-.009?"paid":"partial"
-      });
-      updates.push({snap,current,after,applied});
-      const group=groups.get(current.contractId)||[];
-      group.push({
-        receivableId:current.id,
-        workPeriod:current.workPeriod,
-        amount:applied,
-        beforePaidAmount:Number(current.paidAmount||0),
-        afterPaidAmount:newPaid
-      });
-      groups.set(current.contractId,group);
-      left-=applied;
-    }
-
-    if(left>.009) throw new Error(`El cobro excede el saldo seleccionado por ${left.toFixed(2)}.`);
-
-    for(const u of updates){
-      trx.set(u.snap.ref,{...canonicalStamp(u.after),updatedAt:serverTimestamp()},{merge:true});
-      trx.set(doc(col("auditLog")),auditPayload("receivable",u.current.id,"UPDATE",u.current,u.after,"Cobro contractual estructurado"));
-    }
-
-    const created=[];
-    for(const [contractId,allocations] of groups.entries()){
-      const groupAmount=allocations.reduce((s,a)=>s+Number(a.amount||0),0);
-      if(groupAmount<=.009) continue;
-
-      const paymentRef=doc(col("contractPayments"));
-      const txRef=doc(col("transactions"));
-      const paymentData=canonicalStamp({
-        contractId,
-        date,
-        amount:groupAmount,
-        accountId,
-        transactionId:txRef.id,
-        allocations,
-        status:"active",
-        description
-      });
-      const txData=sanitizeTransactionWrite({
-        type:"income",
-        date,
-        amount:groupAmount,
-        vat:0,
-        receipt:"",
-        description,
-        category:"Ingresos",
-        subcategory:"Contratos",
-        accountId,
-        fromAccountId:null,
-        toAccountId:null,
-        splits:[],
-        contractPaymentId:paymentRef.id,
-        transactionDateTime:`${date}T12:00`
-      });
-
-      trx.set(paymentRef,{...paymentData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      trx.set(txRef,{...txData,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-      trx.set(doc(col("auditLog")),auditPayload("contractPayment",paymentRef.id,"CREATE",null,paymentData,"Cobro contractual"));
-      trx.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"CREATE",null,txData,"Ingreso contractual vinculado"));
-
-      created.push({paymentId:paymentRef.id,transactionId:txRef.id,contractId,amount:groupAmount});
-    }
-    return created;
-  });
-
-  invalidateCollection("receivables");
-  invalidateCollection("contractPayments");
-  invalidateCollection("transactions");
-  if(reconciliationAccount && reconciliationDate){
-    await markReconciliationsNeedsReview([reconciliationAccount],reconciliationDate,{reason:"contract_payment_created"});
-  }
-  return result;
-}
-
-export async function reverseContractPayment(paymentId,{reason="movement_deleted"}={}){
-  if(!paymentId) throw new Error("Cobro contractual no válido.");
-  const paymentRef=ref("contractPayments",paymentId);
-  let accountId="",impactDate="";
-
-  await runTransaction(db,async trx=>{
-    const paymentSnap=await trx.get(paymentRef);
-    if(!paymentSnap.exists()) throw new Error("No se encontró el cobro contractual vinculado.");
-    const payment={id:paymentSnap.id,...paymentSnap.data()};
-    if(String(payment.status||"active")==="reversed") return;
-
-    const allocations=Array.isArray(payment.allocations)?payment.allocations:[];
-    const pairs=[];
-    for(const alloc of allocations){
-      const receivableId=String(alloc?.receivableId||"");
-      if(!receivableId) continue;
-      const rr=ref("receivables",receivableId);
-      pairs.push({alloc,ref:rr,snap:await trx.get(rr)});
-    }
-    const txRef=payment.transactionId?ref("transactions",String(payment.transactionId)):null;
-    const txSnap=txRef?await trx.get(txRef):null;
-
-    for(const pair of pairs){
-      if(!pair.snap.exists()) continue;
-      const current=normalizeReceivable({id:pair.snap.id,...pair.snap.data()});
-      const newPaid=Math.max(0,Number(current.paidAmount||0)-Number(pair.alloc.amount||0));
-      const after=sanitizeReceivableWrite({
-        ...current,
-        paidAmount:newPaid,
-        status:newPaid<=.009?"pending":newPaid>=Number(current.amount)-.009?"paid":"partial"
-      });
-      trx.set(pair.ref,{...canonicalStamp(after),updatedAt:serverTimestamp()},{merge:true});
-      trx.set(doc(col("auditLog")),auditPayload("receivable",current.id,"UPDATE",current,after,"Reversión de cobro contractual"));
-    }
-
-    if(txSnap?.exists()){
-      trx.delete(txRef);
-      trx.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"DELETE",{id:txRef.id,...txSnap.data()},null,"Movimiento eliminado; cobro contractual revertido"));
-    }
-
-    const afterPayment={
-      ...payment,
-      status:"reversed",
-      reversedReason:reason,
-      reversedAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
-    };
-    trx.set(paymentRef,afterPayment,{merge:true});
-    trx.set(doc(col("auditLog")),auditPayload("contractPayment",paymentId,"REVERSE",payment,afterPayment,"Cobro contractual revertido"));
-
-    accountId=String(payment.accountId||"");
-    impactDate=String(payment.date||"");
-  });
-
-  invalidateCollection("receivables");
-  invalidateCollection("contractPayments");
-  invalidateCollection("transactions");
-  if(accountId && impactDate){
-    await markReconciliationsNeedsReview([accountId],impactDate,{reason:"contract_payment_reversed"});
-  }
-}
-
-export async function repairReceivableFromStructuredPayments(receivableId){
-  const row=(await listReceivables()).find(r=>r.id===receivableId);
-  if(!row) throw new Error("Cuenta por cobrar no encontrada.");
-  const payments=(await listContractPayments()).filter(p=>String(p.status||"active")!=="reversed");
-  const structured=payments.reduce((total,p)=>{
-    const allocations=Array.isArray(p.allocations)?p.allocations:[];
-    return total+allocations
-      .filter(a=>String(a.receivableId||"")===receivableId)
-      .reduce((s,a)=>s+Number(a.amount||0),0);
-  },0);
-  const current=Math.max(0,Number(row.paidAmount||0));
-  const target=Math.min(Number(row.amount||0),Math.max(0,structured));
-  if(current<=target+.009) throw new Error("Este período no tiene un cobro sin movimiento que reparar.");
-  const after={
-    ...row,
-    paidAmount:target,
-    status:target<=.009?"pending":target>=Number(row.amount)-.009?"paid":"partial"
-  };
-  await saveReceivable(after,row.id);
-  return {before:current,after:target,removed:current-target};
-}
-
 
 export const listAudit=()=>listEntities("auditLog");
 

@@ -23,7 +23,6 @@ const COLLECTIONS = [
   "assets",
   "contracts",
   "receivables",
-  "contractPayments",
   "investments",
   "reconciliations",
   "taxPayments",
