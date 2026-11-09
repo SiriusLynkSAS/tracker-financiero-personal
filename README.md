@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.54
+# Tracker Financiero Personal V1.0.55
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1258,7 +1258,13 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los períodos pagados/parciales quedan congelados durante recálculos de fechas.
 
 
-## V1.0.54 — Carga resiliente de Contratos
+## V1.0.55 — Carga resiliente de Contratos
 - Contratos y cuentas por cobrar ya no dependen de que `contractPayments` esté disponible.
 - El primer render usa las colecciones base y la sincronización se ejecuta después.
 - Un fallo de Rules/permisos en una colección opcional no vacía la cartera contractual.
+
+## V1.0.55 — Contratos: carga base prioritaria y cache-busting
+- `contracts` y `receivables` se renderizan antes de colecciones auxiliares.
+- `contractPayments`, cuentas, activos y sincronización ya no pueden dejar el módulo visualmente vacío.
+- `contratos.Rmd` usa `js/contracts.js?v=1.0.55` para evitar reutilizar JavaScript anterior desde caché de GitHub Pages/navegador.
+- Se muestran estados visibles de carga/error en vez de una sección en blanco.
