@@ -1,11 +1,14 @@
-# Tracker Financiero Personal V1.0.61
+# Tracker Financiero Personal V1.0.62
 
-## V1.0.61 · cierre de paridad contractual
+## V1.0.62 · reversión directa de cobros contractuales
 
-- Mantiene V1.0.58 como base estable reconstruida desde V1.0.52.
-- El detalle/modal de Contratos ahora calcula cronograma, generado, cobrado y pendiente usando únicamente `receivables` activos.
-- Los períodos anulados por un cambio de fecha contractual permanecen en Firestore para trazabilidad, pero ya no se muestran ni suman.
-- Esto corrige el caso de un contrato finalizado el 2026-09-14 que seguía mostrando el período 2026-10 archivado en el modal Web.
+- Mantiene la base estable de Contratos reconstruida desde V1.0.52.
+- Reincorpora `↩` en cada período que tenga un movimiento contractual vinculado.
+- `↩` reutiliza la misma reversión segura de Movimientos: elimina el ingreso y revierte `paidAmount` en todos los períodos asignados por ese movimiento.
+- Si existen varios cobros parciales para un período, el botón revierte el último movimiento contractual asociado.
+- Antes de revertir muestra el importe, fecha y períodos que serán afectados.
+- Los cobros históricos sin movimiento conservan la reparación específica `↩` legacy, que no modifica saldos bancarios.
+- El detalle contractual sigue excluyendo períodos archivados/anulados de los KPI y del cronograma visible.
 - No introduce `contractPayments` como dependencia de carga ni cambia la configuración Firebase.
 
 

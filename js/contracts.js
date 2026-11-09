@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed} from "./data-service.js";
+import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed,removeTransaction} from "./data-service.js";
 import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
@@ -23,6 +23,16 @@ function orphanPaidAmount(r){
   const linked=linkedContractAmount(r.id);
   if(linked===null) return 0;
   return Math.max(0,Number(r.paidAmount||0)-linked);
+}
+function linkedContractTransactions(receivableId){
+  if(!transactionsLoaded) return [];
+  return transactions.filter(t=>t.contractPaymentId&&Array.isArray(t.contractAllocations)&&t.contractAllocations.some(a=>String(a?.receivableId||"")===String(receivableId)));
+}
+function transactionOrderKey(t){
+  return String(t.transactionDateTime||`${t.date||""}T00:00`||t.createdAt||"");
+}
+function latestLinkedContractTransaction(receivableId){
+  return linkedContractTransactions(receivableId).sort((a,b)=>transactionOrderKey(b).localeCompare(transactionOrderKey(a))||String(b.id||"").localeCompare(String(a.id||"")))[0]||null;
 }
 function contractPaymentId(){
   if(globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
@@ -153,7 +163,7 @@ function renderContractDetail(contractId,ensureOpen=true){
   const rr=receivables.filter(r=>r.contractId===c.id&&r.active!==false).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
   const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
   document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
-  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,orphan=orphanPaidAmount(r);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${orphan>.009?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.6rem">Contrato finalizado. Puedes corregir las fechas; los períodos pagados o parciales se preservan y solo se recalculan los pendientes.</div>`:""}`;
+  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,orphan=orphanPaidAmount(r),linkedTx=latestLinkedContractTransaction(r.id);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${linkedTx?`<button type="button" class="tf-icon-btn" data-detail-revert-tx="${linkedTx.id}" data-receivable-id="${r.id}" title="Revertir último cobro registrado" aria-label="Revertir último cobro registrado">↩</button>`:""}${!linkedTx&&orphan>.009?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.6rem">Contrato finalizado. Puedes corregir las fechas; los períodos pagados o parciales se preservan y solo se recalculan los pendientes.</div>`:""}`;
   const dialog=document.querySelector("#contract-detail-dialog");
   if(ensureOpen && !dialog.open) dialog.showModal();
 }
@@ -168,6 +178,25 @@ tbody.addEventListener("click",e=>{const b=e.target.closest("[data-recv-pay]");i
 document.querySelector("#contract-detail-body").addEventListener("click",async e=>{
   const pay=e.target.closest("[data-detail-pay]");
   if(pay){openContractPayment(pay.dataset.detailPay);return;}
+  const revert=e.target.closest("[data-detail-revert-tx]");
+  if(revert){
+    const tx=transactions.find(x=>x.id===revert.dataset.detailRevertTx);
+    const r=receivables.find(x=>x.id===revert.dataset.receivableId);
+    if(!tx||!r){toast("No se encontró el movimiento contractual a revertir.");return;}
+    const allocations=Array.isArray(tx.contractAllocations)?tx.contractAllocations:[];
+    const impactPeriods=allocations.map(a=>receivables.find(row=>row.id===a.receivableId)?.workPeriod||a.receivableId).filter(Boolean);
+    if(!await confirmAction({title:"Revertir cobro",message:`${tx.date||""} · ${money(tx.amount||0)}`,impact:["Se eliminará el ingreso contractual asociado y se revertirá su efecto en la cuenta destino.",`Se actualizará el contrato${impactPeriods.length?` en: ${impactPeriods.join(", ")}`:""}.`],danger:true,confirmText:"Revertir"}))return;
+    const contractId=r.contractId;
+    try{
+      await removeTransaction(tx.id);
+      await refresh();
+      renderContractDetail(contractId,false);
+      toast("Cobro revertido.");
+    }catch(err){
+      toast(err?.message||"No se pudo revertir el cobro.");
+    }
+    return;
+  }
   const repair=e.target.closest("[data-detail-repair]");
   if(repair){
     const r=receivables.find(x=>x.id===repair.dataset.detailRepair);
