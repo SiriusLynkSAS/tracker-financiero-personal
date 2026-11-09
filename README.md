@@ -1,4 +1,16 @@
-# Tracker Financiero Personal V1.0.57
+# Tracker Financiero Personal V1.0.58
+
+## Reconstrucción estable desde V1.0.52
+
+V1.0.58 se reconstruye directamente desde la última versión Web validada con Contratos visible (V1.0.52). No incorpora el arranque REST, importaciones dinámicas ni la dependencia de `contractPayments` introducidos después.
+
+Cambios aislados sobre la base estable:
+- Pendientes Web con el flujo validado en Android: modal para recurrentes y cierre histórico sin afectar cuentas.
+- Cobros contractuales guardan sus asignaciones dentro del movimiento; eliminar el ingreso revierte `paidAmount` del período afectado.
+- El modal de cobro se cierra inmediatamente después de confirmar; si la escritura falla se reabre con el contexto.
+- Finalizar contrato mantiene hoy como fecha sugerida, pero editable.
+- Contratos activos o finalizados permiten editar fecha de inicio/fin; solo se recalculan períodos sin pagos.
+- Botón de reparación `↩` para un `paidAmount` sin movimiento asociado, sin modificar saldos bancarios.
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1245,42 +1257,3 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Cobro directo por período contractual desde listado y modal de contrato.
 - El modal de cobro conserva el contexto del contrato y genera un ingreso con descripción contrato/período.
 - No inicia MIG-002 ni modifica la configuración Firebase.
-
-
-## V1.0.53 — Cobros contractuales reversibles y edición de fechas
-
-- Activa `contractPayments` para vincular cada cobro con su movimiento y períodos aplicados.
-- Eliminar desde Movimientos un ingreso contractual estructurado revierte automáticamente el cobro en Contratos.
-- Añade reparación explícita de cobros legacy/sin movimiento (`↩`) sin tocar cobros estructurados.
-- El modal de cobro se cierra inmediatamente al confirmar; si falla, se vuelve a abrir con el contexto.
-- Todos los contratos, incluidos finalizados, permiten editar fecha de inicio y fin con recálculo de períodos pendientes.
-- Finalizar contrato mantiene la fecha actual como valor sugerido, editable por el usuario.
-- Los períodos pagados/parciales quedan congelados durante recálculos de fechas.
-
-
-## V1.0.57 — Carga resiliente de Contratos
-- Contratos y cuentas por cobrar ya no dependen de que `contractPayments` esté disponible.
-- El primer render usa las colecciones base y la sincronización se ejecuta después.
-- Un fallo de Rules/permisos en una colección opcional no vacía la cartera contractual.
-
-## V1.0.57 — Contratos: carga base prioritaria y cache-busting
-- `contracts` y `receivables` se renderizan antes de colecciones auxiliares.
-- `contractPayments`, cuentas, activos y sincronización ya no pueden dejar el módulo visualmente vacío.
-- `contratos.Rmd` usa `js/contracts.js?v=1.0.57` para evitar reutilizar JavaScript anterior desde caché de GitHub Pages/navegador.
-- Se muestran estados visibles de carga/error en vez de una sección en blanco.
-
-## V1.0.57 — Hotfix Web: Contratos + paridad de Pendientes
-
-- Contratos usa un timeout corto sobre el SDK de Firestore. Si `contracts` o `receivables` quedan esperando, cambia automáticamente a una lectura REST autenticada del mismo proyecto Firebase.
-- Las dos colecciones base se recuperan en paralelo y se renderizan antes de cualquier sincronización secundaria.
-- La sincronización de devengados pasa a segundo plano y no puede dejar la página bloqueada en “Cargando…”.
-- Pendientes Web replica el flujo validado en Android: recurrentes se registran desde un modal prellenado; vencidos permiten “Ya pagado / histórico” sin crear movimiento ni alterar cuentas; deudas y tarjetas continúan al módulo de obligaciones.
-- Las ocurrencias recurrentes cerradas como históricas se excluyen de futuros pendientes mediante `historicalResolvedOccurrences`.
-- Android no se modifica en esta versión.
-
-## V1.0.57 — Bootstrap diagnóstico y lectura directa de Contratos
-- Contratos Web deja de depender de `requireUser()` para iniciar la cartera.
-- La lectura base usa REST autenticado como ruta primaria y Firestore SDK como respaldo.
-- La página muestra etapas de arranque y errores concretos; ya no puede permanecer silenciosamente en `Cargando…`.
-- `contratos.Rmd` importa dinámicamente `contracts.js?v=1.0.57` y captura errores de importación.
-- Android no cambia en esta versión.

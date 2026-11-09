@@ -1,126 +1,32 @@
-import "./guard.js";
-import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import {listContracts,saveContract,listReceivables,listContractPayments,listAssets,listAccounts,atomicWrite,syncReceivablesClosed,recordContractPayment,repairReceivableFromStructuredPayments} from "./data-service.js";
+import {requireUser} from "./guard.js";
+import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed} from "./data-service.js";
 import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
-import {auth} from "./firebase.js";
-import {firebaseConfig} from "./firebase-config.js";
-let contracts=[],receivables=[],contractPayments=[],assets=[],accounts=[],finishId="",dateEditId="",paymentContext=null;
-let contractPaymentsAvailable=true;
+let contracts=[],receivables=[],assets=[],accounts=[],transactions=[],transactionsLoaded=false,finishId="",paymentContext=null,dateEditId="";
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
-const BASE_LOAD_TIMEOUT_MS=4500;
-let baseLoadErrors={};
-
-function setContractsLoadState(message,{error=false}={}){
-  if(list) list.innerHTML=`<div class="tf-empty ${error?"tf-error-state":""}">${escapeHtml(message)}</div>`;
-  if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty ${error?"tf-error-state":""}">${escapeHtml(message)}</td></tr>`;
-}
-function loadStage(message){
-  console.info(`[Contratos V1.0.57] ${message}`);
-  setContractsLoadState(message);
-}
-
-function withTimeout(promise,ms,label){
-  let timer=null;
-  const timeout=new Promise((_,reject)=>{
-    timer=setTimeout(()=>reject(new Error(`${label} no respondió en ${Math.round(ms/1000)} s.`)),ms);
-  });
-  return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
-}
-
-function decodeFirestoreValue(value={}){
-  if("nullValue" in value) return null;
-  if("stringValue" in value) return value.stringValue;
-  if("booleanValue" in value) return !!value.booleanValue;
-  if("integerValue" in value) return Number(value.integerValue);
-  if("doubleValue" in value) return Number(value.doubleValue);
-  if("timestampValue" in value) return value.timestampValue;
-  if("referenceValue" in value) return value.referenceValue;
-  if("geoPointValue" in value) return value.geoPointValue;
-  if("arrayValue" in value) return (value.arrayValue?.values||[]).map(decodeFirestoreValue);
-  if("mapValue" in value){
-    const out={};
-    for(const [k,v] of Object.entries(value.mapValue?.fields||{})) out[k]=decodeFirestoreValue(v);
-    return out;
-  }
-  return null;
-}
-function decodeFirestoreDocument(doc={}){
-  const out={};
-  for(const [k,v] of Object.entries(doc.fields||{})) out[k]=decodeFirestoreValue(v);
-  return {id:String(doc.name||"").split("/").pop(),...out};
-}
-async function restListUserCollection(collectionName){
-  const user=auth.currentUser;
-  if(!user) throw new Error("Usuario no autenticado para lectura de respaldo.");
-  const token=await withTimeout(user.getIdToken(),3500,"Token Firebase");
-  const base=`https://firestore.googleapis.com/v1/projects/${encodeURIComponent(firebaseConfig.projectId)}/databases/(default)/documents/users/${encodeURIComponent(user.uid)}/${encodeURIComponent(collectionName)}`;
-  const rows=[];
-  let pageToken="";
-  do{
-    const url=new URL(base);
-    url.searchParams.set("pageSize","500");
-    if(pageToken) url.searchParams.set("pageToken",pageToken);
-    const res=await withTimeout(fetch(url.toString(),{
-      method:"GET",
-      headers:{Authorization:`Bearer ${token}`,Accept:"application/json"},
-      cache:"no-store"
-    }),6500,`REST ${collectionName}`);
-    if(!res.ok){
-      const detail=await res.text().catch(()=>"");
-      throw new Error(`REST ${collectionName}: ${res.status} ${detail.slice(0,160)}`);
-    }
-    const data=await res.json();
-    rows.push(...(data.documents||[]).map(decodeFirestoreDocument));
-    pageToken=data.nextPageToken||"";
-  }while(pageToken);
-  return rows;
-}
-async function resilientBaseLoad(label,sdkLoader,collectionName,fallback=[]){
-  baseLoadErrors[label]=null;
-  // V1.0.57: REST autenticado es la ruta primaria para Contratos Web.
-  // Evita bloqueos observados en el canal Firestore SDK/persistencia de navegador.
-  try{
-    loadStage(`Leyendo ${label}…`);
-    const rows=await restListUserCollection(collectionName);
-    console.info(`[Contratos] ${label} recuperado por REST (${rows.length}).`);
-    return Array.isArray(rows)?rows:[];
-  }catch(restErr){
-    console.warn(`[Contratos] REST falló para ${label}; se intenta SDK.`,restErr);
-    try{
-      loadStage(`REST no respondió. Intentando ${label} por SDK…`);
-      const rows=await withTimeout(Promise.resolve().then(()=>sdkLoader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);
-      return Array.isArray(rows)?rows:[];
-    }catch(sdkErr){
-      console.error(`[Contratos] Fallaron REST y SDK para ${label}.`,{restErr,sdkErr});
-      baseLoadErrors[label]=`${restErr?.message||restErr} | ${sdkErr?.message||sdkErr}`;
-      return Array.isArray(fallback)?fallback:[];
-    }
-  }
-}
-
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
 function assetName(id){return assets.find(x=>x.id===id)?.name||"Activo"}
 function allocationLabel(c){const rows=contractAllocations(c);return rows.length?rows.map(x=>`${escapeHtml(assetName(x.assetId))} ${Number(x.percent||0).toFixed(0)}%`).join(" · "):"Sin activo"}
 function statusOf(r){const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0));return pending<=.009?"paid":Number(r.paidAmount)>0?"partial":r.dueDate<todayISO()?"overdue":"pending"}
-function structuredPaidForReceivable(receivableId){
-  return contractPayments
-    .filter(p=>String(p.status||"active")!=="reversed")
-    .reduce((total,p)=>total+(Array.isArray(p.allocations)?p.allocations:[])
-      .filter(a=>String(a.receivableId||"")===String(receivableId))
-      .reduce((s,a)=>s+Number(a.amount||0),0),0);
+function linkedContractAmount(receivableId){
+  if(!transactionsLoaded) return null;
+  return transactions.reduce((total,t)=>{
+    if(!t.contractPaymentId||!Array.isArray(t.contractAllocations)) return total;
+    return total+t.contractAllocations.filter(a=>String(a.receivableId||"")===String(receivableId)).reduce((s,a)=>s+Math.max(0,Number(a.amount||0)),0);
+  },0);
 }
-function hasUnmatchedPaid(r){
-  if(!contractPaymentsAvailable) return false;
-  return Number(r.paidAmount||0)>structuredPaidForReceivable(r.id)+.009;
+function orphanPaidAmount(r){
+  const linked=linkedContractAmount(r.id);
+  if(linked===null) return 0;
+  return Math.max(0,Number(r.paidAmount||0)-linked);
 }
-async function safeLoad(label,loader,fallback=[]){
-  try{return await withTimeout(Promise.resolve().then(()=>loader()),BASE_LOAD_TIMEOUT_MS,`SDK ${label}`);}
-  catch(err){console.warn(`[Contratos] No se pudo cargar ${label}.`,err);return fallback;}
+function contractPaymentId(){
+  if(globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `contract_${Date.now()}_${Math.random().toString(36).slice(2,10)}`;
 }
 function allocationRow(data={}){
   const div=document.createElement("div");div.className="tf-allocation-row";
@@ -150,56 +56,21 @@ function render(){
       <span class="tf-contract-list-chevron" aria-hidden="true">›</span>
     </button>`;
   }).join("")||`<div class="tf-empty">Sin contratos registrados.</div>`;
-  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
+  tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td>${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}</td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
 async function refresh(){
-  loadStage("Iniciando lectura contractual…");
-  baseLoadErrors={};
-  // V1.0.57: prioridad absoluta a la cartera base. Contratos y receivables se
-  // cargan y renderizan ANTES de cualquier colección auxiliar u operación de sync.
-  // Así, un error en assets/accounts/contractPayments nunca puede dejar la página vacía.
-  const [nextContracts,nextReceivables]=await Promise.all([
-    resilientBaseLoad("contratos",listContracts,"contracts",contracts),
-    resilientBaseLoad("cuentas por cobrar",listReceivables,"receivables",receivables)
-  ]);
-  contracts=Array.isArray(nextContracts)?nextContracts:[];
-  receivables=Array.isArray(nextReceivables)?nextReceivables:[];
-
-  const failedBase=Object.entries(baseLoadErrors).filter(([,v])=>v);
-  if(failedBase.length && !contracts.length && !receivables.length){
-    const detail=failedBase.map(([k,v])=>`${k}: ${v}`).join(" · ");
-    setContractsLoadState(`No se pudo leer la cartera contractual. ${detail}`,{error:true});
-    throw new Error(detail);
+  [contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);
+  await sync();
+  render();
+  ensureAllocationRow();
+  try{
+    transactions=await listTransactions();
+    transactionsLoaded=true;
+    render();
+  }catch(err){
+    console.warn("No se pudo cargar la metadata de cobros contractuales; la cartera principal sigue disponible.",err);
+    transactions=[];transactionsLoaded=false;
   }
-  loadStage(`Datos recibidos: ${contracts.length} contrato(s), ${receivables.length} cuenta(s) por cobrar. Renderizando…`);
-  try{render();}catch(err){
-    console.error("[Contratos] Error al renderizar cartera base.",err);
-    if(list) list.innerHTML=`<div class="tf-empty tf-error-state">No se pudo dibujar la cartera. Recarga la página y revisa la consola.</div>`;
-    if(tbody) tbody.innerHTML=`<tr><td colspan="9" class="tf-empty">No se pudieron dibujar las cuentas por cobrar.</td></tr>`;
-  }
-
-  // Auxiliares: se cargan después y de forma totalmente independiente.
-  assets=await safeLoad("activos",listAssets,assets);
-  accounts=await safeLoad("cuentas",listAccounts,accounts);
-  try{contractPayments=await withTimeout(listContractPayments(),BASE_LOAD_TIMEOUT_MS,"contractPayments");contractPaymentsAvailable=true;}
-  catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments no disponible; se conserva la cartera visible.",err);}
-  try{render();ensureAllocationRow();}catch(err){console.warn("[Contratos] Render auxiliar omitido.",err);}
-
-  // La sincronización de devengados es secundaria y nunca bloquea la UI.
-  // Se intenta en segundo plano con límite de tiempo; si el canal SDK queda
-  // esperando, la cartera REST/base ya visible permanece intacta.
-  void (async()=>{
-    try{
-      await withTimeout(sync(),6500,"Sincronización de contratos");
-      const updated=await resilientBaseLoad("cuentas por cobrar actualizadas",listReceivables,"receivables",receivables);
-      if(Array.isArray(updated)) receivables=updated;
-      try{contractPayments=await withTimeout(listContractPayments(),BASE_LOAD_TIMEOUT_MS,"contractPayments");contractPaymentsAvailable=true;}
-      catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments continúa no disponible.",err);}
-      render();
-    }catch(err){
-      console.warn("[Contratos] No se pudo sincronizar devengados; se mantiene la última cartera legible.",err);
-    }
-  })();
 }
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
 contractNew.addEventListener("click",()=>{contractEditor.hidden=false;tariffEditor.hidden=true;contractEditor.scrollIntoView({behavior:"smooth"})});
@@ -232,14 +103,24 @@ async function applyContractPayment(rows,amount,accountId,date,description){
   const selected=rows.filter(Boolean).filter(r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0))>.009).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
   const totalPending=sum(selected,r=>Math.max(0,Number(r.amount)-Number(r.paidAmount||0)));
   if(!(amount>0)||!selected.length){toast("Selecciona un período e ingresa un monto.");return false}
+  if(!accountId){toast("Selecciona una cuenta destino.");return false}
   if(amount>totalPending+.009){toast(`El pago excede lo seleccionado por ${money(amount-totalPending)}.`);return false}
-  await recordContractPayment({
-    receivableIds:selected.map(r=>r.id),
-    amount,
-    accountId,
-    date:date||todayISO(),
-    description:description||"Cobro de contrato"
-  });
+  let left=amount; const ops=[]; const allocations=[];
+  for(const r of selected){
+    if(left<=.009)break;
+    const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0));
+    const applied=Math.min(pending,left);
+    const newPaid=Number(r.paidAmount||0)+applied;
+    allocations.push({receivableId:r.id,contractId:r.contractId,workPeriod:r.workPeriod,amount:Math.round((applied+Number.EPSILON)*100)/100});
+    ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":"partial"}});
+    left-=applied;
+  }
+  const paymentId=contractPaymentId();
+  ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{
+    type:"income",date:date||todayISO(),amount,vat:0,receipt:"",description:description||"Cobro de contrato",category:"Ingresos",subcategory:"Contratos",accountId,fromAccountId:null,toAccountId:null,splits:[],
+    contractPaymentId:paymentId,contractAllocations:allocations,contractId:allocations.length===1?allocations[0].contractId:null
+  }});
+  await atomicWrite(ops);
   return true;
 }
 
@@ -252,7 +133,7 @@ function renderContractDetail(contractId,ensureOpen=true){
   const rr=receivables.filter(r=>r.contractId===c.id).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
   const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
   document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
-  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st;return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.55rem">Contrato finalizado. Las fechas pueden corregirse de forma controlada; los períodos con pagos no se sobrescriben.</div>`:""}`;
+  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,orphan=orphanPaidAmount(r);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${orphan>.009?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.6rem">Contrato finalizado. Puedes corregir las fechas; los períodos pagados o parciales se preservan y solo se recalculan los pendientes.</div>`:""}`;
   const dialog=document.querySelector("#contract-detail-dialog");
   if(ensureOpen && !dialog.open) dialog.showModal();
 }
@@ -262,32 +143,33 @@ list.addEventListener("click",e=>{
   const b=e.target.closest("[data-finish]");if(!b)return;finishId=b.dataset.finish;const c=contracts.find(x=>x.id===finishId);document.querySelector("#contract-finish-date").value=c?.endDate||todayISO();finishPreview();document.querySelector("#contract-finish-dialog").showModal();
 });
 
-tbody.addEventListener("click",async e=>{
-  const b=e.target.closest("[data-recv-pay]");if(b){openContractPayment(b.dataset.recvPay);return;}
-  const repair=e.target.closest("[data-recv-repair]");
-  if(repair){
-    const r=receivables.find(x=>x.id===repair.dataset.recvRepair);if(!r)return;
-    if(!await confirmAction({title:"Reparar cobro sin movimiento",message:`Período ${r.workPeriod}`,impact:["El importe pagado sin movimiento vinculado volverá a pendiente.","Los cobros estructurados se conservarán."],confirmText:"Reparar"}))return;
-    try{await repairReceivableFromStructuredPayments(r.id);await refresh();toast("Cobro reparado.");}catch(err){toast(err?.message||"No se pudo reparar el cobro.");}
-  }
-});
+tbody.addEventListener("click",e=>{const b=e.target.closest("[data-recv-pay]");if(b)openContractPayment(b.dataset.recvPay);});
 
 document.querySelector("#contract-detail-body").addEventListener("click",async e=>{
   const pay=e.target.closest("[data-detail-pay]");
   if(pay){openContractPayment(pay.dataset.detailPay);return;}
   const repair=e.target.closest("[data-detail-repair]");
   if(repair){
-    const r=receivables.find(x=>x.id===repair.dataset.detailRepair); if(!r)return;
-    if(!await confirmAction({title:"Reparar cobro sin movimiento",message:`Período ${r.workPeriod} · pagado ${money(r.paidAmount||0)}`,impact:["Se conservarán los cobros estructurados que sí tengan movimiento.","El excedente sin movimiento volverá a pendiente."],confirmText:"Reparar"}))return;
-    try{await repairReceivableFromStructuredPayments(r.id);await refresh();renderContractDetail(r.contractId,false);toast("Cobro sin movimiento reparado.");}catch(err){toast(err?.message||"No se pudo reparar el cobro.");}
+    const r=receivables.find(x=>x.id===repair.dataset.detailRepair);
+    if(!r)return;
+    const orphan=orphanPaidAmount(r);
+    if(!(orphan>.009)){toast("No hay un cobro sin movimiento que reparar.");return;}
+    if(!await confirmAction({title:"Revertir cobro sin movimiento",message:`${r.workPeriod} · ${money(orphan)}`,impact:["Reduce únicamente el valor pagado del período.","No crea ni elimina movimientos y no modifica saldos bancarios."],confirmText:"Revertir"}))return;
+    const newPaid=Math.max(0,Number(r.paidAmount||0)-orphan);
+    await atomicWrite([{collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,paidAmount:newPaid,status:newPaid>=Number(r.amount)-.009?"paid":newPaid>.009?"partial":"pending"},note:"Reparación de cobro contractual sin movimiento asociado"}]);
+    const contractId=r.contractId;
+    await refresh();
+    renderContractDetail(contractId,false);
+    toast("Cobro sin movimiento revertido.");
     return;
   }
   const dates=e.target.closest("[data-detail-dates]");
   if(dates){
-    const c=contracts.find(x=>x.id===dates.dataset.detailDates); if(!c)return;
+    const c=contracts.find(x=>x.id===dates.dataset.detailDates);if(!c)return;
     dateEditId=c.id;
-    document.querySelector("#contract-dates-start").value=c.startDate||todayISO();
+    document.querySelector("#contract-dates-start").value=c.startDate||"";
     document.querySelector("#contract-dates-end").value=c.endDate||"";
+    document.querySelector("#contract-dates-meta").textContent=c.active!==false?"Contrato activo":"Contrato finalizado";
     document.querySelector("#contract-dates-dialog").showModal();
     return;
   }
@@ -295,6 +177,7 @@ document.querySelector("#contract-detail-body").addEventListener("click",async e
   if(!b)return;
   const c=contracts.find(x=>x.id===b.dataset.detailFinish);
   if(!c)return;
+  document.querySelector("#contract-detail-dialog").close();
   finishId=c.id;
   document.querySelector("#contract-finish-date").value=c.endDate||todayISO();
   finishPreview();
@@ -302,70 +185,48 @@ document.querySelector("#contract-detail-body").addEventListener("click",async e
 });
 document.querySelector("#contract-payment-close").addEventListener("click",()=>document.querySelector("#contract-payment-dialog").close());
 document.querySelector("#contract-payment-save").addEventListener("click",async()=>{
-  const ctx=paymentContext?{...paymentContext}:null;
-  const r=ctx?receivables.find(x=>x.id===ctx.receivableId):null; if(!r)return;
+  const context=paymentContext?{...paymentContext}:null;
+  const r=context?receivables.find(x=>x.id===context.receivableId):null;if(!r)return;
   const amount=Number(document.querySelector("#contract-payment-amount").value||0);
   const accountId=document.querySelector("#contract-payment-account").value;
   const date=document.querySelector("#contract-payment-date").value||todayISO();
   const description=document.querySelector("#contract-payment-description").value.trim()||"Cobro de contrato";
-  if(!await confirmAction({title:"Registrar cobro",message:`${description} · ${money(amount)}`,impact:["Actualiza la cuenta por cobrar.","Registra un ingreso vinculado al contrato.","Si luego eliminas ese movimiento, el cobro se revertirá automáticamente."]}))return;
-  document.querySelector("#contract-payment-dialog").close();
+  if(!await confirmAction({title:"Registrar cobro",message:`${description} · ${money(amount)}`,impact:["Actualiza la cuenta por cobrar.","Registra un ingreso en la cuenta destino.","Si luego eliminas ese ingreso desde Movimientos, el cobro contractual se revertirá automáticamente."]}))return;
+  const dialog=document.querySelector("#contract-payment-dialog");
+  const button=document.querySelector("#contract-payment-save");
+  button.disabled=true;
+  dialog.close();
   try{
     if(await applyContractPayment([r],amount,accountId,date,description)){
-      paymentContext=null;
       await refresh();
-      if(ctx?.contractId) renderContractDetail(ctx.contractId,false);
+      const c=contracts.find(x=>x.id===context?.contractId);
+      if(c)renderContractDetail(c.id,false);
       toast("Cobro aplicado.");
     }
   }catch(err){
-    paymentContext=ctx;
-    openContractPayment(r.id);
+    console.error(err);
     toast(err?.message||"No se pudo registrar el cobro.");
-  }
+    if(!dialog.open)dialog.showModal();
+  }finally{button.disabled=false;}
 });
 document.querySelector("#contract-detail-close").addEventListener("click",()=>document.querySelector("#contract-detail-dialog").close());
-document.querySelector("#contract-finish-date").addEventListener("change",finishPreview);
-document.querySelector("#contract-finish-confirm").addEventListener("click",async()=>{const c=contracts.find(x=>x.id===finishId),date=document.querySelector("#contract-finish-date").value;if(!c||!date||date<c.startDate){toast("Revisa la fecha de finalización.");return}const future=date>todayISO();if(!await confirmAction({title:future?"Programar finalización":"Finalizar contrato",message:`Fecha efectiva ${date}`,impact:[future?"El contrato permanecerá activo hasta esa fecha.":"El período final se recalculará proporcionalmente si aún no tiene pagos.","Los períodos posteriores no pagados se anularán.","Los períodos con pagos quedan congelados y se señalarán para revisión."],confirmText:future?"Programar":"Finalizar"}))return;await saveContract({...c,endDate:date,active:future},c.id);document.querySelector("#contract-finish-dialog").close();await refresh();toast(future?"Fecha de finalización programada.":"Contrato finalizado.");});
-
 document.querySelector("#contract-dates-close").addEventListener("click",()=>document.querySelector("#contract-dates-dialog").close());
 document.querySelector("#contract-dates-save").addEventListener("click",async()=>{
-  const c=contracts.find(x=>x.id===dateEditId);
+  const c=contracts.find(x=>x.id===dateEditId);if(!c)return;
   const start=document.querySelector("#contract-dates-start").value;
   const end=document.querySelector("#contract-dates-end").value||null;
-  if(!c||!start||!^\d{4}-\d{2}-\d{2}$/.test(start)|| (end&&!/^\d{4}-\d{2}-\d{2}$/.test(end)) || (end&&end<start)){toast("Revisa las fechas del contrato.");return}
-  const paidAffected=receivables.filter(r=>r.contractId===c.id&&Number(r.paidAmount||0)>.009).length;
-  if(!await confirmAction({title:"Actualizar fechas contractuales",message:`${start} → ${end||"sin fecha fin"}`,impact:["Los períodos pendientes se recalcularán o anularán según el nuevo intervalo.",paidAffected?`${paidAffected} período(s) con cobros quedan congelados y no se sobrescriben.`:"No existen períodos pagados que congelar.","El cambio quedará en auditoría."],confirmText:"Actualizar"}))return;
-  const active=!end||end>todayISO();
+  if(!start){toast("Ingresa la fecha de inicio.");return;}
+  if(end&&end<start){toast("La fecha de fin no puede ser anterior al inicio.");return;}
+  const affectedPending=receivables.filter(r=>r.contractId===c.id&&Number(r.paidAmount||0)<=.009).length;
+  const preserved=receivables.filter(r=>r.contractId===c.id&&Number(r.paidAmount||0)>.009).length;
+  if(!await confirmAction({title:"Actualizar fechas del contrato",message:`${start} → ${end||"sin fecha fin"}`,impact:[`Se recalcularán ${affectedPending} período(s) sin pagos.`,`${preserved} período(s) pagado(s) o parcial(es) se preservarán como histórico.`,`Los períodos fuera del nuevo rango y sin pagos se anularán automáticamente.`],confirmText:"Guardar fechas"}))return;
+  const active=c.active===false?false:(!end||end>todayISO());
   await saveContract({...c,startDate:start,endDate:end,active},c.id);
   document.querySelector("#contract-dates-dialog").close();
   await refresh();
   renderContractDetail(c.id,false);
-  toast("Fechas contractuales actualizadas.");
+  toast("Fechas actualizadas y haberes pendientes recalculados.");
 });
-
-loadStage("Módulo Contratos V1.0.57 cargado. Esperando sesión…");
-let authResolved=false;
-const authWatchdog=setTimeout(()=>{
-  if(authResolved) return;
-  setContractsLoadState("La sesión de Firebase no respondió en 8 s. Recarga la página; si persiste, cierra sesión e ingresa nuevamente.",{error:true});
-},8000);
-onAuthStateChanged(auth,user=>{
-  authResolved=true;
-  clearTimeout(authWatchdog);
-  if(!user){
-    setContractsLoadState("Sesión no disponible. Redirigiendo al inicio…",{error:true});
-    window.location.replace("index.html");
-    return;
-  }
-  document.querySelectorAll("[data-user-email]").forEach(el=>el.textContent=user.email||"Usuario");
-  loadStage("Sesión confirmada. Leyendo cartera contractual…");
-  refresh().catch(err=>{
-    console.error("[Contratos] Fallo de carga principal.",err);
-    const msg=String(err?.message||"Error no identificado");
-    setContractsLoadState(`No se pudo cargar Contratos: ${msg}`,{error:true});
-  });
-},err=>{
-  authResolved=true;
-  clearTimeout(authWatchdog);
-  setContractsLoadState(`Error de autenticación: ${String(err?.message||err)}`,{error:true});
-});
+document.querySelector("#contract-finish-date").addEventListener("change",finishPreview);
+document.querySelector("#contract-finish-confirm").addEventListener("click",async()=>{const c=contracts.find(x=>x.id===finishId),date=document.querySelector("#contract-finish-date").value;if(!c||!date||date<c.startDate){toast("Revisa la fecha de finalización.");return}const future=date>todayISO();if(!await confirmAction({title:future?"Programar finalización":"Finalizar contrato",message:`Fecha efectiva ${date}`,impact:[future?"El contrato permanecerá activo hasta esa fecha.":"El período final se recalculará proporcionalmente si aún no tiene pagos.","Los períodos posteriores no pagados se anularán.","Los períodos con pagos quedan congelados y se señalarán para revisión."],confirmText:future?"Programar":"Finalizar"}))return;await saveContract({...c,endDate:date,active:future},c.id);document.querySelector("#contract-finish-dialog").close();await refresh();toast(future?"Fecha de finalización programada.":"Contrato finalizado.");});
+requireUser(()=>refresh().catch(console.error));

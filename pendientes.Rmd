@@ -38,5 +38,5 @@ title: "Pendientes"
   <div class="tf-muted" style="margin-top:.7rem">No crea un movimiento y no reduce ninguna cuenta.</div>
   <div class="tf-actions" style="justify-content:flex-end;margin-top:1rem"><button id="pending-historical-save" type="button" class="tf-btn tf-btn-primary">Cerrar histórico</button></div>
 </dialog>
-<script type="module" src="js/pending.js?v=1.0.56"></script>
+<script type="module" src="js/pending.js?v=1.0.58"></script>
 ```
