@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.53
+# Tracker Financiero Personal V1.0.54
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1256,3 +1256,9 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Todos los contratos, incluidos finalizados, permiten editar fecha de inicio y fin con recálculo de períodos pendientes.
 - Finalizar contrato mantiene la fecha actual como valor sugerido, editable por el usuario.
 - Los períodos pagados/parciales quedan congelados durante recálculos de fechas.
+
+
+## V1.0.54 — Carga resiliente de Contratos
+- Contratos y cuentas por cobrar ya no dependen de que `contractPayments` esté disponible.
+- El primer render usa las colecciones base y la sincronización se ejecuta después.
+- Un fallo de Rules/permisos en una colección opcional no vacía la cartera contractual.
