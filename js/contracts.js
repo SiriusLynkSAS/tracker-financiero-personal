@@ -214,7 +214,8 @@ document.querySelector("#contract-payment-save").addEventListener("click",async(
   const accountId=document.querySelector("#contract-payment-account").value;
   const date=document.querySelector("#contract-payment-date").value||todayISO();
   const description=document.querySelector("#contract-payment-description").value.trim()||"Cobro de contrato";
-  if(!await confirmAction({title:"Registrar cobro",message:`${description} · ${money(amount)}`,impact:["Actualiza la cuenta por cobrar.","Registra un ingreso en la cuenta destino.","Si luego eliminas ese ingreso desde Movimientos, el cobro contractual se revertirá automáticamente."]}))return;
+  if(!(amount>0)){toast("Ingresa un monto mayor que cero.");return;}
+  if(!accountId){toast("Selecciona una cuenta destino.");return;}
   const dialog=document.querySelector("#contract-payment-dialog");
   const button=document.querySelector("#contract-payment-save");
   button.disabled=true;
