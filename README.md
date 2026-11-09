@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.55
+# Tracker Financiero Personal V1.0.56
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1258,13 +1258,22 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los períodos pagados/parciales quedan congelados durante recálculos de fechas.
 
 
-## V1.0.55 — Carga resiliente de Contratos
+## V1.0.56 — Carga resiliente de Contratos
 - Contratos y cuentas por cobrar ya no dependen de que `contractPayments` esté disponible.
 - El primer render usa las colecciones base y la sincronización se ejecuta después.
 - Un fallo de Rules/permisos en una colección opcional no vacía la cartera contractual.
 
-## V1.0.55 — Contratos: carga base prioritaria y cache-busting
+## V1.0.56 — Contratos: carga base prioritaria y cache-busting
 - `contracts` y `receivables` se renderizan antes de colecciones auxiliares.
 - `contractPayments`, cuentas, activos y sincronización ya no pueden dejar el módulo visualmente vacío.
-- `contratos.Rmd` usa `js/contracts.js?v=1.0.55` para evitar reutilizar JavaScript anterior desde caché de GitHub Pages/navegador.
+- `contratos.Rmd` usa `js/contracts.js?v=1.0.56` para evitar reutilizar JavaScript anterior desde caché de GitHub Pages/navegador.
 - Se muestran estados visibles de carga/error en vez de una sección en blanco.
+
+## V1.0.56 — Hotfix Web: Contratos + paridad de Pendientes
+
+- Contratos usa un timeout corto sobre el SDK de Firestore. Si `contracts` o `receivables` quedan esperando, cambia automáticamente a una lectura REST autenticada del mismo proyecto Firebase.
+- Las dos colecciones base se recuperan en paralelo y se renderizan antes de cualquier sincronización secundaria.
+- La sincronización de devengados pasa a segundo plano y no puede dejar la página bloqueada en “Cargando…”.
+- Pendientes Web replica el flujo validado en Android: recurrentes se registran desde un modal prellenado; vencidos permiten “Ya pagado / histórico” sin crear movimiento ni alterar cuentas; deudas y tarjetas continúan al módulo de obligaciones.
+- Las ocurrencias recurrentes cerradas como históricas se excluyen de futuros pendientes mediante `historicalResolvedOccurrences`.
+- Android no se modifica en esta versión.

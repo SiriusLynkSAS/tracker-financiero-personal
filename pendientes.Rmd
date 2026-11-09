@@ -4,8 +4,39 @@ title: "Pendientes"
 
 ```{=html}
 <div class="tf-page-header"><div><h1>Pendientes</h1><div class="tf-muted">Pagos, cuotas e ingresos que requieren una acción.</div></div></div>
+<div id="pending-summary" class="tf-card" style="margin-bottom:1rem"></div>
 <div class="tf-card"><div class="tf-actions"><button class="tf-btn tf-btn-secondary is-selected" data-pending-filter="all">Todos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="overdue">Vencidos</button><button class="tf-btn tf-btn-secondary" data-pending-filter="today">Hoy</button><button class="tf-btn tf-btn-secondary" data-pending-filter="upcoming">Próximos</button></div></div>
 <div id="pending-list" class="tf-grid tf-grid-2" style="margin-top:1rem"></div>
-<dialog id="pending-detail-dialog" class="tf-modal-dialog tf-pending-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker" id="pending-detail-status">Pendiente</div><h2 id="pending-detail-title">Detalle</h2></div><button id="pending-detail-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div><div id="pending-detail-body"></div><div class="tf-actions" style="margin-top:1rem"><a id="pending-detail-action" class="tf-btn tf-btn-primary" href="#">Abrir acción</a></div></dialog>
-<script type="module" src="js/pending.js"></script>
+<dialog id="pending-detail-dialog" class="tf-modal-dialog tf-pending-detail-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker" id="pending-detail-status">Pendiente</div><h2 id="pending-detail-title">Detalle</h2></div><button id="pending-detail-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div>
+  <div id="pending-detail-body"></div>
+  <div class="tf-actions" style="margin-top:1rem">
+    <button id="pending-detail-action" type="button" class="tf-btn tf-btn-primary">Abrir acción</button>
+    <button id="pending-detail-historical" type="button" class="tf-btn tf-btn-secondary" hidden>Ya pagado / histórico</button>
+  </div>
+  <div id="pending-detail-historical-note" class="tf-muted" style="margin-top:.55rem" hidden>Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.</div>
+</dialog>
+
+<dialog id="pending-transaction-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Pendiente recurrente</div><h2 id="pending-tx-title">Registrar movimiento</h2></div><button id="pending-tx-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div>
+  <div class="tf-form-grid">
+    <div class="tf-field"><label>Fecha</label><input id="pending-tx-date" type="date"></div>
+    <div class="tf-field"><label>Hora</label><input id="pending-tx-time" type="time" value="12:00"></div>
+    <div class="tf-field tf-span-2"><label>Descripción</label><input id="pending-tx-description"></div>
+    <div class="tf-field"><label>Monto ($)</label><input id="pending-tx-amount" type="number" min="0" step="0.01"></div>
+    <div class="tf-field"><label>Cuenta</label><select id="pending-tx-account"></select></div>
+    <div class="tf-field"><label>Categoría</label><select id="pending-tx-category"></select></div>
+    <div class="tf-field"><label>Subcategoría</label><select id="pending-tx-subcategory"></select></div>
+    <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="pending-tx-save" type="button" class="tf-btn tf-btn-primary">Registrar</button></div>
+  </div>
+</dialog>
+
+<dialog id="pending-historical-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Pendiente vencido</div><h2>Cerrar como histórico</h2></div><button id="pending-historical-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div>
+  <div id="pending-historical-description" class="tf-subtle"></div>
+  <div id="pending-historical-date-wrap" class="tf-field" style="margin-top:1rem"><label>Fecha real del pago</label><input id="pending-historical-date" type="date"></div>
+  <div class="tf-muted" style="margin-top:.7rem">No crea un movimiento y no reduce ninguna cuenta.</div>
+  <div class="tf-actions" style="justify-content:flex-end;margin-top:1rem"><button id="pending-historical-save" type="button" class="tf-btn tf-btn-primary">Cerrar histórico</button></div>
+</dialog>
+<script type="module" src="js/pending.js?v=1.0.56"></script>
 ```
