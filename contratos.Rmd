@@ -34,5 +34,17 @@ title: "Contratos y cobros"
   </div>
 </dialog>
 <dialog id="contract-finish-dialog" class="tf-modal-dialog"><form method="dialog" id="contract-finish-form"><div class="tf-modal-head"><div><div class="tf-section-kicker">Cierre contractual</div><h2>Finalizar / programar fin</h2></div><button class="tf-btn tf-btn-secondary" value="cancel">Cerrar</button></div><div class="tf-form-grid"><div class="tf-field"><label>Fecha efectiva de finalización</label><input id="contract-finish-date" type="date" required></div><div class="tf-span-2" id="contract-finish-preview"></div><div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button class="tf-btn tf-btn-secondary" value="cancel">Cancelar</button><button id="contract-finish-confirm" type="button" class="tf-btn tf-btn-primary">Guardar fecha</button></div></div></form></dialog>
+<dialog id="contract-dates-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head">
+    <div><div class="tf-section-kicker">Fechas contractuales</div><h2>Editar inicio y fin</h2></div>
+    <button id="contract-dates-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button>
+  </div>
+  <div class="tf-form-grid">
+    <div class="tf-field"><label>Fecha de inicio</label><input id="contract-dates-start" type="date" required></div>
+    <div class="tf-field"><label>Fecha de fin (opcional)</label><input id="contract-dates-end" type="date"></div>
+    <div class="tf-span-2 tf-subtle">Los períodos pendientes se recalculan con las nuevas fechas. Los períodos con cobros aplicados se preservan como histórico.</div>
+    <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Actualizar fechas</button></div>
+  </div>
+</dialog>
 <script type="module" src="js/contracts.js"></script>
 ```

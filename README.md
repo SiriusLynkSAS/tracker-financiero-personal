@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.52
+# Tracker Financiero Personal V1.0.53
 
 Proyecto Quarto + Firebase de uso personal.
 
@@ -1245,3 +1245,14 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Cobro directo por período contractual desde listado y modal de contrato.
 - El modal de cobro conserva el contexto del contrato y genera un ingreso con descripción contrato/período.
 - No inicia MIG-002 ni modifica la configuración Firebase.
+
+
+## V1.0.53 — Cobros contractuales reversibles y edición de fechas
+
+- Activa `contractPayments` para vincular cada cobro con su movimiento y períodos aplicados.
+- Eliminar desde Movimientos un ingreso contractual estructurado revierte automáticamente el cobro en Contratos.
+- Añade reparación explícita de cobros legacy/sin movimiento (`↩`) sin tocar cobros estructurados.
+- El modal de cobro se cierra inmediatamente al confirmar; si falla, se vuelve a abrir con el contexto.
+- Todos los contratos, incluidos finalizados, permiten editar fecha de inicio y fin con recálculo de períodos pendientes.
+- Finalizar contrato mantiene la fecha actual como valor sugerido, editable por el usuario.
+- Los períodos pagados/parciales quedan congelados durante recálculos de fechas.

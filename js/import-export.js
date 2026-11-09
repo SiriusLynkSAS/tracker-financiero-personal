@@ -1,7 +1,7 @@
 import {requireUser} from "./guard.js";
 import {
   listAccounts,listTransactions,listBudgets,listMonthlyPlans,listCategories,listRecurring,listGoals,listLiabilities,
-  listFinancingPlans,listInsurance,listAssets,listContracts,listReceivables,listInvestments,
+  listFinancingPlans,listInsurance,listAssets,listContracts,listReceivables,listContractPayments,listInvestments,
   listReconciliations,listAudit,listTaxPayments,listEmergencyFund,listBusinessTrips,listTripExpenses,listTripSettlements,saveTransaction
 } from "./data-service.js";
 import {escapeHtml,csvEscape,downloadText,isoFromParts} from "./utils.js";
@@ -54,11 +54,11 @@ document.querySelector("#export-json").addEventListener("click",async()=>{
   const names=[
     ["accounts",listAccounts],["transactions",listTransactions],["budgets",listBudgets],["monthlyPlans",listMonthlyPlans],["categories",listCategories],
     ["recurring",listRecurring],["goals",listGoals],["liabilities",listLiabilities],["financingPlans",listFinancingPlans],
-    ["insurance",listInsurance],["assets",listAssets],["contracts",listContracts],["receivables",listReceivables],
+    ["insurance",listInsurance],["assets",listAssets],["contracts",listContracts],["receivables",listReceivables],["contractPayments",listContractPayments],
     ["investments",listInvestments],["reconciliations",listReconciliations],
     ["taxPayments",listTaxPayments],["emergencyFund",listEmergencyFund],
     ["businessTrips",listBusinessTrips],["tripExpenses",listTripExpenses],["tripSettlements",listTripSettlements],["auditLog",listAudit]
-  ],out={exportedAt:new Date().toISOString(),version:"1.0.32",kind:"data-export"};
+  ],out={exportedAt:new Date().toISOString(),version:"1.0.53",kind:"data-export"};
   for(const[n,fn]of names)out[n]=await fn();
   downloadText(`tracker-data-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(out,null,2),"application/json");
 });
