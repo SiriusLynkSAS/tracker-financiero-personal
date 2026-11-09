@@ -5,6 +5,7 @@ import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
 let contracts=[],receivables=[],contractPayments=[],assets=[],accounts=[],finishId="",dateEditId="",paymentContext=null;
+let contractPaymentsAvailable=true;
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
@@ -20,7 +21,12 @@ function structuredPaidForReceivable(receivableId){
       .reduce((s,a)=>s+Number(a.amount||0),0),0);
 }
 function hasUnmatchedPaid(r){
+  if(!contractPaymentsAvailable) return false;
   return Number(r.paidAmount||0)>structuredPaidForReceivable(r.id)+.009;
+}
+async function safeLoad(label,loader,fallback=[]){
+  try{return await loader();}
+  catch(err){console.warn(`[Contratos] No se pudo cargar ${label}.`,err);return fallback;}
 }
 function allocationRow(data={}){
   const div=document.createElement("div");div.className="tf-allocation-row";
@@ -52,7 +58,33 @@ function render(){
   }).join("")||`<div class="tf-empty">Sin contratos registrados.</div>`;
   tbody.innerHTML=visibleReceivables.sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod)).map(r=>{const c=contracts.find(x=>x.id===r.contractId),pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),statusLabel={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,periodDetail=r.prorated?`<div class="tf-muted tf-contract-proration">${Number(r.workedDays||0)}/${Number(r.monthDays||0)} días · ${escapeHtml(r.serviceStart||"")} a ${escapeHtml(r.serviceEnd||"")}</div>`:"";return `<tr><td><input type="checkbox" data-recv="${r.id}" ${pending<=.009?"disabled":""}></td><td>${escapeHtml(c?.name||"—")}</td><td>${r.workPeriod}${periodDetail}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount)}</td><td>${money(pending)}</td><td>${r.dueDate}</td><td><span class="tf-pill ${st==="paid"?"tf-pill-ok":st==="overdue"?"tf-pill-danger":"tf-pill-warn"}">${statusLabel}</span></td><td><div class="tf-actions tf-actions-compact">${pending>.009?`<button type="button" class="tf-icon-btn" data-recv-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${hasUnmatchedPaid(r)?`<button type="button" class="tf-icon-btn" data-recv-repair="${r.id}" title="Reparar cobro sin movimiento" aria-label="Reparar cobro sin movimiento">↩</button>`:""}</div></td></tr>`}).join("")||`<tr><td colspan="9" class="tf-empty">Sin cuentas por cobrar devengadas.</td></tr>`;
 }
-async function refresh(){[contracts,receivables,contractPayments,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listContractPayments(),listAssets(),listAccounts()]);await sync();[receivables,contractPayments]=await Promise.all([listReceivables(),listContractPayments()]);render();ensureAllocationRow();}
+async function refresh(){
+  // Las colecciones base se cargan de forma independiente. Una colección opcional
+  // (p. ej. contractPayments aún sin Rules publicadas) nunca debe vaciar Contratos.
+  const [nextContracts,nextReceivables,nextAssets,nextAccounts]=await Promise.all([
+    safeLoad("contratos",listContracts,contracts),
+    safeLoad("cuentas por cobrar",listReceivables,receivables),
+    safeLoad("activos",listAssets,assets),
+    safeLoad("cuentas",listAccounts,accounts)
+  ]);
+  contracts=nextContracts;receivables=nextReceivables;assets=nextAssets;accounts=nextAccounts;
+  try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
+  catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments no disponible; se conserva la cartera visible.",err);}
+
+  // Primer render inmediato con los datos que sí pudieron leerse.
+  render();ensureAllocationRow();
+
+  // La sincronización de devengados es secundaria: si falla, no debe ocultar la cartera.
+  try{
+    await sync();
+    receivables=await safeLoad("cuentas por cobrar actualizadas",listReceivables,receivables);
+    try{contractPayments=await listContractPayments();contractPaymentsAvailable=true;}
+    catch(err){contractPaymentsAvailable=false;contractPayments=[];console.warn("[Contratos] contractPayments continúa no disponible.",err);}
+    render();
+  }catch(err){
+    console.warn("[Contratos] No se pudo sincronizar devengados; se mantiene la última cartera legible.",err);
+  }
+}
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
 contractNew.addEventListener("click",()=>{contractEditor.hidden=false;tariffEditor.hidden=true;contractEditor.scrollIntoView({behavior:"smooth"})});
 tariffNew.addEventListener("click",()=>{tariffEditor.hidden=false;contractEditor.hidden=true;tariffEditor.scrollIntoView({behavior:"smooth"})});
