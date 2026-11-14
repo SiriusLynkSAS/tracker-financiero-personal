@@ -1,0 +1,19 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const rmd=fs.readFileSync(new URL('../presupuestos.Rmd',import.meta.url),'utf8');
+const js=fs.readFileSync(new URL('../js/budgets-v1.js',import.meta.url),'utf8');
+const notifications=fs.readFileSync(new URL('../js/notifications.js',import.meta.url),'utf8');
+
+assert.match(rmd,/id="budget-new"/,'debe existir botón Nuevo presupuesto');
+assert.match(rmd,/<dialog id="budget-editor"/,'el editor debe ser modal');
+assert.doesNotMatch(rmd,/budget-legacy-card|Presupuestos legacy|MIG-/,'no debe mostrar migraciones cerradas');
+assert.match(rmd,/id="budget-period-label"/,'debe existir navegación mensual central');
+assert.match(rmd,/id="budget-category-picker"/,'categoría/subcategoría debe usar selector concatenado');
+assert.match(rmd,/id="budget-summary-available"/,'debe mostrar resumen mensual');
+assert.match(rmd,/id="budget-detail-dialog"/,'debe existir detalle por presupuesto');
+assert.match(js,/categoriesForType\(cats,"expense"\)/,'debe derivar categorías de egreso');
+assert.match(js,/data-budget-subcategory/,'debe concatenar selección de subcategoría');
+assert.match(js,/budgetAlertForMetrics/,'la lista debe reflejar alertas de consumo');
+assert.match(notifications,/buildBudgetAlerts/,'las alertas deben integrarse al menú global');
+assert.match(notifications,/Notificaciones/,'el menú global ya no debe limitarse a Pendientes');
+console.log('budgets-ui-v1083: OK');

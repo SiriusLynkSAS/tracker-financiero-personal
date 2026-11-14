@@ -1,4 +1,4 @@
-# Tracker Financiero Personal Web V1.0.82 · AUD-POST-009 Bancos y cuentas
+# Tracker Financiero Personal Web V1.0.83 · AUD-POST-010 Presupuestos y alertas
 
 - Retira de las pantallas operativas todas las observaciones/paneles MIG; las migraciones permanecen solo como trazabilidad interna.
 - Bancos y cuentas usa listado por institución, detalle mediante icono de información y editor modal para crear/editar.

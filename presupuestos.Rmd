@@ -4,62 +4,126 @@ title: "Presupuestos"
 
 ```{=html}
 <div class="tf-page-header">
-  <div><h1>Presupuestos</h1><div class="tf-muted">Límites mensuales por subcategoría, con rollover real entre meses.</div></div>
-  <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+  <div>
+    <h1>Presupuestos</h1>
+    <div class="tf-muted">Control mensual por categoría y subcategoría, con rollover y alertas de consumo.</div>
+  </div>
+  <div class="tf-actions">
+    <button id="budget-new" class="tf-btn tf-btn-primary" type="button">+ Nuevo presupuesto</button>
+    <button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button>
+  </div>
 </div>
 
-<section class="tf-card">
-  <div class="tf-toolbar">
-    <div class="tf-field"><label>Mes visible</label><div class="tf-budget-period-pair"><select id="budget-view-month-number" aria-label="Mes visible"></select><select id="budget-view-year" aria-label="Año visible"></select></div><select id="budget-view-month" hidden aria-hidden="true"></select></div>
-    <div class="tf-actions">
-      <button id="budget-prev" class="tf-btn tf-btn-secondary" type="button">← Mes anterior</button>
-      <button id="budget-current" class="tf-btn tf-btn-secondary" type="button">Mes actual</button>
-      <button id="budget-next" class="tf-btn tf-btn-secondary" type="button">Mes siguiente →</button>
-    </div>
+<section class="tf-card tf-budget-overview">
+  <div class="tf-budget-period-nav" aria-label="Mes visible">
+    <button id="budget-prev" type="button" class="tf-icon-button" aria-label="Mes anterior">‹</button>
+    <button id="budget-period-label" type="button" class="tf-budget-period-label">Noviembre 2026</button>
+    <button id="budget-next" type="button" class="tf-icon-button" aria-label="Mes siguiente">›</button>
   </div>
+  <button id="budget-current" class="tf-btn tf-btn-secondary tf-btn-compact" type="button" hidden>Ir al mes actual</button>
+
+  <div class="tf-budget-summary-grid">
+    <div class="tf-metric"><span class="tf-metric-label">Presupuestado</span><strong id="budget-summary-available">$0,00</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Gastado</span><strong id="budget-summary-spent">$0,00</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Disponible</span><strong id="budget-summary-remaining">$0,00</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Uso</span><strong id="budget-summary-use">0%</strong></div>
+  </div>
+  <div class="tf-budget-progress" aria-hidden="true"><span id="budget-summary-progress"></span></div>
 </section>
 
-<section id="budget-legacy-card" class="tf-card" style="margin-top:1rem" hidden>
+<section class="tf-card" style="margin-top:1rem">
   <div class="tf-section-heading">
     <div>
-      <h2>Presupuestos legacy sin período</h2>
-      <div class="tf-muted">Estos presupuestos fueron creados antes de que el mes fuera obligatorio. Asigna explícitamente el período antes de continuar con la migración.</div>
+      <h2 id="budget-list-title">Presupuestos del mes</h2>
+      <div class="tf-muted">Las alertas aparecen cuando queda 30%, 10% o cuando el presupuesto se sobrepasa.</div>
     </div>
-    <span class="tf-pill tf-pill-warn" id="budget-legacy-count">0 pendientes</span>
   </div>
-  <div class="tf-callout tf-callout-warn" style="margin-top:.75rem">
-    La fecha de creación no se usará como mes automáticamente. El valor sugerido es el mes actual, pero puedes elegir otro antes de guardar.
-  </div>
-  <div class="tf-table-wrap" style="margin-top:.75rem"><table class="tf-table">
-    <thead><tr><th>Categoría</th><th>Subcategoría</th><th>Límite</th><th>Rollover</th><th>Mes a asignar</th><th></th></tr></thead>
-    <tbody id="budget-legacy-body"></tbody>
-  </table></div>
+  <div id="budget-list" class="tf-budget-list"></div>
 </section>
 
-<section class="tf-card" style="margin-top:1rem">
-  <form id="budget-form" class="tf-form-grid">
-    <div class="tf-field"><label>Mes del presupuesto</label><div class="tf-budget-period-pair"><select id="budget-month-number" aria-label="Mes del presupuesto"></select><select id="budget-year" aria-label="Año del presupuesto"></select></div><select id="budget-month" required hidden aria-hidden="true"></select></div>
-    <div class="tf-field"><label>Categoría</label><select id="budget-category"></select></div>
-    <div class="tf-field"><label>Subcategoría</label><select id="budget-subcategory"></select></div>
-    <div class="tf-field"><label>Límite base mensual ($)</label><input id="budget-limit" type="number" min="0" step="0.01" required></div>
-    <div class="tf-span-2 tf-check"><input id="budget-rollover" type="checkbox"><label>Arrastrar saldo positivo del mes anterior</label></div>
-    <div class="tf-span-2 tf-actions">
-      <button id="budget-submit" class="tf-btn tf-btn-primary">Guardar presupuesto</button>
-      <button id="budget-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button>
+<dialog id="budget-editor" class="tf-modal-dialog tf-budget-editor-dialog">
+  <div class="tf-modal-head tf-budget-editor-head">
+    <div>
+      <div class="tf-section-kicker">Presupuesto mensual</div>
+      <h2 id="budget-editor-title">Nuevo presupuesto</h2>
+    </div>
+    <button id="budget-editor-close" class="tf-btn tf-btn-secondary tf-btn-compact" type="button">Cerrar</button>
+  </div>
+
+  <form id="budget-form" class="tf-budget-editor-form">
+    <div class="tf-budget-editor-scroll">
+      <div class="tf-field">
+        <label>Mes del presupuesto</label>
+        <button id="budget-editor-month-button" type="button" class="tf-picker-button"><span aria-hidden="true">📅</span><strong id="budget-editor-month-label">—</strong></button>
+        <input id="budget-month" type="hidden" required>
+      </div>
+
+      <div class="tf-field">
+        <label>Categoría y subcategoría</label>
+        <button id="budget-category-picker" type="button" class="tf-tx-category-picker">Seleccionar categoría y subcategoría</button>
+        <input id="budget-category" type="hidden">
+        <input id="budget-subcategory" type="hidden">
+      </div>
+
+      <div class="tf-field">
+        <label>Límite base mensual ($)</label>
+        <div class="tf-account-opening-input-wrap">
+          <span>$</span>
+          <input id="budget-limit" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+        </div>
+      </div>
+
+      <div class="tf-check">
+        <input id="budget-rollover" type="checkbox">
+        <label for="budget-rollover">Arrastrar saldo positivo del mes anterior</label>
+      </div>
+    </div>
+
+    <div class="tf-budget-save-bar">
+      <button id="budget-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
+      <button id="budget-submit" class="tf-btn tf-btn-primary" type="submit">Guardar presupuesto</button>
     </div>
   </form>
-</section>
+</dialog>
 
-<section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading">
-    <div><h2 id="budget-table-title">Presupuestos del mes</h2><div class="tf-muted">Disponible = base + rollover positivo; Queda = disponible − gasto registrado.</div></div>
-    <strong id="budget-month-total">$0,00</strong>
+<dialog id="budget-category-dialog" class="tf-tx-category-dialog">
+  <div class="tf-tx-category-dialog-head">
+    <div>
+      <div class="tf-section-kicker">Clasificación</div>
+      <h3 id="budget-category-dialog-title">Seleccionar categoría</h3>
+    </div>
+    <button id="budget-category-dialog-close" type="button" class="tf-btn tf-btn-secondary">Cerrar</button>
   </div>
-  <div class="tf-table-wrap"><table class="tf-table">
-    <thead><tr><th>Categoría</th><th>Subcategoría</th><th>Base</th><th>Rollover</th><th>Disponible</th><th>Gastado</th><th>Queda</th><th></th></tr></thead>
-    <tbody id="budget-body"></tbody>
-  </table></div>
-</section>
+  <div id="budget-category-dialog-body" class="tf-tx-category-options"></div>
+</dialog>
 
-<script type="module" src="js/budgets-v1.js"></script>
+<dialog id="budget-month-dialog" class="tf-tx-category-dialog tf-budget-month-dialog">
+  <div class="tf-tx-category-dialog-head">
+    <div>
+      <div class="tf-section-kicker">Período</div>
+      <h3>Seleccionar mes</h3>
+    </div>
+    <button id="budget-month-dialog-close" type="button" class="tf-btn tf-btn-secondary">Cerrar</button>
+  </div>
+  <div class="tf-budget-year-nav">
+    <button id="budget-year-prev" type="button" class="tf-icon-button" aria-label="Año anterior">‹</button>
+    <strong id="budget-picker-year">2026</strong>
+    <button id="budget-year-next" type="button" class="tf-icon-button" aria-label="Año siguiente">›</button>
+  </div>
+  <div id="budget-month-grid" class="tf-budget-month-grid"></div>
+  <div class="tf-actions" style="margin-top:.8rem"><button id="budget-picker-current" type="button" class="tf-btn tf-btn-secondary">Mes actual</button></div>
+</dialog>
+
+<dialog id="budget-detail-dialog" class="tf-modal-dialog tf-budget-detail-dialog">
+  <div class="tf-modal-head">
+    <div>
+      <div class="tf-section-kicker">Detalle del presupuesto</div>
+      <h2 id="budget-detail-title">Presupuesto</h2>
+    </div>
+    <button id="budget-detail-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button>
+  </div>
+  <div id="budget-detail-body" class="tf-budget-detail-body"></div>
+</dialog>
+
+<script type="module" src="js/budgets-v1.js?v=1.0.83"></script>
 ```
