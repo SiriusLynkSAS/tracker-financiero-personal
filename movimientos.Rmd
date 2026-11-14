@@ -237,6 +237,6 @@ title: "Movimientos"
   </div>
 </div>
 
-<script type="module" src="js/mig005.js?v=1.0.74"></script>
-<script type="module" src="js/transactions-v1.js?v=1.0.74"></script>
+<script type="module" src="js/mig005.js?v=1.0.75"></script>
+<script type="module" src="js/transactions-v1.js?v=1.0.75"></script>
 ```

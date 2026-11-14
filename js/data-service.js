@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.74";
+} from "./schema.js?v=1.0.75";
 
 function uid(){
   const v=auth.currentUser?.uid;

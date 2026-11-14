@@ -21,6 +21,6 @@ title: "Recurrentes"
 <div id="rec-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
 
 
-<script type="module" src="js/recurring.js?v=1.0.74"></script>
-<script type="module" src="js/mig006.js?v=1.0.74"></script>
+<script type="module" src="js/recurring.js?v=1.0.75"></script>
+<script type="module" src="js/mig006.js?v=1.0.75"></script>
 ```
