@@ -9,6 +9,9 @@ import { requireUser } from "./guard.js";
 import { downloadText } from "./utils.js";
 import { toast } from "./ui.js";
 
+const SOURCE_APP_VERSION = "V1.0.79";
+const EXPORTER_VERSION = "1.1.0";
+
 const COLLECTIONS = [
   "accounts",
   "transactions",
@@ -23,8 +26,12 @@ const COLLECTIONS = [
   "assets",
   "contracts",
   "receivables",
+  "contractPayments",
   "invoices",
   "investments",
+  "investmentBankReports",
+  "investmentSettlements",
+  "investmentTaxWithholdings",
   "reconciliations",
   "taxPayments",
   "emergencyFund",
@@ -171,8 +178,8 @@ async function buildAuditExport(user) {
   return {
     metadata: {
       kind: "tracker-financiero-firestore-audit-export",
-      exporterVersion: "1.0.0",
-      sourceAppVersion: "V1.0.50",
+      exporterVersion: EXPORTER_VERSION,
+      sourceAppVersion: SOURCE_APP_VERSION,
       firebaseProjectId: "tracker-financiero-personal",
       exportedAt: new Date().toISOString(),
       readOnly: true,
@@ -184,7 +191,7 @@ async function buildAuditExport(user) {
       okCollections,
       emptyCollections,
       errorCollections,
-      note: "Exportación RAW de colecciones conocidas para auditoría Paso 1B. No usa normalizadores de data-service.js."
+      note: "Exportación RAW de las colecciones contempladas por las reglas Firestore de la aplicación. No usa normalizadores de data-service.js."
     },
     userProfile: profile,
     collections

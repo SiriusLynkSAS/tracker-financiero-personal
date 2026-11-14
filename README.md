@@ -1,3 +1,15 @@
+# Tracker Financiero Personal Web V1.0.79 · Auditoría post-migración
+
+Parche técnico sin cambios financieros ni de negocio.
+
+- El exportador RAW de auditoría cubre las 26 colecciones de usuario contempladas por `firebase/firestore.rules`.
+- Se incorporan `contractPayments`, `investmentBankReports`, `investmentSettlements` e `investmentTaxWithholdings`.
+- `sourceAppVersion` pasa a `V1.0.79` y `exporterVersion` a `1.1.0`.
+- Se añade una prueba de contrato que compara automáticamente la lista del exportador contra las colecciones `{id}` declaradas en las reglas Firestore; si el esquema crece sin actualizar el exportador, la prueba falla.
+- No se modifican `firebase-config.js`, reglas Firestore, índices, cálculos, saldos, movimientos ni módulos funcionales.
+
+---
+
 # Tracker Financiero Personal Web V1.0.78 · Bloque 11 de 11 · MIG-011
 
 - MIG-010 cerrada al avanzar al último bloque.
