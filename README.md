@@ -1,4 +1,11 @@
-# Tracker Financiero Personal V1.0.73 · Bloque 6 de 11 · MIG-006
+# Tracker Financiero Personal V1.0.74 · Bloque 7 de 11 · MIG-007
+
+- MIG-006 cerrado y validado.
+- MIG-007 normaliza una deuda archivada legacy sin reactivarla.
+- Facturación separa Activas y Anuladas; las anuladas no aparecen en la vista operativa por defecto.
+- IVA por defecto 15% y alertas del modal preservadas desde V1.0.73.
+
+# Historial V1.0.73 · Bloque 6 de 11 · MIG-006
 
 
 ## Bloque 6 de 11 · MIG-006
@@ -16,7 +23,7 @@
 - Errores/advertencias durante la creación o edición se muestran dentro del modal, inmediatamente debajo de la cabecera, no en un toast oculto detrás del diálogo.
 - Corrección adicional de reglas Firestore: se reemplazaron cuatro referencias residuales a `number(...)` por `isNumber(...)`.
 
-## V1.0.73 · Hotfix de activación F-FAC-001
+## V1.0.74 · Hotfix de activación F-FAC-001
 
 - Resumen, Pendientes, IVA y notificaciones ya no quedan en cero/bloqueados si la nueva colección `invoices` aún no tiene reglas Firestore publicadas.
 - Facturación muestra un diagnóstico explícito de permisos en vez de repetir el mensaje genérico de carga.
