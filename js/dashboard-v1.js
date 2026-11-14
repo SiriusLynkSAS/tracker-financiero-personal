@@ -3,7 +3,7 @@ import {
   listAccounts,listTransactions,calculateBalances,listLiabilities,listFinancingPlans,
   listInvestments,listAssets,listReceivables,listRecurring,listInsurance,listCategories,
   listContracts,listInvoicesOptional,getEmergencyFund,syncReceivablesClosed
-} from "./data-service.js?v=1.0.73";
+} from "./data-service.js?v=1.0.74";
 import { money,sum,escapeHtml,todayISO,addDaysISO,isoFromParts,daysBetween } from "./utils.js";
 import { assetDepreciation } from "./asset-math.js";
 import { categoryStyle } from "./category-catalog.js";

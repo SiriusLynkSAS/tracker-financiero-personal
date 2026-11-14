@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.73"></script>
+<script type="module" src="js/app-shell.js?v=1.0.74"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -148,7 +148,11 @@ ul.task-list li input[type="checkbox"] {
 </div>
 
 <section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading"><div><h2 class="anchored">Facturas emitidas</h2><div class="tf-muted">El estado se deriva de los cobros registrados y la fecha de vencimiento.</div></div><strong id="invoice-count">0</strong></div>
+  <div class="tf-section-heading"><div><h2 class="anchored">Facturas emitidas</h2><div class="tf-muted">Las facturas anuladas se conservan en una vista histórica separada y no se mezclan con la operación activa.</div></div><strong id="invoice-count">0</strong></div>
+  <div class="tf-actions" style="margin-top:.8rem">
+    <button id="invoice-tab-active" class="tf-btn tf-btn-primary" type="button">Activas</button>
+    <button id="invoice-tab-void" class="tf-btn tf-btn-secondary" type="button">Anuladas</button>
+  </div>
   <div class="tf-table-wrap" style="margin-top:.8rem">
 <table class="tf-table caption-top">
 <thead>
@@ -270,7 +274,7 @@ ul.task-list li input[type="checkbox"] {
   </form>
 </dialog>
 
-<script type="module" src="js/invoices.js?v=1.0.73"></script>
+<script type="module" src="js/invoices.js?v=1.0.74"></script>
 
 
 
@@ -682,7 +686,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.73</p>
+<p>Tracker Financiero Personal V1.0.74</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
