@@ -1667,7 +1667,6 @@ async function registerDebtPayment(){
         taxAmount:bankTaxAmount,
         otherChargeAmount:bankOtherChargeAmount,
         grossDebitAmount:amount+bankFeeAmount+bankTaxAmount+bankOtherChargeAmount,
-        transactionDateTime:`${date}T12:00`,
         receipt:reference
       }
     });
@@ -1892,7 +1891,6 @@ async function payCardInstallment(n){
       data:{
         type:"transfer",
         date:paymentDate,
-        transactionDateTime:`${paymentDate}T12:00`,
         amount:Number(installment.payment),
         vat:0,
         receipt:reference,

@@ -82,7 +82,7 @@ function closeEditorDialog(){
 }
 function syncDateTimeDisplays(){
   if(dateDisplay) dateDisplay.textContent=dateInput?.value||"Seleccionar fecha";
-  if(timeDisplay) timeDisplay.textContent=timeInput?.value||"Seleccionar hora";
+  if(timeDisplay) timeDisplay.textContent=timeInput?.value||"Sin hora registrada";
 }
 function openNativePicker(input){
   if(!input)return;
@@ -120,6 +120,10 @@ function parseDecimalInput(value){
 }
 function nowTime(){ return new Date().toTimeString().slice(0,5); }
 function transactionDateTime(row){ return String(row?.transactionDateTime||`${row?.date||""}T00:00`); }
+function transactionTimeLabel(row){
+  const dt=String(row?.transactionDateTime||"").trim();
+  return dt?dt.slice(11,16):"Sin hora";
+}
 function chargeTotal(row){ return Number(row?.feeAmount||0)+Number(row?.taxAmount||0)+Number(row?.otherChargeAmount||0); }
 
 function transactionEffects(tx){
@@ -185,7 +189,7 @@ function openTransactionDetail(tx){
   const lines=ledgerSnapshots.get(tx.id)||[];
   const charges=chargeTotal(tx);
   detailDialogTitle.textContent=tx.description||txLabel(tx.type);
-  detailDialogMeta.textContent=`${tx.date||"—"} · ${transactionDateTime(tx).slice(11,16)||"—"} · ${tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type)}`;
+  detailDialogMeta.textContent=`${tx.date||"—"} · ${transactionTimeLabel(tx)} · ${tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type)}`;
 
   const balanceHtml=lines.length?lines.map(line=>`
     <section class="tf-subtle" style="margin-top:.75rem">
@@ -694,7 +698,7 @@ function render() {
   const rows=filteredTransactions();
   tbody.innerHTML = rows.map((tx,index) => {
     const day=String(tx.date||"");
-    const time=transactionDateTime(tx).slice(11,16);
+    const time=transactionTimeLabel(tx);
     const charges=chargeTotal(tx);
     const account=tx.type === "transfer"
       ? `${accountName(tx.fromAccountId)} → ${accountName(tx.toAccountId)}`
@@ -968,7 +972,7 @@ form.addEventListener("submit", async e => {
   const data = {
     type: type.value,
     date: document.querySelector("#tx-date").value,
-    transactionDateTime:`${document.querySelector("#tx-date").value}T${document.querySelector("#tx-time").value||"00:00"}`,
+    transactionDateTime:document.querySelector("#tx-time").value?`${document.querySelector("#tx-date").value}T${document.querySelector("#tx-time").value}`:"",
     amount,
     feeAmount:type.value==="transfer"?parseDecimalInput(document.querySelector("#tx-fee").value):Number(previous?.feeAmount||0),
     taxAmount:type.value==="transfer"?parseDecimalInput(document.querySelector("#tx-tax").value):Number(previous?.taxAmount||0),
@@ -1087,7 +1091,7 @@ tbody.addEventListener("click", async e => {
     toggleType();
 
     document.querySelector("#tx-date").value = tx.date;
-    document.querySelector("#tx-time").value = transactionDateTime(tx).slice(11,16)||"00:00";
+    document.querySelector("#tx-time").value = String(tx.transactionDateTime||"").slice(11,16);
     syncDateTimeDisplays();
     document.querySelector("#tx-amount").value = tx.amount;
     document.querySelector("#tx-fee").value = Number(tx.feeAmount||0)||"";
