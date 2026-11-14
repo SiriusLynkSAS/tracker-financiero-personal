@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.76"></script>
+<script type="module" src="js/app-shell.js?v=1.0.77"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -156,6 +156,33 @@ ul.task-list li input[type="checkbox"] {
 </table>
 </div>
   <div class="tf-actions" style="margin-top:1rem"><button id="mig005-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-005</button></div>
+</section>
+
+<section id="mig010-panel" class="tf-card" style="margin-top:1rem" hidden="">
+  <div class="tf-section-heading"><div><h2 class="anchored">Bloque 10 de 11 · MIG-010</h2><div class="tf-muted">Revisión manual del único par candidato a duplicado. Coinciden en fecha, monto, descripción, cuenta y clasificación, pero tienen horas diferentes.</div></div></div>
+  <div id="mig010-status" class="tf-alert tf-alert-info is-visible" style="margin-top:.8rem"></div>
+  <div class="tf-table-wrap" style="margin-top:.8rem">
+<table class="tf-table caption-top">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">ID</th>
+<th data-quarto-table-cell-role="th">Fecha</th>
+<th data-quarto-table-cell-role="th">Hora</th>
+<th data-quarto-table-cell-role="th">Movimiento</th>
+<th data-quarto-table-cell-role="th">Monto</th>
+<th data-quarto-table-cell-role="th">Clasificación</th>
+<th data-quarto-table-cell-role="th">Revisión</th>
+</tr>
+</thead>
+<tbody id="mig010-body">
+</tbody>
+</table>
+</div>
+  <div class="tf-actions" style="margin-top:1rem">
+    <button id="mig010-keep" class="tf-btn tf-btn-primary" type="button">Conservar ambos</button>
+    <button id="mig010-delete-morning" class="tf-btn tf-btn-danger" type="button">Eliminar 08:42 como duplicado</button>
+    <button id="mig010-delete-evening" class="tf-btn tf-btn-danger" type="button">Eliminar 19:00 como duplicado</button>
+  </div>
 </section>
 
 <div class="tf-transactions-layout">
@@ -385,8 +412,9 @@ ul.task-list li input[type="checkbox"] {
   </div>
 </div>
 
-<script type="module" src="js/mig005.js?v=1.0.76"></script>
-<script type="module" src="js/transactions-v1.js?v=1.0.76"></script>
+<script type="module" src="js/mig005.js?v=1.0.77"></script>
+<script type="module" src="js/mig010.js?v=1.0.77"></script>
+<script type="module" src="js/transactions-v1.js?v=1.0.77"></script>
 
 
 
@@ -798,7 +826,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.76</p>
+<p>Tracker Financiero Personal V1.0.77</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

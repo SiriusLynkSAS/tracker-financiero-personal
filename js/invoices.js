@@ -2,7 +2,7 @@ import {requireUser} from "./guard.js";
 import {
   listInvoices,createInvoice,saveInvoice,registerInvoicePayment,voidInvoice,
   listAccounts,listReceivables,listContracts,isPermissionDeniedError
-} from "./data-service.js?v=1.0.76";
+} from "./data-service.js?v=1.0.77";
 import {money,escapeHtml,todayISO,addDaysISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
