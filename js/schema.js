@@ -1,3 +1,4 @@
+import {resolveInstitutionIdentity} from "./institutions.js";
 // Modelo canónico y compatibilidad legacy — V1.0.50
 // Principio: leer tolerante, escribir canónico. Este módulo NO migra Firestore por sí solo.
 
@@ -23,6 +24,9 @@ export function normalizeAccount(raw={}){
     ...raw,
     schemaVersion:integer(raw.schemaVersion,0),
     bank:text(raw.bank),
+    institutionId:text(raw.institutionId),
+    institutionDisplayName:text(raw.institutionDisplayName),
+    institutionIdentitySource:text(raw.institutionIdentitySource),
     alias:text(raw.alias),
     accountType:text(raw.accountType)||"savings",
     openingBalance:finite(raw.openingBalance,0),
@@ -44,10 +48,11 @@ export function sanitizeAccountWrite(raw={}){
   if(!Number.isFinite(openingBalance)) throw new Error("Saldo inicial no válido.");
   const openingBalanceAsOf=text(raw.openingBalanceAsOf||raw.ledgerStartDate);
   if(openingBalanceAsOf && !isoDate(openingBalanceAsOf)) throw new Error("Fecha base del saldo inicial no válida.");
+  const institution=resolveInstitutionIdentity(text(raw.bank),text(raw.institutionId),text(raw.institutionDisplayName));
   return {
     ...raw,
     schemaVersion:SCHEMA_VERSION,
-    bank:text(raw.bank),alias:text(raw.alias),accountType,openingBalance,
+    bank:text(raw.bank),institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,institutionIdentitySource:text(raw.institutionIdentitySource)||(institution.matched?"catalog_known_alias":""),alias:text(raw.alias),accountType,openingBalance,
     openingBalanceAsOf,
     ledgerStartDate:openingBalanceAsOf,
     openingBalanceDateSource:text(raw.openingBalanceDateSource),
@@ -287,7 +292,7 @@ export function normalizeInvestment(raw={}){
   const principal=nonNegative(raw.principal??raw.amount,0);
   const annualRate=nonNegative(raw.annualRate??raw.rate,0);
   return {
-    ...raw,schemaVersion:integer(raw.schemaVersion,0),bank:text(raw.bank),name:text(raw.name),principal,annualRate,
+    ...raw,schemaVersion:integer(raw.schemaVersion,0),bank:text(raw.bank),institutionId:text(raw.institutionId),institutionDisplayName:text(raw.institutionDisplayName),name:text(raw.name),principal,annualRate,
     rateType:text(raw.rateType)||"nominal",calculation:text(raw.calculation)||"compound",capitalization:text(raw.capitalization)||"monthly",
     startDate:text(raw.startDate),termValue:nonNegative(raw.termValue,0),termUnit:text(raw.termUnit)||"months",maturityDate:text(raw.maturityDate),
     withholding:nonNegative(raw.withholding,0),fees:nonNegative(raw.fees,0),sourceAccountId:text(raw.sourceAccountId),
@@ -307,7 +312,8 @@ export function sanitizeInvestmentWrite(raw={}){
   if(row.maturityDate&&!isoDate(row.maturityDate)) throw new Error("Fecha de vencimiento no válida.");
   if(!["automatic","linked_existing","historical","already_registered"].includes(row.capitalMovementMode)) throw new Error("Modo de capital no válido.");
   if(!["active","liquidated","renewed","cancelled","legacy_inactive"].includes(row.status)) throw new Error("Estado de inversión no válido.");
-  return {...raw,...row,schemaVersion:SCHEMA_VERSION};
+  const institution=resolveInstitutionIdentity(row.bank,row.institutionId,row.institutionDisplayName);
+  return {...raw,...row,institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,schemaVersion:SCHEMA_VERSION};
 }
 
 export function canonicalStamp(raw={}){

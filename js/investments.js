@@ -3,6 +3,7 @@ import {listInvestments,listAccounts,atomicWrite} from "./data-service.js";
 import {investmentProjection} from "./finance.js";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
+import {institutionDisplay,resolveInstitutionIdentity} from "./institutions.js";
 let rows=[],accounts=[],projection=null,showHistory=false;
 const list=document.querySelector("#inv-list");
 const editor=document.querySelector("#inv-editor"),settleEditor=document.querySelector("#inv-settle-editor");
@@ -32,13 +33,13 @@ function render(){
   settleOpen.hidden=showHistory||!active.length;
   const visible=showHistory?history:active;
   list.innerHTML=visible.map(i=>`<div class="tf-card">
-    <strong>${escapeHtml(i.bank)} · ${escapeHtml(i.name)}</strong>
+    <strong>${escapeHtml(institutionDisplay(i))} · ${escapeHtml(i.name)}</strong>
     <div class="tf-account-balance">${money(i.principal)}</div>
     <div class="tf-muted">${i.annualRate}% ${i.rateType==="effective"?"efectiva":"nominal"} · vence ${i.maturityDate||"—"}</div>
     <div style="margin:.6rem 0">${showHistory?"Rendimiento neto real":"Rendimiento neto esperado"}: <strong>${money(showHistory?(i.actualNetInterest??i.expectedNetInterest):i.expectedNetInterest)}</strong></div>
     ${showHistory?`<div class="tf-muted">Liquidada ${escapeHtml(i.liquidatedAt||"—")} · histórico en modo consulta.</div>`:""}
   </div>`).join("")||`<div class="tf-card tf-empty">${showHistory?"Sin inversiones históricas.":"Sin inversiones activas."}</div>`;
-  document.querySelector("#settle-investment").innerHTML=active.map(i=>`<option value="${i.id}">${escapeHtml(i.bank+" · "+i.name)}</option>`).join("");
+  document.querySelector("#settle-investment").innerHTML=active.map(i=>`<option value="${i.id}">${escapeHtml(institutionDisplay(i)+" · "+i.name)}</option>`).join("");
   fillSettlementDefaults();
 }
 function fillSettlementDefaults(){
@@ -68,8 +69,9 @@ document.querySelector("#inv-form").addEventListener("submit",async e=>{
   e.preventDefault();calc();
   const principal=Number(document.querySelector("#inv-principal").value),accountId=document.querySelector("#inv-account").value||null,alreadyMoved=document.querySelector("#inv-already-moved").checked;
   if(!accountId&&!alreadyMoved){toast("Selecciona una cuenta origen o confirma que la salida de capital ya fue registrada.");return}
+  const bank=document.querySelector("#inv-bank").value.trim(),institution=resolveInstitutionIdentity(bank);
   const data={
-    bank:document.querySelector("#inv-bank").value.trim(),name:document.querySelector("#inv-name").value.trim(),principal,
+    bank,institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,name:document.querySelector("#inv-name").value.trim(),principal,
     annualRate:Number(document.querySelector("#inv-rate").value),rateType:document.querySelector("#inv-rate-type").value,
     calculation:document.querySelector("#inv-calc").value,capitalization:document.querySelector("#inv-cap").value,
     startDate:document.querySelector("#inv-start").value,termValue:Number(document.querySelector("#inv-term").value),
