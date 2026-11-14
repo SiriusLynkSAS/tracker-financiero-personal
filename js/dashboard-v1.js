@@ -118,7 +118,7 @@ function renderRecent(){
   const recent=[...state.txs].sort((a,b)=>String(b.transactionDateTime||`${b.date}T00:00`).localeCompare(String(a.transactionDateTime||`${a.date}T00:00`))).slice(0,8);
   document.querySelector("#recent-body").innerHTML=recent.map(t=>{
     const kind=t.reconciliationAdjustment?"Ajuste de conciliación":t.type;
-    const dt=String(t.transactionDateTime||`${t.date}T00:00`);
+    const dt=String(t.transactionDateTime||"");
     const when=`${t.date} ${dt.slice(11,16)}`;
     return `<tr><td>${escapeHtml(when)}</td><td>${escapeHtml(kind)}</td><td>${escapeHtml(t.description||"—")}</td><td>${money(t.amount)}</td></tr>`;
   }).join("")||`<tr><td colspan="4" class="tf-empty">Sin movimientos.</td></tr>`;

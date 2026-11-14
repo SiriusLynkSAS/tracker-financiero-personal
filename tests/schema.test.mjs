@@ -23,6 +23,16 @@ assert.throws(()=>sanitizeAccountWrite({bank:'Banco',alias:'Ahorros',accountType
 const normalizedTx=tx.map(normalizeTransaction);
 assert.equal(normalizedTx.filter(x=>x.legacyVatAmbiguous).length,23,'IVA legacy ambiguo');
 assert.equal(normalizedTx.filter(x=>x.legacyVatAmbiguous && x.vat!==0).length,0,'IVA legacy efectivo debe quedar en 0 en memoria');
+
+const legacyWithoutDateTime=tx.filter(x=>!String(x.transactionDateTime||'').trim());
+assert.equal(normalizedTx.filter(x=>x.dateTimeInferred).length,legacyWithoutDateTime.length,'movimientos legacy sin hora');
+assert.equal(normalizedTx.filter(x=>x.dateTimeInferred && x.transactionDateTime).length,0,'no inventar 00:00 para legacy');
+const legacyNoTimeWrite=sanitizeTransactionWrite({type:'expense',date:'2026-11-06',amount:10,vat:0,accountId:'A'});
+assert.equal(Object.prototype.hasOwnProperty.call(legacyNoTimeWrite,'transactionDateTime'),false,'escritura sin hora no debe inventar transactionDateTime');
+const exactTimeWrite=sanitizeTransactionWrite({type:'expense',date:'2026-11-06',transactionDateTime:'2026-11-06T14:35',amount:10,vat:0,accountId:'A'});
+assert.equal(exactTimeWrite.transactionDateTime,'2026-11-06T14:35');
+assert.throws(()=>sanitizeTransactionWrite({type:'expense',date:'2026-11-06',transactionDateTime:'2026-11-07T14:35',amount:10,vat:0,accountId:'A'}),/no coinciden/);
+
 const expectedLegacyBudgets=budgets.filter(x=>!String(x.month||'').trim()).length;
 assert.equal(budgets.map(normalizeBudget).filter(x=>x.legacyPeriodMissing).length,expectedLegacyBudgets,'budgets legacy sin mes');
 assert.equal(debts.map(normalizeLiability).filter(x=>x.legacyStatusConflict).length,1,'deuda active/status inconsistente');
@@ -42,4 +52,4 @@ const budget=sanitizeBudgetWrite({category:'Casa',subcategory:'Internet',limit:3
 assert.equal(budget.schemaVersion,SCHEMA_VERSION);
 
 console.log('schema.test.mjs OK');
-console.log(JSON.stringify({accounts:accounts.length,accountsLegacyDate:expectedLegacyAccountDates,transactions:tx.length,legacyVatAmbiguous:23,budgetsLegacy:expectedLegacyBudgets,liabilityStatusConflict:1,schemaVersion:SCHEMA_VERSION},null,2));
+console.log(JSON.stringify({accounts:accounts.length,accountsLegacyDate:expectedLegacyAccountDates,transactions:tx.length,legacyDateTime:legacyWithoutDateTime.length,legacyVatAmbiguous:23,budgetsLegacy:expectedLegacyBudgets,liabilityStatusConflict:1,schemaVersion:SCHEMA_VERSION},null,2));

@@ -64,7 +64,7 @@ function openRecurringEditor(item){
   txTarget={item,recurring:r};
   document.querySelector("#pending-tx-title").textContent=r.type==="income"?"Registrar ingreso pendiente":"Registrar pago pendiente";
   document.querySelector("#pending-tx-date").value=item.dueDate;
-  document.querySelector("#pending-tx-time").value="12:00";
+  document.querySelector("#pending-tx-time").value="";
   document.querySelector("#pending-tx-description").value=r.name||"";
   document.querySelector("#pending-tx-amount").value=Number(r.amount||0);
   document.querySelector("#pending-tx-account").innerHTML=accounts.filter(a=>a.active!==false).map(a=>`<option value="${a.id}" ${a.id===r.accountId?"selected":""}>${escapeHtml(`${a.bank||"Cuenta"} · ${a.alias||""}`)}</option>`).join("");
@@ -155,14 +155,14 @@ document.querySelector("#pending-tx-save")?.addEventListener("click",async()=>{
   if(!txTarget)return;
   const {item,recurring:r}=txTarget;
   const date=document.querySelector("#pending-tx-date").value||item.dueDate;
-  const time=document.querySelector("#pending-tx-time").value||"12:00";
+  const time=document.querySelector("#pending-tx-time").value;
   const amount=Number(document.querySelector("#pending-tx-amount").value||0);
   const accountId=document.querySelector("#pending-tx-account").value;
   if(!(amount>0)||!accountId){toast("Revisa monto y cuenta.");return;}
   const button=document.querySelector("#pending-tx-save");button.disabled=true;
   try{
     await saveRecurringTransaction(r,item.occurrence,{
-      type:r.type,date,transactionDateTime:`${date}T${time}`,
+      type:r.type,date,transactionDateTime:time?`${date}T${time}`:"",
       description:document.querySelector("#pending-tx-description").value.trim()||r.name,
       amount,accountId,category:document.querySelector("#pending-tx-category").value,
       subcategory:document.querySelector("#pending-tx-subcategory").value,

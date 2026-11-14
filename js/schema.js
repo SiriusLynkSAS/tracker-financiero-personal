@@ -80,7 +80,7 @@ export function normalizeTransaction(raw={}){
     schemaVersion:integer(raw.schemaVersion,0),
     type:TRANSACTION_TYPES.has(text(raw.type))?text(raw.type):"expense",
     date,
-    transactionDateTime:dt||(date?`${date}T00:00`:""),
+    transactionDateTime:dt,
     dateTimeInferred:!dt,
     description:text(raw.description),receipt:text(raw.receipt),
     amount,vat,
@@ -121,13 +121,14 @@ export function sanitizeTransactionWrite(raw={}){
     row.fromAccountId="";row.toAccountId="";
   }
 
-  const dt=text(raw.transactionDateTime)||(row.date?`${row.date}T00:00`:"");
+  const dt=text(raw.transactionDateTime);
   if(dt && !isoDateTime(dt)) throw new Error("Fecha y hora del movimiento no válidas.");
+  if(dt && dt.slice(0,10)!==row.date) throw new Error("La fecha del movimiento y transactionDateTime no coinciden.");
 
   const out={
     ...raw,
     schemaVersion:SCHEMA_VERSION,
-    type:row.type,date:row.date,transactionDateTime:dt,
+    type:row.type,date:row.date,
     description:row.description,receipt:row.receipt,amount:row.amount,vat:row.vat,
     accountId:nullableText(row.accountId),fromAccountId:nullableText(row.fromAccountId),toAccountId:nullableText(row.toAccountId),
     category:row.category,subcategory:row.subcategory,
@@ -144,6 +145,7 @@ export function sanitizeTransactionWrite(raw={}){
     recurringId:nullableText(row.recurringId),recurringOccurrence:nullableText(row.recurringOccurrence),recurringScheduledDate:nullableText(row.recurringScheduledDate),
     investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId)
   };
+  if(dt) out.transactionDateTime=dt; else delete out.transactionDateTime;
   delete out.legacyVatRaw;delete out.legacyVatAmbiguous;delete out.dateTimeInferred;
   return out;
 }
