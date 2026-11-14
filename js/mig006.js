@@ -1,7 +1,7 @@
 import {requireUser} from "./guard.js";
 import {
   getEntity,listAccounts,listTransactions,listReconciliations,calculateBalances,atomicWrite
-} from "./data-service.js?v=1.0.74";
+} from "./data-service.js?v=1.0.75";
 import {money,escapeHtml} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 

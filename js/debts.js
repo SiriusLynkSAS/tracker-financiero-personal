@@ -297,7 +297,7 @@ function markPaidThrough(schedule=[],paidThrough=0,{historical=true}={}){
         paidAmount:actualPaid>0?actualPaid:Number(row.paidAmount||row.payment||0),
         paidDate:lastPaymentDate(row),
         historicalPayment:
-          payments.length ? false : (row.paidDate ? !!row.historicalPayment : historical),
+          row.historicalPayment===true ? true : (payments.length ? false : (row.paidDate ? false : historical)),
         payments
       };
     }
@@ -393,7 +393,8 @@ function preserveActualCardPayments(newSchedule=[],oldSchedule=[]){
       status:"paid",
       paidAmount:Number(old.paidAmount ?? old.payment ?? row.payment ?? 0),
       paidDate:old.paidDate,
-      historicalPayment:false
+      historicalPayment:!!old.historicalPayment,
+      payments:Array.isArray(old.payments)?old.payments:[]
     };
   });
 }
@@ -773,7 +774,8 @@ function preserveActualDebtPayments(newSchedule=[],oldSchedule=[]){
       status:"paid",
       paidAmount:Number(old.paidAmount ?? old.payment ?? row.payment ?? 0),
       paidDate:old.paidDate,
-      historicalPayment:false
+      historicalPayment:!!old.historicalPayment,
+      payments:Array.isArray(old.payments)?old.payments:[]
     };
   });
 }
@@ -1344,7 +1346,7 @@ function showDebtSchedule(debt){
     ? effectiveSchedule.map(s=>{
         const isPaid=s.status==="paid";
         const isPartial=s.status==="partial";
-        const isHistorical=!!s.historicalPayment && !s.paidDate && !(s.payments||[]).length;
+        const isHistorical=!!s.historicalPayment;
         const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
         const actual=paymentTotal(s)>0?paymentTotal(s):Number(s.paidAmount||0);
         const expected=Number(s.payment||0);
@@ -1754,7 +1756,7 @@ function showCardSchedule(plan){
   cardScheduleBody.innerHTML=effectiveSchedule.length
     ? effectiveSchedule.map(s=>{
         const isPaid=s.status==="paid";
-        const isHistorical=!!s.historicalPayment && !s.paidDate;
+        const isHistorical=!!s.historicalPayment;
         const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
         const statusLabel=isPaid
           ? (isHistorical ? "Pagada (hist.)" : "Pagada")
