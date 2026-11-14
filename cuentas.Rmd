@@ -16,6 +16,13 @@ title: "Bancos y cuentas"
   <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Creada</th><th>Primer movimiento</th><th>Fecha base propuesta</th></tr></thead><tbody id="mig002-body"></tbody></table></div>
   <div class="tf-actions" style="margin-top:1rem"><button id="mig002-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-002</button></div>
 </div>
+<div id="mig011-panel" class="tf-card" style="margin-bottom:1rem" hidden>
+  <h2>Bloque 11 de 11 · MIG-011</h2>
+  <p class="tf-muted">Normaliza la identidad institucional de las dos cuentas DeUna/Deuna! detectadas en la auditoría. Las cuentas permanecen separadas: no se fusionan IDs, saldos ni movimientos.</p>
+  <div id="mig011-status" class="tf-alert tf-alert-info is-visible"></div>
+  <div class="tf-table-wrap" style="margin-top:.8rem"><table class="tf-table"><thead><tr><th>ID cuenta</th><th>Banco legacy</th><th>Alias</th><th>Estado</th><th>Saldo inicial</th><th>institutionId</th><th>Nombre canónico</th></tr></thead><tbody id="mig011-body"></tbody></table></div>
+  <div class="tf-actions" style="margin-top:1rem"><button id="mig011-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-011</button></div>
+</div>
 <div id="account-editor" class="tf-card" style="margin-bottom:1rem" hidden><h2 id="account-editor-title">Nueva cuenta</h2><form id="account-form" class="tf-form-grid">
 <div class="tf-field"><label>Banco / institución</label><input id="bank" required></div><div class="tf-field"><label>Alias</label><input id="alias" required></div>
 <div class="tf-field"><label>Tipo</label><select id="account-type"><option value="savings">Ahorros</option><option value="checking">Corriente</option><option value="credit_card">Tarjeta de crédito</option><option value="cash">Efectivo / billetera</option></select></div><div class="tf-field"><label>Últimos 4 dígitos</label><input id="last4" maxlength="4" pattern="[0-9]{0,4}"></div>
@@ -25,5 +32,6 @@ title: "Bancos y cuentas"
 <div class="tf-span-2 tf-actions"><button id="account-submit" class="tf-btn tf-btn-primary">Guardar cuenta</button><button id="account-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar</button></div></form></div><div id="accounts-root"></div>
 
 
-<script type="module" src="js/accounts-v1.js?v=1.0.65"></script>
+<script type="module" src="js/accounts-v1.js?v=1.0.78"></script>
+<script type="module" src="js/mig011.js?v=1.0.78"></script>
 ```

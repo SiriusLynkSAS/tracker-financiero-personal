@@ -99,8 +99,8 @@ function renderExpenseChart(txs){
 }
 function renderBanks(){
   const banks={};
-  state.active.filter(a=>a.accountType!=="credit_card").forEach(a=>{banks[a.bank]=(banks[a.bank]||0)+Number(state.balances[a.id]||0)});
-  document.querySelector("#bank-summary").innerHTML=Object.entries(banks).sort((a,b)=>a[0].localeCompare(b[0],"es",{sensitivity:"base"})).map(([bank,v])=>`<div class="tf-summary-row"><span>${escapeHtml(bank)}</span><strong>${money(v)}</strong></div>`).join("")||`<div class="tf-empty">Sin cuentas.</div>`;
+  state.active.filter(a=>a.accountType!=="credit_card").forEach(a=>{const k=a.institutionId||a.bank;const label=a.institutionDisplayName||a.bank;if(!banks[k])banks[k]={label,total:0};banks[k].total+=Number(state.balances[a.id]||0)});
+  document.querySelector("#bank-summary").innerHTML=Object.values(banks).sort((a,b)=>a.label.localeCompare(b.label,"es",{sensitivity:"base"})).map(v=>`<div class="tf-summary-row"><span>${escapeHtml(v.label)}</span><strong>${money(v.total)}</strong></div>`).join("")||`<div class="tf-empty">Sin cuentas.</div>`;
 }
 function renderUpcoming(){
   const events=[];

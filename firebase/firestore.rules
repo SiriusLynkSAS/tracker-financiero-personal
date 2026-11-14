@@ -32,6 +32,9 @@ service cloud.firestore {
             && optionalString(request.resource.data,'openingBalanceAsOf',10)
             && optionalString(request.resource.data,'ledgerStartDate',10)
             && optionalString(request.resource.data,'openingBalanceDateSource',40)
+            && optionalString(request.resource.data,'institutionId',128)
+            && optionalString(request.resource.data,'institutionDisplayName',120)
+            && optionalString(request.resource.data,'institutionIdentitySource',40)
           ));
         allow delete: if false;
       }
@@ -263,6 +266,8 @@ service cloud.firestore {
             && isoDate(request.resource.data.maturityDate)
             && optionalNonNegative(request.resource.data,'withholding')
             && optionalNonNegative(request.resource.data,'fees')
+            && optionalString(request.resource.data,'institutionId',128)
+            && optionalString(request.resource.data,'institutionDisplayName',120)
             && request.resource.data.capitalMovementMode in ['automatic','linked_existing','historical','already_registered']
             && request.resource.data.reminderDaysBefore is int
             && request.resource.data.reminderDaysBefore >= 0

@@ -1,3 +1,11 @@
+# Tracker Financiero Personal Web V1.0.78 · Bloque 11 de 11 · MIG-011
+
+- MIG-010 cerrada al avanzar al último bloque.
+- MIG-011 normaliza únicamente la identidad institucional de las cuentas DeUna/Deuna! auditadas: `institutionId=deuna`, `institutionDisplayName=DeUna`.
+- No fusiona cuentas, no cambia account IDs, saldos, movimientos, conciliaciones ni estado activo/archivado.
+- Las escrituras futuras reconocen las variantes DeUna / De Una / Deuna! sin aproximar otras instituciones.
+- Las inversiones Web pueden guardar la misma identidad institucional cuando la institución es reconocida.
+
 # Tracker Financiero Personal Web V1.0.77 · Bloque 10 de 11 · MIG-010
 
 - MIG-009 validada y cerrada antes de iniciar este bloque.
