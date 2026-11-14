@@ -1498,26 +1498,36 @@ export async function syncReceivablesClosed(today=new Date()){
 
 export const listAudit=()=>listEntities("auditLog");
 
+export function accountLedgerStartDate(account){
+  return String(account?.ledgerStartDate||account?.openingBalanceAsOf||"").slice(0,10);
+}
+export function transactionInAccountLedger(account,transaction){
+  const start=accountLedgerStartDate(account);
+  const date=String(transaction?.date||"").slice(0,10);
+  return !start || !date || date>=start;
+}
 export function calculateBalances(accounts,transactions){
   const b=Object.fromEntries(accounts.map(a=>[a.id,Number(a.openingBalance||0)]));
+  const byId=Object.fromEntries(accounts.map(a=>[a.id,a]));
   for(const t of transactions){
     const m=Number(t.amount||0);
-    if(["income","work_reimbursement","work_advance"].includes(t.type)&&t.accountId in b)b[t.accountId]+=m;
     const charges=Math.max(0,Number(t.feeAmount||0))+Math.max(0,Number(t.taxAmount||0))+Math.max(0,Number(t.otherChargeAmount||0));
-    if(["expense","work_expense","work_advance_return"].includes(t.type)&&t.accountId in b)b[t.accountId]-=(m+charges);
+    const applies=id=>id in b && transactionInAccountLedger(byId[id],t);
+    if(["income","work_reimbursement","work_advance"].includes(t.type)&&applies(t.accountId))b[t.accountId]+=m;
+    if(["expense","work_expense","work_advance_return"].includes(t.type)&&applies(t.accountId))b[t.accountId]-=(m+charges);
     if(t.type==="transfer"){
-      if(t.fromAccountId in b)b[t.fromAccountId]-=(m+charges);
-      if(t.toAccountId in b)b[t.toAccountId]+=m;
+      if(applies(t.fromAccountId))b[t.fromAccountId]-=(m+charges);
+      if(applies(t.toAccountId))b[t.toAccountId]+=m;
     }
-    if(t.type==="investment_out"&&t.accountId in b)b[t.accountId]-=m;
-    if(t.type==="investment_return"&&t.accountId in b)b[t.accountId]+=m;
+    if(t.type==="investment_out"&&applies(t.accountId))b[t.accountId]-=m;
+    if(t.type==="investment_return"&&applies(t.accountId))b[t.accountId]+=m;
   }
   return b;
 }
 export function calculateBalanceAtDate(account,transactions,date){
   let balance=Number(account?.openingBalance||0);
   for(const t of transactions){
-    if(String(t.date)>String(date)) continue;
+    if(String(t.date)>String(date)||!transactionInAccountLedger(account,t)) continue;
     const m=Number(t.amount||0);
     if(["income","work_reimbursement","work_advance"].includes(t.type)&&t.accountId===account.id) balance+=m;
     const charges=Math.max(0,Number(t.feeAmount||0))+Math.max(0,Number(t.taxAmount||0))+Math.max(0,Number(t.otherChargeAmount||0));

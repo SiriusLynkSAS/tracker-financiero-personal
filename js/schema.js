@@ -27,6 +27,8 @@ export function normalizeAccount(raw={}){
     accountType:text(raw.accountType)||"savings",
     openingBalance:finite(raw.openingBalance,0),
     openingBalanceAsOf:text(raw.openingBalanceAsOf||raw.ledgerStartDate),
+    ledgerStartDate:text(raw.ledgerStartDate||raw.openingBalanceAsOf),
+    openingBalanceDateSource:text(raw.openingBalanceDateSource),
     legacyOpeningBalanceAsOfMissing:!text(raw.openingBalanceAsOf||raw.ledgerStartDate),
     creditLimit:nonNegative(raw.creditLimit,0),
     active:raw.active!==false
@@ -40,11 +42,15 @@ export function sanitizeAccountWrite(raw={}){
   if(!text(raw.alias)) throw new Error("Ingresa el nombre de la cuenta.");
   const openingBalance=finite(raw.openingBalance,NaN);
   if(!Number.isFinite(openingBalance)) throw new Error("Saldo inicial no válido.");
+  const openingBalanceAsOf=text(raw.openingBalanceAsOf||raw.ledgerStartDate);
+  if(openingBalanceAsOf && !isoDate(openingBalanceAsOf)) throw new Error("Fecha base del saldo inicial no válida.");
   return {
     ...raw,
     schemaVersion:SCHEMA_VERSION,
     bank:text(raw.bank),alias:text(raw.alias),accountType,openingBalance,
-    openingBalanceAsOf:text(raw.openingBalanceAsOf||raw.ledgerStartDate),
+    openingBalanceAsOf,
+    ledgerStartDate:openingBalanceAsOf,
+    openingBalanceDateSource:text(raw.openingBalanceDateSource),
     creditLimit:nonNegative(raw.creditLimit,0),
     active:raw.active!==false
   };
