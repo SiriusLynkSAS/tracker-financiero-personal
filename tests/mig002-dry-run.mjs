@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const raw=JSON.parse(fs.readFileSync(process.argv[2]||'/mnt/data/tracker-financiero-auditoria-2026-11-08.json','utf8'));
+const accounts=raw.collections.accounts.documents.map(d=>({id:d.id,...d.data}));
+const tx=raw.collections.transactions.documents.map(d=>({id:d.id,...d.data}));
+const isoTs=v=>v?.iso?.slice(0,10)||'';
+const touches=(t,id)=>[t.accountId,t.fromAccountId,t.toAccountId].includes(id);
+const firstDate=id=>tx.filter(t=>touches(t,id)&&/^\d{4}-\d{2}-\d{2}$/.test(String(t.date||''))).map(t=>t.date).sort()[0]||'';
+const effect=(t,id)=>{const m=Number(t.amount||0),c=Number(t.feeAmount||0)+Number(t.taxAmount||0)+Number(t.otherChargeAmount||0);let x=0;if(['income','work_reimbursement','work_advance'].includes(t.type)&&t.accountId===id)x+=m;if(['expense','work_expense','work_advance_return'].includes(t.type)&&t.accountId===id)x-=m+c;if(t.type==='transfer'){if(t.fromAccountId===id)x-=m+c;if(t.toAccountId===id)x+=m}if(t.type==='investment_out'&&t.accountId===id)x-=m;if(t.type==='investment_return'&&t.accountId===id)x+=m;return x};
+const rows=accounts.map(a=>{const created=isoTs(a.createdAt),first=firstDate(a.id),date=[created,first].filter(Boolean).sort()[0]||'';const before=Number(a.openingBalance||0)+tx.reduce((s,t)=>s+effect(t,a.id),0);const after=Number(a.openingBalance||0)+tx.filter(t=>!date||!t.date||t.date>=date).reduce((s,t)=>s+effect(t,a.id),0);return {id:a.id,bank:a.bank,alias:a.alias,created,firstTransaction:first,suggested:date,balanceBefore:Math.round(before*100)/100,balanceAfter:Math.round(after*100)/100,delta:Math.round((after-before)*100)/100,transactionBeforeCreation:!!(created&&first&&first<created)}});
+console.log(JSON.stringify({accounts:rows.length,legacyAccounts:rows.filter(a=>!accounts.find(x=>x.id===a.id)?.openingBalanceAsOf&&!accounts.find(x=>x.id===a.id)?.ledgerStartDate).length,transactionBeforeCreation:rows.filter(x=>x.transactionBeforeCreation).length,balanceChanges:rows.filter(x=>Math.abs(x.delta)>0.009).length,rows},null,2));

@@ -1269,3 +1269,9 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Cobro directo por período contractual desde listado y modal de contrato.
 - El modal de cobro conserva el contexto del contrato y genera un ingreso con descripción contrato/período.
 - No inicia MIG-002 ni modifica la configuración Firebase.
+## V1.0.65 · MIG-002
+- Panel asistido en Bancos y cuentas para asignar `openingBalanceAsOf` / `ledgerStartDate` a cuentas legacy.
+- Fecha sugerida = fecha más antigua entre creación de cuenta y primer movimiento vinculado.
+- El motor de saldos y el ledger ignoran movimientos anteriores a la fecha base.
+- Cuentas nuevas requieren fecha base del saldo inicial.
+- Dry-run sobre RAW 2026-11-08: 15 cuentas legacy, 1 movimiento anterior a createdAt, 0 cambios de saldo esperados.

@@ -30,6 +30,8 @@ service cloud.firestore {
             && nonEmptyString(request.resource.data.alias,120)
             && optionalNonNegative(request.resource.data,'creditLimit')
             && optionalString(request.resource.data,'openingBalanceAsOf',10)
+            && optionalString(request.resource.data,'ledgerStartDate',10)
+            && optionalString(request.resource.data,'openingBalanceDateSource',40)
           ));
         allow delete: if false;
       }

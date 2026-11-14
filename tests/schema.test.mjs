@@ -1,20 +1,30 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {
-  SCHEMA_VERSION,normalizeTransaction,normalizeBudget,normalizeLiability,
-  sanitizeTransactionWrite,sanitizeBudgetWrite
+  SCHEMA_VERSION,normalizeAccount,normalizeTransaction,normalizeBudget,normalizeLiability,
+  sanitizeAccountWrite,sanitizeTransactionWrite,sanitizeBudgetWrite
 } from '../js/schema.js';
 
 const raw=JSON.parse(fs.readFileSync(process.argv[2]||'/mnt/data/tracker-financiero-auditoria-2026-11-06.json','utf8'));
 const c=raw.collections;
+const accounts=c.accounts.documents.map(d=>({id:d.id,...d.data}));
 const tx=c.transactions.documents.map(d=>({id:d.id,...d.data}));
 const budgets=c.budgets.documents.map(d=>({id:d.id,...d.data}));
 const debts=c.liabilities.documents.map(d=>({id:d.id,...d.data}));
 
+const normalizedAccounts=accounts.map(normalizeAccount);
+const expectedLegacyAccountDates=accounts.filter(x=>!String(x.openingBalanceAsOf||x.ledgerStartDate||'').trim()).length;
+assert.equal(normalizedAccounts.filter(x=>x.legacyOpeningBalanceAsOfMissing).length,expectedLegacyAccountDates,'cuentas legacy sin fecha base');
+const sampleAccount=sanitizeAccountWrite({bank:'Banco',alias:'Ahorros',accountType:'savings',openingBalance:100,openingBalanceAsOf:'2026-08-31'});
+assert.equal(sampleAccount.openingBalanceAsOf,'2026-08-31');
+assert.equal(sampleAccount.ledgerStartDate,'2026-08-31');
+assert.throws(()=>sanitizeAccountWrite({bank:'Banco',alias:'Ahorros',accountType:'savings',openingBalance:100,openingBalanceAsOf:'31/08/2026'}),/Fecha base/);
+
 const normalizedTx=tx.map(normalizeTransaction);
 assert.equal(normalizedTx.filter(x=>x.legacyVatAmbiguous).length,23,'IVA legacy ambiguo');
 assert.equal(normalizedTx.filter(x=>x.legacyVatAmbiguous && x.vat!==0).length,0,'IVA legacy efectivo debe quedar en 0 en memoria');
-assert.equal(budgets.map(normalizeBudget).filter(x=>x.legacyPeriodMissing).length,2,'budgets legacy sin mes');
+const expectedLegacyBudgets=budgets.filter(x=>!String(x.month||'').trim()).length;
+assert.equal(budgets.map(normalizeBudget).filter(x=>x.legacyPeriodMissing).length,expectedLegacyBudgets,'budgets legacy sin mes');
 assert.equal(debts.map(normalizeLiability).filter(x=>x.legacyStatusConflict).length,1,'deuda active/status inconsistente');
 
 const transfer=sanitizeTransactionWrite({type:'transfer',date:'2026-11-06',amount:10,vat:0,accountId:'SHOULD_CLEAR',fromAccountId:'A',toAccountId:'B'});
@@ -32,4 +42,4 @@ const budget=sanitizeBudgetWrite({category:'Casa',subcategory:'Internet',limit:3
 assert.equal(budget.schemaVersion,SCHEMA_VERSION);
 
 console.log('schema.test.mjs OK');
-console.log(JSON.stringify({transactions:tx.length,legacyVatAmbiguous:23,budgetsLegacy:2,liabilityStatusConflict:1,schemaVersion:SCHEMA_VERSION},null,2));
+console.log(JSON.stringify({accounts:accounts.length,accountsLegacyDate:expectedLegacyAccountDates,transactions:tx.length,legacyVatAmbiguous:23,budgetsLegacy:expectedLegacyBudgets,liabilityStatusConflict:1,schemaVersion:SCHEMA_VERSION},null,2));

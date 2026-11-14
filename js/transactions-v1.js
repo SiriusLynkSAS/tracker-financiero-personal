@@ -7,7 +7,8 @@ import {
   removeTransaction,
   listReconciliations,
   listRecurring,
-  saveRecurringTransaction
+  saveRecurringTransaction,
+  transactionInAccountLedger
 } from "./data-service.js";
 import {
   todayISO,
@@ -118,7 +119,10 @@ function buildLedgerSnapshots(){
   });
   const map=new Map();
   for(const tx of rows){
-    const lines=transactionEffects(tx).map(effect=>{
+    const lines=transactionEffects(tx).filter(effect=>{
+      const account=accounts.find(a=>a.id===effect.accountId);
+      return account && transactionInAccountLedger(account,tx);
+    }).map(effect=>{
       const before=Number(balances[effect.accountId]||0);
       const after=before+effect.change;
       balances[effect.accountId]=after;
