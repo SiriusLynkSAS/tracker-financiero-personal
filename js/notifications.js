@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts} from "./data-service.js";
+import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoices} from "./data-service.js?v=1.0.70";
 import {buildPendingItems} from "./pending-engine.js";
 import {money,escapeHtml} from "./utils.js";
 
@@ -37,10 +37,10 @@ function renderHosts(items){
 async function refreshPendingMenu(){
   const hosts=[...document.querySelectorAll("[data-pending-host]")];
   if(!hosts.length) return;
-  const [recurring,transactions,liabilities,plans,accounts]=await Promise.all([
-    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false})
+  const [recurring,transactions,liabilities,plans,accounts,invoices]=await Promise.all([
+    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listInvoices()
   ]);
-  renderHosts(buildPendingItems({recurring,transactions,liabilities,plans,accounts}));
+  renderHosts(buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices}));
 }
 
 export function setupPendingMenu(){

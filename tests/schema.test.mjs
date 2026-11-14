@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {
-  SCHEMA_VERSION,normalizeAccount,normalizeTransaction,normalizeBudget,normalizeLiability,
-  sanitizeAccountWrite,sanitizeTransactionWrite,sanitizeBudgetWrite
+  SCHEMA_VERSION,normalizeAccount,normalizeTransaction,normalizeBudget,normalizeLiability,normalizeInvoice,
+  sanitizeAccountWrite,sanitizeTransactionWrite,sanitizeBudgetWrite,sanitizeInvoiceWrite
 } from '../js/schema.js';
 
 const raw=JSON.parse(fs.readFileSync(process.argv[2]||'/mnt/data/tracker-financiero-auditoria-2026-11-06.json','utf8'));
@@ -46,6 +46,25 @@ assert.equal(transfer.toAccountId,'B');
 const expense=sanitizeTransactionWrite({type:'expense',date:'2026-11-06',amount:10,vat:0,accountId:'A',fromAccountId:'OLD',toAccountId:'OLD'});
 assert.equal(expense.fromAccountId,null);
 assert.equal(expense.toAccountId,null);
+
+
+const invoice=sanitizeInvoiceWrite({
+  invoiceNumber:'001-001-000000001',customerName:'Cliente',concept:'Consultoría',
+  issueDate:'2026-11-14',dueDate:'2026-12-14',calculationMode:'base_plus_vat',vatRate:13,
+  baseAmount:100,vatAmount:13,totalAmount:113,paidAmount:0,paidBaseAmount:0,paidVatAmount:0,
+  status:'pending',active:true,taxPeriod:'2026-11',vatStatus:'pending'
+});
+assert.equal(invoice.schemaVersion,SCHEMA_VERSION);
+assert.equal(invoice.totalAmount,113);
+assert.equal(normalizeInvoice({...invoice,paidAmount:56.5,paidBaseAmount:50,paidVatAmount:6.5}).status,'partial');
+assert.throws(()=>sanitizeInvoiceWrite({...invoice,totalAmount:114}),/Base \+ IVA/);
+const invoicePaymentTx=sanitizeTransactionWrite({
+  type:'income',date:'2026-11-14',transactionDateTime:'2026-11-14T10:30',amount:113,vat:13,accountId:'A',
+  hasInvoice:true,invoiceNumber:invoice.invoiceNumber,invoiceBase:100,invoiceId:'INV1',invoicePaymentId:'PAY1',economicAmount:100,invoiceVatComponent:13
+});
+assert.equal(invoicePaymentTx.invoiceId,'INV1');
+assert.equal(invoicePaymentTx.economicAmount,100);
+assert.equal(invoicePaymentTx.invoiceVatComponent,13);
 
 assert.throws(()=>sanitizeBudgetWrite({category:'Casa',subcategory:'Internet',limit:30,month:'',rollover:false}),/mes válido/);
 const budget=sanitizeBudgetWrite({category:'Casa',subcategory:'Internet',limit:30,month:'2026-11',rollover:false});

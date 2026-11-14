@@ -155,5 +155,5 @@ title: "Resumen"
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script type="module" src="js/dashboard-v1.js?v=1.0.67"></script>
+<script type="module" src="js/dashboard-v1.js?v=1.0.70"></script>
 ```

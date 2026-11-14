@@ -9,7 +9,7 @@ import {
   listRecurring,
   saveRecurringTransaction,
   transactionInAccountLedger
-} from "./data-service.js";
+} from "./data-service.js?v=1.0.70";
 import {
   todayISO,
   money,
@@ -25,6 +25,7 @@ import {
   setSubcategorySelect
 } from "./category-catalog.js";
 import { confirmAction, toast } from "./ui.js";
+import { hasResidualTransferAccountRefs, isAuditedMig005Candidate } from "./mig005-logic.js?v=1.0.70";
 
 let accounts = [];
 let transactions = [];
@@ -709,13 +710,13 @@ function render() {
       <td><strong>${escapeHtml(day)}</strong><div class="tf-muted">${escapeHtml(time||"—")}</div></td>
       <td>
         <div class="tf-tx-ledger-title"><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span> <strong>${escapeHtml(tx.description||"Sin descripción")}</strong></div>
-        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}${tx.legacyVatAmbiguous?` · <span class="tf-pill tf-pill-warn">IVA legacy · MIG-004</span>`:""}</div>
+        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}${tx.legacyVatAmbiguous?` · <span class="tf-pill tf-pill-warn">IVA legacy · MIG-004</span>`:""}${hasResidualTransferAccountRefs(tx)?` · <span class="tf-pill tf-pill-warn">${isAuditedMig005Candidate(tx)?"Referencia legacy · MIG-005":"Referencia legacy · revisar"}</span>`:""}</div>
       </td>
       <td><strong>${money(tx.amount)}</strong></td>
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
       <td><div class="tf-actions tf-actions-compact">
         <button class="tf-icon-btn" data-detail="${tx.id}" title="Ver detalle" aria-label="Ver detalle">ⓘ</button>
-        ${tx.reconciliationAdjustment?`<a class="tf-icon-btn" href="conciliacion.html" title="Abrir conciliación" aria-label="Abrir conciliación">↗</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-icon-btn" href="deudas.html" title="Abrir deuda" aria-label="Abrir deuda">↗</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-icon-btn" href="comisiones.html" title="Abrir comisión" aria-label="Abrir comisión">↗</a>`:(tx.recurringId?`<a class="tf-icon-btn" href="recurrentes.html" title="Abrir recurrente" aria-label="Abrir recurrente">↗</a>`:`<button class="tf-icon-btn" data-edit="${tx.id}" title="Editar" aria-label="Editar">✎</button>`)}
+        ${tx.reconciliationAdjustment?`<a class="tf-icon-btn" href="conciliacion.html" title="Abrir conciliación" aria-label="Abrir conciliación">↗</a>`:(tx.debtPaymentId||tx.liabilityId)?`<a class="tf-icon-btn" href="deudas.html" title="Abrir deuda" aria-label="Abrir deuda">↗</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-icon-btn" href="comisiones.html" title="Abrir comisión" aria-label="Abrir comisión">↗</a>`:(tx.recurringId?`<a class="tf-icon-btn" href="recurrentes.html" title="Abrir recurrente" aria-label="Abrir recurrente">↗</a>`:(tx.invoicePaymentId?`<a class="tf-icon-btn" href="facturacion.html?invoice=${encodeURIComponent(tx.invoiceId||"")}" title="Abrir factura" aria-label="Abrir factura">↗</a>`:(tx.contractPaymentId?`<a class="tf-icon-btn" href="contratos.html" title="Abrir contrato" aria-label="Abrir contrato">↗</a>`:`<button class="tf-icon-btn" data-edit="${tx.id}" title="Editar" aria-label="Editar">✎</button>`)))}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.recurringId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-icon-btn tf-icon-btn-danger" data-delete="${tx.id}" title="Eliminar" aria-label="Eliminar">×</button>`}
       </div></td>
     </tr>`;
@@ -1085,6 +1086,7 @@ tbody.addEventListener("click", async e => {
   if (editButton) {
     const tx = transactions.find(x => x.id === editButton.dataset.edit);
     if(tx?.legacyVatAmbiguous){toast("Este movimiento tiene IVA legacy ambiguo. Aplica MIG-004 desde IVA / Impuestos antes de editarlo.");return;}
+    if(hasResidualTransferAccountRefs(tx)){toast(isAuditedMig005Candidate(tx)?"Este movimiento está auditado en MIG-005. Aplica el Bloque 5 desde Movimientos antes de editarlo.":"Este movimiento conserva referencias de transferencia no auditadas. Requiere revisión antes de editarlo.");return;}
     editingId = tx.id;
     openEditorDialog();
 
@@ -1134,6 +1136,7 @@ tbody.addEventListener("click", async e => {
 
   if (deleteButton) {
     const tx = transactions.find(x => x.id === deleteButton.dataset.delete);
+    if(hasResidualTransferAccountRefs(tx)){toast(isAuditedMig005Candidate(tx)?"Este movimiento está auditado en MIG-005. Aplica el Bloque 5 antes de eliminarlo.":"Este movimiento conserva referencias de transferencia no auditadas y no puede eliminarse sin revisión.");return;}
     const accountIds = [
       tx.accountId,
       tx.fromAccountId,
@@ -1181,4 +1184,5 @@ document.querySelector("#tx-amount").value = "";
 syncDateTimeDisplays();
 toggleType();
 updateSaveButton();
+window.addEventListener("tf-mig005-applied",()=>refresh().catch(console.error));
 requireUser(() => refresh().catch(console.error));

@@ -17,6 +17,7 @@ project:
     - deudas.Rmd
     - seguros.Rmd
     - impuestos.Rmd
+    - facturacion.Rmd
     - activos.Rmd
     - contratos.Rmd
     - comisiones.Rmd
@@ -35,7 +36,7 @@ website:
   title: "Tracker Financiero Personal"
 
   page-footer:
-    center: "Tracker Financiero Personal V1.0.68"
+    center: "Tracker Financiero Personal V1.0.70"
 
 format:
   html:
@@ -61,4 +62,4 @@ format:
           })();
         </script>
         <script type="module" src="js/theme.js"></script>
-        <script type="module" src="js/app-shell.js"></script>
+        <script type="module" src="js/app-shell.js?v=1.0.70"></script>

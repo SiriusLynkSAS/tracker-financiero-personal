@@ -2,13 +2,13 @@ import { requireUser } from "./guard.js";
 import {
   listAccounts,listTransactions,calculateBalances,listLiabilities,listFinancingPlans,
   listInvestments,listAssets,listReceivables,listRecurring,listInsurance,listCategories,
-  listContracts,getEmergencyFund,syncReceivablesClosed
-} from "./data-service.js";
+  listContracts,listInvoices,getEmergencyFund,syncReceivablesClosed
+} from "./data-service.js?v=1.0.70";
 import { money,sum,escapeHtml,todayISO,addDaysISO,isoFromParts,daysBetween } from "./utils.js";
 import { assetDepreciation } from "./asset-math.js";
 import { categoryStyle } from "./category-catalog.js";
 import { categoryBadge } from "./category-icons.js";
-import {analyticTransactions} from "./transaction-analytics.js";
+import {analyticTransactions,economicIncomeAmount} from "./transaction-analytics.js";
 import {monthlyProjection,emergencyFundSummary,defaultEmergencyFundConfig} from "./planning.js";
 
 let state={},assetChart=null,expenseChart=null;
@@ -46,7 +46,7 @@ function getPeriodTransactions(){
 }
 function renderPeriodMetrics(){
   const txs=analyticTransactions(getPeriodTransactions());
-  const income=sum(txs.filter(t=>t.type==="income"),t=>t.amount);
+  const income=sum(txs.filter(t=>t.type==="income"),economicIncomeAmount);
   const expense=sum(txs.filter(t=>t.type==="expense"),t=>t.amount);
   const flow=income-expense;
   document.querySelector("#kpi-income").textContent=money(income);
@@ -138,6 +138,7 @@ function renderPlanning(){
     insurance:state.ins,
     receivables:state.recv,
     contracts:state.contracts,
+    invoices:state.invoices||[],
     debts:state.debts,
     cardPlans:state.plans,
     month,
@@ -169,9 +170,9 @@ function renderPlanning(){
 
 async function init(){
   const syncedReceivables=await syncReceivablesClosed();
-  const [accounts,txs,debts,plans,investments,assets,recur,ins,categories,contracts,emergencyConfig]=await Promise.all([
+  const [accounts,txs,debts,plans,investments,assets,recur,ins,categories,contracts,invoices,emergencyConfig]=await Promise.all([
     listAccounts(),listTransactions(),listLiabilities(),listFinancingPlans(),listInvestments(),listAssets(),
-    listRecurring(),listInsurance(),listCategories(),listContracts(),getEmergencyFund()
+    listRecurring(),listInsurance(),listCategories(),listContracts(),listInvoices(),getEmergencyFund()
   ]);
   const recv=syncedReceivables;
   const balances=calculateBalances(accounts,txs),active=accounts.filter(a=>a.active!==false);
@@ -190,7 +191,7 @@ async function init(){
   const invested=sum(investments.filter(i=>i.active!==false&&i.status==="active"),i=>i.principal);
   const assetValue=sum(assets.filter(a=>a.active!==false),assetCurrentValue);
   const totalDebt=cardDebt+loanDebt,netWorth=liquidity+invested+assetValue-totalDebt;
-  state={accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories,contracts,emergencyConfig,balances,active,liquidity,cardDebt,loanDebt,totalDebt,invested,assetValue,netWorth};
+  state={accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories,contracts,invoices,emergencyConfig,balances,active,liquidity,cardDebt,loanDebt,totalDebt,invested,assetValue,netWorth};
   document.querySelector("#kpi-liquidity").textContent=money(liquidity);
   document.querySelector("#kpi-investments").textContent=money(invested);
   document.querySelector("#kpi-assets").textContent=money(assetValue);

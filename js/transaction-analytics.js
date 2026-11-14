@@ -30,6 +30,10 @@ export function analyticSplits(tx){
 export function financialCharges(tx){
   return Math.max(0,Number(tx?.feeAmount||0))+Math.max(0,Number(tx?.taxAmount||0))+Math.max(0,Number(tx?.otherChargeAmount||0));
 }
+export function economicIncomeAmount(tx){
+  if(isReconciliationAdjustment(tx)||tx?.type!=="income") return 0;
+  return Number(tx?.economicAmount||0)>0?Number(tx.economicAmount):Math.max(0,Number(tx?.amount||0)-Number(tx?.vat||0));
+}
 export function analyticAmount(tx){
   if(isReconciliationAdjustment(tx)) return 0;
   const base=Number(tx?.amount||0);

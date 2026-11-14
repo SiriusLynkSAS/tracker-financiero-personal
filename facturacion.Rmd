@@ -1,0 +1,93 @@
+---
+title: "Facturación"
+---
+
+```{=html}
+<div class="tf-page-header">
+  <div>
+    <h1>Facturación</h1>
+    <div class="tf-muted">Emite facturas, controla cuentas por cobrar y registra cobros sin duplicar ingresos ni saldos.</div>
+  </div>
+  <div class="tf-actions"><button id="invoice-new" class="tf-btn tf-btn-primary" type="button">Nueva factura</button><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+</div>
+
+<div class="tf-alert tf-alert-info is-visible">
+  Una factura pendiente no modifica ninguna cuenta. El movimiento de ingreso se crea únicamente al registrar un cobro. La tarifa IVA inicial es editable y queda congelada en cada factura.
+</div>
+
+<div class="tf-grid tf-grid-3" style="margin-top:1rem">
+  <div class="tf-card"><div class="tf-kpi-label">Base facturada</div><div id="invoice-kpi-base" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">IVA generado</div><div id="invoice-kpi-vat" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">Total facturado</div><div id="invoice-kpi-total" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">Cobrado</div><div id="invoice-kpi-paid" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">Pendiente</div><div id="invoice-kpi-pending" class="tf-kpi-value">$0,00</div></div>
+  <div class="tf-card"><div class="tf-kpi-label">Vencido</div><div id="invoice-kpi-overdue" class="tf-kpi-value">$0,00</div></div>
+</div>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading"><div><h2>Facturas emitidas</h2><div class="tf-muted">El estado se deriva de los cobros registrados y la fecha de vencimiento.</div></div><strong id="invoice-count">0</strong></div>
+  <div class="tf-table-wrap" style="margin-top:.8rem"><table class="tf-table"><thead><tr><th>Factura</th><th>Cliente</th><th>Emisión</th><th>Vence</th><th>Base</th><th>IVA</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th><th></th></tr></thead><tbody id="invoice-body"></tbody></table></div>
+</section>
+
+<dialog id="invoice-editor-dialog" class="tf-dialog tf-dialog-wide">
+  <form method="dialog" onsubmit="return false" class="tf-dialog-card">
+    <div class="tf-dialog-header"><div><div class="tf-section-kicker">Facturación</div><h2 id="invoice-editor-title">Nueva factura</h2></div><button id="invoice-editor-close-x" class="tf-icon-button" type="button" aria-label="Cerrar">×</button></div>
+    <div class="tf-dialog-body">
+      <div class="tf-grid tf-grid-2">
+        <div class="tf-field"><label>Código de factura</label><input id="invoice-number" autocomplete="off" placeholder="001-001-000000001"></div>
+        <div class="tf-field"><label>Cliente</label><input id="invoice-customer" autocomplete="off"></div>
+        <div class="tf-field"><label>Identificación del cliente <span class="tf-muted">(opcional)</span></label><input id="invoice-customer-id" autocomplete="off"></div>
+        <div class="tf-field"><label>Concepto</label><input id="invoice-concept" autocomplete="off"></div>
+        <div class="tf-field"><label>Fecha de emisión</label><input id="invoice-issue-date" type="date"></div>
+        <div class="tf-field"><label>Fecha de vencimiento</label><input id="invoice-due-date" type="date"></div>
+      </div>
+
+      <div class="tf-field" style="margin-top:.9rem"><label>Vincular con cuenta por cobrar contractual <span class="tf-muted">(opcional)</span></label><select id="invoice-receivable"><option value="">Factura independiente</option></select><div class="tf-muted" id="invoice-receivable-note"></div></div>
+
+      <div class="tf-grid tf-grid-2" style="margin-top:.9rem">
+        <div class="tf-field"><label>Forma de ingreso del valor</label><select id="invoice-calculation-mode"><option value="base_plus_vat">Tengo el valor sin IVA</option><option value="total_includes_vat">Tengo el total incluido IVA</option></select></div>
+        <div class="tf-field"><label>Tarifa IVA (%)</label><input id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" value="13"></div>
+        <div class="tf-field"><label id="invoice-input-label">Valor sin IVA</label><input id="invoice-input-amount" type="number" min="0" step="0.01" inputmode="decimal"></div>
+      </div>
+
+      <div class="tf-detail-grid" style="margin-top:1rem">
+        <div class="tf-metric"><span class="tf-metric-label">Base</span><strong id="invoice-preview-base">$0,00</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">IVA</span><strong id="invoice-preview-vat">$0,00</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">TOTAL</span><strong id="invoice-preview-total">$0,00</strong></div>
+      </div>
+
+      <div id="invoice-initial-payment-wrap" style="margin-top:1rem">
+        <div class="tf-field"><label>Estado inicial</label><select id="invoice-initial-state"><option value="pending">Pendiente de cobro</option><option value="pay_now">Cobrar ahora</option></select></div>
+        <div id="invoice-pay-now-fields" hidden>
+          <div class="tf-grid tf-grid-2" style="margin-top:.8rem">
+            <div class="tf-field"><label>Cuenta destino</label><select id="invoice-pay-account"></select></div>
+            <div class="tf-field"><label>Monto recibido</label><input id="invoice-pay-amount" type="number" min="0" step="0.01"></div>
+            <div class="tf-field"><label>Fecha de cobro</label><input id="invoice-pay-date" type="date"></div>
+            <div class="tf-field"><label>Hora de cobro</label><input id="invoice-pay-time" type="time"></div>
+          </div>
+        </div>
+      </div>
+      <div class="tf-field" style="margin-top:.9rem"><label>Notas</label><textarea id="invoice-notes"></textarea></div>
+    </div>
+    <div class="tf-dialog-actions"><button id="invoice-editor-close" class="tf-btn tf-btn-secondary" type="button">Cancelar</button><button id="invoice-editor-save" class="tf-btn tf-btn-primary" type="button">Crear factura</button></div>
+  </form>
+</dialog>
+
+<dialog id="invoice-payment-dialog" class="tf-dialog">
+  <form method="dialog" onsubmit="return false" class="tf-dialog-card">
+    <div class="tf-dialog-header"><div><div class="tf-section-kicker">Cobro</div><h2 id="invoice-payment-title">Registrar cobro</h2><div id="invoice-payment-meta" class="tf-muted"></div></div></div>
+    <div class="tf-dialog-body">
+      <div class="tf-field"><label>Cuenta destino</label><select id="invoice-payment-account"></select></div>
+      <div class="tf-field"><label>Monto recibido</label><input id="invoice-payment-amount" type="number" min="0" step="0.01"></div>
+      <div class="tf-grid tf-grid-2">
+        <div class="tf-field"><label>Fecha</label><input id="invoice-payment-date" type="date"></div>
+        <div class="tf-field"><label>Hora</label><input id="invoice-payment-time" type="time"></div>
+      </div>
+      <div class="tf-field"><label>Descripción</label><input id="invoice-payment-description"></div>
+    </div>
+    <div class="tf-dialog-actions"><button id="invoice-payment-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button><button id="invoice-payment-save" class="tf-btn tf-btn-primary" type="button">Registrar cobro</button></div>
+  </form>
+</dialog>
+
+<script type="module" src="js/invoices.js?v=1.0.70"></script>
+```

@@ -326,6 +326,29 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      match /invoices/{id} {
+        allow read: if isOwner(userId);
+        allow create,update: if isOwner(userId)
+          && canonical(request.resource.data)
+          && nonEmptyString(request.resource.data.invoiceNumber,80)
+          && nonEmptyString(request.resource.data.customerName,180)
+          && nonEmptyString(request.resource.data.concept,240)
+          && isoDate(request.resource.data.issueDate)
+          && isoDate(request.resource.data.dueDate)
+          && request.resource.data.calculationMode in ['base_plus_vat','total_includes_vat']
+          && nonNegative(request.resource.data.vatRate)
+          && request.resource.data.vatRate <= 100
+          && nonNegative(request.resource.data.baseAmount)
+          && nonNegative(request.resource.data.vatAmount)
+          && positive(request.resource.data.totalAmount)
+          && nonNegative(request.resource.data.paidAmount)
+          && nonNegative(request.resource.data.paidBaseAmount)
+          && nonNegative(request.resource.data.paidVatAmount)
+          && request.resource.data.status in ['pending','partial','paid','overdue','void']
+          && request.resource.data.active is bool;
+        allow delete: if false;
+      }
+
       match /taxPayments/{id} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId)

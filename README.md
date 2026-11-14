@@ -1,3 +1,12 @@
+# Tracker Financiero Personal V1.0.70 · Bloque 5 de 11 · MIG-005
+
+- Parte de la base V1.0.69 con F-FAC-001 intacta.
+- Detecta exclusivamente referencias `fromAccountId` / `toAccountId` residuales en `expense`.
+- Valida los dos casos auditados contra ID, fecha, monto, cuenta principal y clasificación antes de permitir la migración.
+- Simula saldos antes/después y bloquea la escritura si existe cualquier diferencia.
+- MIG-005 solo limpia `fromAccountId` / `toAccountId` como campos funcionales; no cambia monto, fecha, `accountId`, categoría, subcategoría ni descripción. El writer conserva su actualización técnica de `schemaVersion` / `updatedAt`.
+- Registra cada actualización en `auditLog` y bloquea edición/eliminación ordinaria mientras la referencia legacy siga presente.
+
 # Tracker Financiero Personal V1.0.68 · MIG-004
 
 - Normalización controlada de IVA legacy ambiguo (`vat == amount` sin `hasInvoice`).
@@ -1298,3 +1307,18 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los movimientos nuevos manuales guardan fecha y hora exacta.
 - Editar un legacy no agrega hora salvo selección explícita.
 - Las transacciones automáticas que solo conocen fecha se guardan como fecha-only.
+
+## V1.0.69 · F-FAC-001 — Módulo de Facturación
+
+- Nueva entidad `invoices`: factura emitida ≠ cobro ≠ movimiento bancario.
+- La factura puede crearse pendiente o con cobro inicial; los cobros posteriores admiten pagos parciales.
+- Dos modos de cálculo: base + IVA o total incluido IVA. La tarifa inicial queda editable y congelada en cada factura.
+- Una factura pendiente aparece en Pendientes como ingreso por cobrar, sin modificar saldos.
+- Un cobro genera un movimiento `income` vinculado mediante `invoiceId` / `invoicePaymentId`; la cuenta recibe el total y `economicAmount` conserva la base económica separada del IVA.
+- Eliminar/revertir ese movimiento desde Movimientos revierte factura, cuenta y, cuando exista, el período contractual vinculado.
+- Un período contractual facturado deja de aceptar cobro directo desde Contratos; se cobra desde Facturación.
+- IVA / Impuestos integra facturas emitidas y registros legacy sin duplicar el IVA del movimiento bancario de cobro.
+- Facturas anuladas se conservan como histórico; una factura con cobros debe revertirlos antes de anularse.
+- Una factura incluida en una liquidación de IVA no puede alterar valores tributarios ni anularse.
+- Exportación JSON y auditoría RAW incorporan la colección `invoices`.
+- Firebase permanece en el mismo proyecto y `js/firebase-config.js` no cambia.

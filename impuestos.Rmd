@@ -12,7 +12,7 @@ title: "IVA / Impuestos"
 </div>
 
 <div class="tf-alert tf-alert-info is-visible">
-  Las facturas de ingreso reservan su IVA. Al liquidar se conserva el valor esperado y se descuenta de la cuenta únicamente lo realmente pagado.
+  Las facturas emitidas desde Facturación y los comprobantes legacy con IVA alimentan esta reserva. Al liquidar se conserva el valor esperado y se descuenta de la cuenta únicamente lo realmente pagado.
 </div>
 
 <section id="mig004-panel" class="tf-card" style="margin-top:1rem" hidden>
@@ -30,7 +30,7 @@ title: "IVA / Impuestos"
 
 <div class="tf-grid tf-grid-2" style="margin-top:1rem">
   <section class="tf-card">
-    <div class="tf-section-heading"><div><h2>Facturas pendientes</h2><div class="tf-muted">Solo ingresos con IVA todavía no liquidados.</div></div><strong id="tax-pending-count">0</strong></div>
+    <div class="tf-section-heading"><div><h2>Facturas pendientes</h2><div class="tf-muted">Facturas emitidas y comprobantes legacy con IVA todavía no liquidados.</div></div><strong id="tax-pending-count">0</strong></div>
     <div id="tax-pending-list" class="tf-plan-source-list"></div>
   </section>
 
@@ -55,5 +55,5 @@ title: "IVA / Impuestos"
   <div id="tax-payment-list" class="tf-grid tf-grid-3"></div>
 </section>
 
-<script type="module" src="js/taxes.js?v=1.0.68"></script>
+<script type="module" src="js/taxes.js?v=1.0.70"></script>
 ```

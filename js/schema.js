@@ -100,6 +100,8 @@ export function normalizeTransaction(raw={}){
     reconciliationId:text(raw.reconciliationId),liabilityId:text(raw.liabilityId),debtPaymentId:text(raw.debtPaymentId),
     recurringId:text(raw.recurringId),recurringOccurrence:text(raw.recurringOccurrence),recurringScheduledDate:text(raw.recurringScheduledDate),
     investmentId:text(raw.investmentId),contractPaymentId:text(raw.contractPaymentId),settlementId:text(raw.settlementId),
+    invoiceId:text(raw.invoiceId),invoicePaymentId:text(raw.invoicePaymentId),
+    economicAmount:nonNegative(raw.economicAmount,0),invoiceVatComponent:nonNegative(raw.invoiceVatComponent,0),
     feeAmount,taxAmount,otherChargeAmount,
     grossDebitAmount:grossStored>0?grossStored:amount+feeAmount+taxAmount+otherChargeAmount,
     splits:Array.isArray(raw.splits)?raw.splits:[]
@@ -144,11 +146,61 @@ export function sanitizeTransactionWrite(raw={}){
     liabilityId:nullableText(row.liabilityId),debtPaymentId:nullableText(row.debtPaymentId),
     feeAmount:row.feeAmount,taxAmount:row.taxAmount,otherChargeAmount:row.otherChargeAmount,grossDebitAmount:row.grossDebitAmount,
     recurringId:nullableText(row.recurringId),recurringOccurrence:nullableText(row.recurringOccurrence),recurringScheduledDate:nullableText(row.recurringScheduledDate),
-    investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId)
+    investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId),
+    invoiceId:nullableText(row.invoiceId),invoicePaymentId:nullableText(row.invoicePaymentId),
+    economicAmount:row.economicAmount>0?row.economicAmount:0,invoiceVatComponent:row.invoiceVatComponent>0?row.invoiceVatComponent:0
   };
   if(dt) out.transactionDateTime=dt; else delete out.transactionDateTime;
   delete out.legacyVatRaw;delete out.legacyVatAmbiguous;delete out.dateTimeInferred;
   return out;
+}
+
+export function normalizeInvoice(raw={}){
+  const baseAmount=nonNegative(raw.baseAmount,0);
+  const vatAmount=nonNegative(raw.vatAmount,0);
+  const totalAmount=nonNegative(raw.totalAmount,baseAmount+vatAmount);
+  const paidAmount=Math.min(nonNegative(raw.paidAmount,0),totalAmount);
+  const paidBaseAmount=Math.min(nonNegative(raw.paidBaseAmount,0),baseAmount);
+  const paidVatAmount=Math.min(nonNegative(raw.paidVatAmount,Math.max(0,paidAmount-paidBaseAmount)),vatAmount);
+  const dueDate=text(raw.dueDate);
+  const today=new Date();
+  const todayIso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  let status=text(raw.status)||"pending";
+  if(raw.active===false||status==="void") status="void";
+  else if(totalAmount>0&&paidAmount>=totalAmount-.009) status="paid";
+  else if(paidAmount>.009) status="partial";
+  else if(dueDate&&dueDate<todayIso) status="overdue";
+  else status="pending";
+  return {
+    ...raw,schemaVersion:integer(raw.schemaVersion,0),
+    invoiceNumber:text(raw.invoiceNumber),customerName:text(raw.customerName),customerId:text(raw.customerId),
+    issueDate:text(raw.issueDate),dueDate,concept:text(raw.concept),notes:text(raw.notes),
+    calculationMode:["base_plus_vat","total_includes_vat"].includes(text(raw.calculationMode))?text(raw.calculationMode):"base_plus_vat",
+    vatRate:nonNegative(raw.vatRate,13),baseAmount,vatAmount,totalAmount,paidAmount,paidBaseAmount,paidVatAmount,status,active:raw.active!==false,
+    contractId:text(raw.contractId),receivableId:text(raw.receivableId),taxPeriod:text(raw.taxPeriod||(text(raw.issueDate).slice(0,7))),
+    vatStatus:text(raw.vatStatus)||(vatAmount>0?"pending":"none"),taxPaymentId:text(raw.taxPaymentId)
+  };
+}
+
+export function sanitizeInvoiceWrite(raw={}){
+  const row=normalizeInvoice(raw);
+  if(!row.invoiceNumber) throw new Error("Ingresa el código de factura.");
+  if(!row.customerName) throw new Error("Ingresa el cliente.");
+  if(!row.concept) throw new Error("Ingresa el concepto facturado.");
+  if(!isoDate(row.issueDate)) throw new Error("Fecha de emisión no válida.");
+  if(!isoDate(row.dueDate)) throw new Error("Fecha de vencimiento no válida.");
+  if(row.dueDate<row.issueDate) throw new Error("El vencimiento no puede ser anterior a la emisión.");
+  if(!(row.baseAmount>=0)||!(row.vatAmount>=0)||!(row.totalAmount>0)) throw new Error("Valores de factura no válidos.");
+  if(Math.abs((row.baseAmount+row.vatAmount)-row.totalAmount)>.02) throw new Error("Base + IVA no coincide con el total.");
+  if(row.vatRate<0||row.vatRate>100) throw new Error("Tarifa IVA no válida.");
+  if(row.paidAmount<0||row.paidAmount>row.totalAmount+.009) throw new Error("Cobrado no válido.");
+  return {
+    ...raw,schemaVersion:SCHEMA_VERSION,invoiceNumber:row.invoiceNumber,customerName:row.customerName,customerId:row.customerId,
+    issueDate:row.issueDate,dueDate:row.dueDate,concept:row.concept,notes:row.notes,calculationMode:row.calculationMode,
+    vatRate:row.vatRate,baseAmount:row.baseAmount,vatAmount:row.vatAmount,totalAmount:row.totalAmount,paidAmount:row.paidAmount,
+    paidBaseAmount:row.paidBaseAmount,paidVatAmount:row.paidVatAmount,status:row.status,active:row.active,contractId:nullableText(row.contractId),receivableId:nullableText(row.receivableId),
+    taxPeriod:row.taxPeriod,vatStatus:row.vatStatus,taxPaymentId:nullableText(row.taxPaymentId)
+  };
 }
 
 export function normalizeBudget(raw={}){
