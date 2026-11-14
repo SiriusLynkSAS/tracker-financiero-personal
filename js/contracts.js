@@ -1,11 +1,59 @@
 import {requireUser} from "./guard.js";
-import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed,removeTransaction} from "./data-service.js?v=1.0.77";
+import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed,removeTransaction,inspectAudPost007ContractPayment,repairAudPost007ContractPayment} from "./data-service.js?v=1.0.80";
 import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
 let contracts=[],receivables=[],assets=[],accounts=[],transactions=[],transactionsLoaded=false,finishId="",paymentContext=null,dateEditId="";
 const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
+const audPost007Panel=document.querySelector("#aud-post-007-panel");
+const audPost007Status=document.querySelector("#aud-post-007-status");
+const audPost007Apply=document.querySelector("#aud-post-007-apply");
+async function refreshAudPost007(){
+  if(!audPost007Panel||!audPost007Status||!audPost007Apply) return;
+  try{
+    const state=await inspectAudPost007ContractPayment();
+    if(state.state==="resolved"||state.state==="missing"){
+      audPost007Panel.hidden=true;
+      return;
+    }
+    audPost007Panel.hidden=false;
+    if(state.state==="pending"){
+      audPost007Status.className="tf-alert tf-alert-warn is-visible";
+      audPost007Status.textContent="Se detectó 1 contractPayment revertido con id interno redundante. La limpieza no altera ningún valor financiero.";
+      audPost007Apply.hidden=false;
+      audPost007Apply.disabled=false;
+    }else{
+      audPost007Status.className="tf-alert tf-alert-danger is-visible";
+      audPost007Status.textContent=state.blocker||"AUD-POST-007 requiere revisión manual.";
+      audPost007Apply.hidden=true;
+    }
+  }catch(err){
+    audPost007Panel.hidden=false;
+    audPost007Status.className="tf-alert tf-alert-danger is-visible";
+    audPost007Status.textContent=err?.message||"No se pudo verificar AUD-POST-007.";
+    audPost007Apply.hidden=true;
+  }
+}
+if(audPost007Apply) audPost007Apply.addEventListener("click",async()=>{
+  if(!await confirmAction({
+    title:"Limpiar id redundante",
+    message:"AUD-POST-007 · contractPayment lkX7XLbnKSPrmFV187ul",
+    impact:["Se eliminará únicamente data.id.","El Document ID, monto, movimiento, contrato, asignaciones y estado permanecen intactos."],
+    confirmText:"Limpiar"
+  })) return;
+  audPost007Apply.disabled=true;
+  try{
+    await repairAudPost007ContractPayment();
+    toast("AUD-POST-007 corregido.");
+    await refreshAudPost007();
+  }catch(err){
+    toast(err?.message||"No se pudo corregir AUD-POST-007.");
+    await refreshAudPost007();
+  }finally{
+    audPost007Apply.disabled=false;
+  }
+});
 const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
@@ -73,6 +121,7 @@ async function refresh(){
   await sync();
   render();
   ensureAllocationRow();
+  refreshAudPost007().catch(err=>console.warn("No se pudo verificar AUD-POST-007.",err));
   try{
     transactions=await listTransactions();
     transactionsLoaded=true;

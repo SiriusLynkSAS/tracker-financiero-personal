@@ -38,5 +38,5 @@ title: "Importar / Exportar"
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script type="module" src="js/import-export.js"></script>
-<script type="module" src="js/audit-export.js"></script>
+<script type="module" src="js/audit-export.js?v=1.0.80"></script>
 ```

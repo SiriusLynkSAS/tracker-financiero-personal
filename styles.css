@@ -475,6 +475,11 @@ main.content {
   color: var(--tf-positive);
 }
 
+.tf-alert-warn {
+  background: var(--tf-warning-soft);
+  color: var(--tf-warning);
+}
+
 .tf-empty {
   text-align: center;
   padding: 2rem 1rem;

@@ -1,3 +1,12 @@
+# Tracker Financiero Personal Web V1.0.80 · Auditoría post-migración
+
+Parche de integridad posterior a la auditoría V1.0.79.
+
+- AUD-POST-006: movimientos vinculados a `financingPlanId` quedan protegidos contra edición/eliminación directa; se gestionan desde Deudas y tarjetas. No modifica cronogramas ni cuotas existentes.
+- AUD-POST-007: `contractPayments` elimina `id` interno redundante en futuras escrituras/reversiones y ofrece reparación explícita del único caso auditado.
+- El exportador RAW conserva las 26 colecciones y ahora declara `sourceAppVersion = V1.0.80`.
+- Sin cambios en reglas Firestore, índices ni configuración Firebase.
+
 # Tracker Financiero Personal Web V1.0.79 · Auditoría post-migración
 
 Parche técnico sin cambios financieros ni de negocio.

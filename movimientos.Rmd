@@ -250,5 +250,5 @@ title: "Movimientos"
 
 <script type="module" src="js/mig005.js?v=1.0.77"></script>
 <script type="module" src="js/mig010.js?v=1.0.77"></script>
-<script type="module" src="js/transactions-v1.js?v=1.0.77"></script>
+<script type="module" src="js/transactions-v1.js?v=1.0.80"></script>
 ```

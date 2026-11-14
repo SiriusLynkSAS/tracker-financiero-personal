@@ -17,6 +17,7 @@ import {
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
 } from "./schema.js?v=1.0.78";
+import {AUD_POST_007_TARGET,inspectAudPost007Raw,sanitizeContractPaymentWrite} from "./post-audit-logic.js?v=1.0.80";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -204,7 +205,11 @@ export async function atomicWrite(ops=[]){
   const batch=writeBatch(db);
   for(const op of enriched){
     const auditType=op.auditType||op.collection;
-    const writeData=op.collection==="receivables"?sanitizeReceivableWrite(op.data):op.data;
+    const writeData=op.collection==="receivables"
+      ? sanitizeReceivableWrite(op.data)
+      : op.collection==="contractPayments"
+        ? sanitizeContractPaymentWrite(op.data)
+        : op.data;
     if(op.action==="delete"){
       batch.delete(op.entityRef);
     }else if(op.action==="update"){
@@ -269,6 +274,7 @@ export async function saveTransaction(d,id=null){
     if(old.debtPaymentId || old.liabilityId) throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
     if(old.recurringId) throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes antes de volver a registrarlo.");
     if(old.investmentId) throw new Error("Este movimiento está vinculado a una inversión. Modifícalo desde Inversiones.");
+    if(old.financingPlanId) throw new Error("Este movimiento está vinculado a un plan de cuotas de tarjeta. Revísalo desde Deudas y tarjetas; no puede editarse directamente.");
     if(old.contractPaymentId) throw new Error("Este movimiento está vinculado a un cobro contractual. Modifícalo desde Contratos.");
     if(old.invoicePaymentId || old.invoiceId) throw new Error("Este movimiento está vinculado a una factura. Modifícalo desde Facturación.");
     if(old.settlementId) throw new Error("Este movimiento forma parte de una liquidación estructurada y no puede editarse directamente.");
@@ -311,6 +317,9 @@ export async function removeTransaction(id){
   }
   if(row?.investmentId){
     throw new Error("Este movimiento está vinculado a una inversión y no puede eliminarse directamente.");
+  }
+  if(row?.financingPlanId){
+    throw new Error("Este movimiento está vinculado a un plan de cuotas de tarjeta. Revísalo desde Deudas y tarjetas; no puede eliminarse directamente.");
   }
   if(row?.invoicePaymentId && row?.invoiceId){
     const invoice=normalizeInvoice(await getEntity("invoices",row.invoiceId)||{});
@@ -399,9 +408,13 @@ export async function removeTransaction(id){
     }
 
     if(paymentRecord?.id){
-      const paymentAfter={...paymentRecord,status:"reversed",reversedReason:"movement_deleted",schemaVersion:SCHEMA_VERSION};
-      batch.set(ref("contractPayments",paymentRecord.id),{...paymentAfter,reversedAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
-      batch.set(doc(col("auditLog")),auditPayload("contractPayment",paymentRecord.id,"REVERSE",paymentRecord,paymentAfter,"Reversión desde Movimientos Web"));
+      const paymentAfter=sanitizeContractPaymentWrite({...paymentRecord,status:"reversed",reversedReason:"movement_deleted",schemaVersion:SCHEMA_VERSION});
+      batch.set(
+        ref("contractPayments",paymentRecord.id),
+        {...paymentAfter,id:deleteField(),reversedAt:serverTimestamp(),updatedAt:serverTimestamp()},
+        {merge:true}
+      );
+      batch.set(doc(col("auditLog")),auditPayload("contractPayment",paymentRecord.id,"REVERSE",paymentRecord,paymentAfter,"Reversión desde Movimientos Web · identidad documental canónica"));
     }
 
     batch.delete(ref("transactions",id));
@@ -422,6 +435,34 @@ export async function removeTransaction(id){
   if(accountIds.length && row?.date){
     await markReconciliationsNeedsReview(accountIds,row.date,{reason:"movement_deleted"});
   }
+}
+
+
+export async function inspectAudPost007ContractPayment(){
+  const target=AUD_POST_007_TARGET;
+  const snap=await getDoc(ref("contractPayments",target.id));
+  if(!snap.exists()) return {state:"missing",id:target.id};
+  return {id:target.id,...inspectAudPost007Raw(snap.id,snap.data())};
+}
+
+export async function repairAudPost007ContractPayment(){
+  const target=AUD_POST_007_TARGET;
+  const snap=await getDoc(ref("contractPayments",target.id));
+  if(!snap.exists()) return {state:"missing",id:target.id};
+  const before=snap.data();
+  const inspected=inspectAudPost007Raw(snap.id,before);
+  if(inspected.state==="resolved") return {state:"resolved",id:target.id};
+  if(inspected.state!=="pending") throw new Error(inspected.blocker||"AUD-POST-007 bloqueado por huella inesperada.");
+  const after=sanitizeContractPaymentWrite(before);
+  const batch=writeBatch(db);
+  batch.update(ref("contractPayments",target.id),{id:deleteField(),updatedAt:serverTimestamp()});
+  batch.set(
+    doc(col("auditLog")),
+    auditPayload("contractPayment",target.id,"UPDATE",before,after,"AUD-POST-007 · eliminación de id interno redundante; Document ID permanece canónico")
+  );
+  await batch.commit();
+  invalidateCollection("contractPayments");
+  return {state:"resolved",id:target.id};
 }
 
 
