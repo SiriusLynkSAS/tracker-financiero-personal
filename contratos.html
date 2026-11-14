@@ -144,6 +144,11 @@ ul.task-list li input[type="checkbox"] {
 </div>
   <div class="tf-actions" style="margin-top:.8rem"><button id="mig009-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-009</button></div>
 </section>
+<section id="aud-post-007-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
+  <div class="tf-section-heading"><div><div class="tf-section-kicker">Auditoría post-migración · AUD-POST-007</div><h2 class="anchored">Identidad canónica de cobro contractual</h2><div class="tf-muted">Elimina únicamente el campo <code>id</code> redundante del contractPayment auditado. No cambia contrato, movimiento, monto, cuenta, estado ni asignaciones.</div></div></div>
+  <div id="aud-post-007-status" class="tf-alert"></div>
+  <div class="tf-actions" style="margin-top:.8rem"><button id="aud-post-007-apply" class="tf-btn tf-btn-primary" type="button">Limpiar id redundante</button></div>
+</section>
 <div class="tf-actions" style="margin-bottom:1rem">
 <button id="contract-new" class="tf-btn tf-btn-primary" type="button">Nuevo contrato</button>
 <button id="tariff-new" class="tf-btn tf-btn-secondary" type="button">Nueva tarifa</button>
@@ -201,7 +206,7 @@ ul.task-list li input[type="checkbox"] {
     <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Guardar fechas</button></div>
   </div>
 </dialog>
-<script type="module" src="js/contracts.js?v=1.0.77"></script>
+<script type="module" src="js/contracts.js?v=1.0.80"></script>
 <script type="module" src="js/mig009.js?v=1.0.77"></script>
 
 
@@ -614,7 +619,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.79</p>
+<p>Tracker Financiero Personal V1.0.80</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
