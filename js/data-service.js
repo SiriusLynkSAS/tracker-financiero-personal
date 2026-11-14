@@ -64,6 +64,7 @@ function invalidateCollection(n){
   for(const key of [...entityMemory.keys()]){
     if(key.startsWith(`${n}|`)) entityMemory.delete(key);
   }
+  if(typeof window!=="undefined") window.dispatchEvent(new CustomEvent("tf-data-changed",{detail:{collection:n}}));
 }
 function remoteRows(key,q){
   if(entityInflight.has(key)) return entityInflight.get(key);

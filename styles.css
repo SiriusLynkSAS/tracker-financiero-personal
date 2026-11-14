@@ -3691,3 +3691,32 @@ tr.is-muted{opacity:.66}
   .tf-account-save-bar .tf-btn{flex:1}
 }
 .tf-linked-highlight{outline:3px solid color-mix(in srgb,var(--tf-accent) 55%,transparent);outline-offset:3px;transition:outline-color .5s ease}
+
+/* AUD-POST-010 · Presupuestos V1.0.83 */
+.tf-budget-overview{display:flex;flex-direction:column;gap:.9rem;align-items:center}
+.tf-budget-period-nav{display:grid;grid-template-columns:44px minmax(180px,1fr) 44px;gap:.55rem;align-items:center;width:min(440px,100%)}
+.tf-budget-period-label{border:0;background:transparent;color:var(--tf-text);font:inherit;font-size:1.15rem;font-weight:800;padding:.65rem .8rem;border-radius:.8rem;cursor:pointer}
+.tf-budget-period-label:hover{background:var(--tf-surface-2)}
+.tf-budget-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;width:100%}
+.tf-budget-progress,.tf-budget-row-progress{height:10px;background:var(--tf-surface-2);border-radius:999px;overflow:hidden;width:100%}
+.tf-budget-progress>span,.tf-budget-row-progress>span{display:block;height:100%;background:var(--tf-primary);border-radius:inherit;transition:width .2s ease}
+.tf-budget-list{display:flex;flex-direction:column;gap:.65rem}
+.tf-budget-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.85rem 1rem;border:1px solid var(--tf-border);border-radius:1rem;background:var(--tf-surface)}
+.tf-budget-row.is-warning{border-color:#d99a20}.tf-budget-row.is-critical{border-color:#d96d20}.tf-budget-row.is-over{border-color:#c83f49}
+.tf-budget-row-main{display:flex;flex-direction:column;gap:.48rem;min-width:0}
+.tf-budget-row-title{display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
+.tf-budget-row-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}
+.tf-budget-row-values span{display:flex;flex-direction:column;gap:.08rem}.tf-budget-row-values small{color:var(--tf-muted);font-size:.76rem}
+.tf-budget-rollover{font-size:.74rem;color:var(--tf-muted);font-weight:600}
+.tf-budget-alert-pill{display:inline-flex;padding:.18rem .48rem;border-radius:999px;font-size:.73rem;font-weight:800;background:var(--tf-surface-2)}
+.tf-budget-alert-pill.is-warning{background:#fff3cd;color:#7a5700}.tf-budget-alert-pill.is-critical{background:#ffe3c2;color:#8a3d00}.tf-budget-alert-pill.is-over{background:#fde2e4;color:#941b27}
+.tf-budget-editor-dialog{width:min(620px,calc(100vw - 2rem));max-height:min(760px,calc(100vh - 2rem));padding:0;overflow:hidden}
+.tf-budget-editor-dialog[open]{display:flex;flex-direction:column}.tf-budget-editor-head{flex:0 0 auto;margin:0;padding:1rem 1.1rem .8rem;border-bottom:1px solid var(--tf-border)}
+.tf-budget-editor-form{display:flex;flex-direction:column;min-height:0;flex:1}.tf-budget-editor-scroll{overflow:auto;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:1rem}
+.tf-budget-save-bar{flex:0 0 auto;display:flex;justify-content:flex-end;gap:.65rem;padding:.8rem 1.1rem;border-top:1px solid var(--tf-border);background:var(--tf-surface)}
+.tf-budget-month-dialog{width:min(520px,calc(100vw - 2rem))}.tf-budget-year-nav{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;text-align:center;margin:.7rem 0}
+.tf-budget-month-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}.tf-budget-month-option{border:1px solid var(--tf-border);background:var(--tf-surface);color:var(--tf-text);border-radius:.7rem;padding:.7rem .45rem;font:inherit;font-weight:700;cursor:pointer;text-transform:capitalize}.tf-budget-month-option:hover,.tf-budget-month-option.is-selected{border-color:var(--tf-primary);background:var(--tf-primary-soft);color:var(--tf-primary)}
+.tf-budget-detail-dialog{width:min(620px,calc(100vw - 2rem))}.tf-budget-detail-body{padding:1rem 1.1rem}
+.tf-notification-status.is-budget-warning{background:#fff3cd;color:#7a5700}.tf-notification-status.is-budget-critical{background:#ffe3c2;color:#8a3d00}.tf-notification-status.is-budget-over{background:#fde2e4;color:#941b27}
+@media(max-width:720px){.tf-budget-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tf-budget-row-values{grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem}.tf-budget-month-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.tf-budget-editor-dialog{width:calc(100vw - 1rem);height:calc(100vh - 1rem);max-height:calc(100vh - 1rem)}}
+.tf-notification-section-title{padding:.55rem .75rem .2rem;color:var(--tf-muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}

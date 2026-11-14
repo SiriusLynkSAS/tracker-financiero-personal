@@ -1,5 +1,5 @@
-import { setupPendingMenu } from "./notifications.js?v=1.0.82";
-import { initDateOnlyPickers } from "./date-picker.js?v=1.0.82";
+import { setupPendingMenu } from "./notifications.js?v=1.0.83";
+import { initDateOnlyPickers } from "./date-picker.js?v=1.0.83";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";
   return path.replace(/\.html$/, "") || "index";
@@ -145,7 +145,7 @@ function sidebarHtml() {
 
       <div class="tf-sidebar-footer">
         <div class="tf-notification-host tf-notification-host-sidebar" data-pending-host>
-          <button class="tf-side-link" type="button" data-pending-toggle><span class="tf-side-icon">${icon("bell")}</span><span class="tf-side-label">Pendientes</span><span class="tf-notification-badge" data-pending-count hidden>0</span></button>
+          <button class="tf-side-link" type="button" data-pending-toggle><span class="tf-side-icon">${icon("bell")}</span><span class="tf-side-label">Notificaciones</span><span class="tf-notification-badge" data-pending-count hidden>0</span></button>
           <div class="tf-notification-panel" data-pending-panel hidden></div>
         </div>
         <a class="tf-side-link ${currentFile === "perfil" ? "is-active" : ""}" href="perfil.html">
@@ -178,7 +178,7 @@ function mobileBarHtml() {
         <div class="tf-mobile-title">${title}</div>
       </div>
       <div class="tf-notification-host" data-pending-host>
-        <button class="tf-icon-button tf-notification-button" data-pending-toggle aria-label="Pendientes">${icon("bell")}<span class="tf-notification-badge" data-pending-count hidden>0</span></button>
+        <button class="tf-icon-button tf-notification-button" data-pending-toggle aria-label="Notificaciones">${icon("bell")}<span class="tf-notification-badge" data-pending-count hidden>0</span></button>
         <div class="tf-notification-panel" data-pending-panel hidden></div>
       </div>
       <button class="tf-icon-button" data-mobile-theme-toggle aria-label="Cambiar tema">
