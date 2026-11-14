@@ -99,6 +99,7 @@ export function normalizeTransaction(raw={}){
     businessTripId:text(raw.businessTripId),tripExpenseId:text(raw.tripExpenseId),tripSettlementId:text(raw.tripSettlementId),
     reconciliationId:text(raw.reconciliationId),liabilityId:text(raw.liabilityId),debtPaymentId:text(raw.debtPaymentId),
     recurringId:text(raw.recurringId),recurringOccurrence:text(raw.recurringOccurrence),recurringScheduledDate:text(raw.recurringScheduledDate),
+    mig010Resolution:text(raw.mig010Resolution),
     investmentId:text(raw.investmentId),contractPaymentId:text(raw.contractPaymentId),settlementId:text(raw.settlementId),
     contractId:text(raw.contractId),
     contractAllocations:Array.isArray(raw.contractAllocations)?raw.contractAllocations.map(a=>({
@@ -150,6 +151,7 @@ export function sanitizeTransactionWrite(raw={}){
     liabilityId:nullableText(row.liabilityId),debtPaymentId:nullableText(row.debtPaymentId),
     feeAmount:row.feeAmount,taxAmount:row.taxAmount,otherChargeAmount:row.otherChargeAmount,grossDebitAmount:row.grossDebitAmount,
     recurringId:nullableText(row.recurringId),recurringOccurrence:nullableText(row.recurringOccurrence),recurringScheduledDate:nullableText(row.recurringScheduledDate),
+    mig010Resolution:nullableText(row.mig010Resolution),
     investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId),
     contractId:nullableText(row.contractId),contractAllocations:row.contractAllocations,
     invoiceId:nullableText(row.invoiceId),invoicePaymentId:nullableText(row.invoicePaymentId),

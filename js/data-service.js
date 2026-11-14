@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.76";
+} from "./schema.js?v=1.0.77";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -422,6 +422,67 @@ export async function removeTransaction(id){
   if(accountIds.length && row?.date){
     await markReconciliationsNeedsReview(accountIds,row.date,{reason:"movement_deleted"});
   }
+}
+
+
+export async function inspectMig010Transactions(){
+  const ids=["FdlrVuBdJL6rKU1zOrU5","ai2H2yT5roUKoPowLubv"];
+  const out=[];
+  for(const id of ids){
+    const snap=await getDoc(ref("transactions",id));
+    if(snap.exists()) out.push(normalizeTransaction({id:snap.id,...snap.data()}));
+  }
+  return out;
+}
+function assertMig010Fingerprint(row){
+  const expected={
+    FdlrVuBdJL6rKU1zOrU5:{type:"expense",date:"2026-10-29",transactionDateTime:"2026-10-29T08:42",amount:0.45,description:"BDE - Casa",accountId:"EI0cx2IULsr6RooTzrJF",category:"Transporte",subcategory:"Metro"},
+    ai2H2yT5roUKoPowLubv:{type:"expense",date:"2026-10-29",transactionDateTime:"2026-10-29T19:00",amount:0.45,description:"BDE - Casa",accountId:"EI0cx2IULsr6RooTzrJF",category:"Transporte",subcategory:"Metro"}
+  }[String(row?.id||"")];
+  if(!expected) throw new Error("MIG-010: movimiento fuera del par auditado.");
+  const ok=String(row.type||"")===expected.type&&String(row.date||"")===expected.date&&String(row.transactionDateTime||"")===expected.transactionDateTime&&
+    Math.abs(Number(row.amount||0)-expected.amount)<.001&&String(row.description||"")===expected.description&&String(row.accountId||"")===expected.accountId&&
+    String(row.category||"")===expected.category&&String(row.subcategory||"")===expected.subcategory;
+  if(!ok) throw new Error(`MIG-010: ${row.id} ya no coincide con la huella auditada.`);
+}
+export async function resolveMig010({resolution,deleteId=""}={}){
+  if(!["keep_both","delete_duplicate"].includes(resolution)) throw new Error("MIG-010: resolución no válida.");
+  const ids=["FdlrVuBdJL6rKU1zOrU5","ai2H2yT5roUKoPowLubv"];
+  const snaps=[];
+  for(const id of ids){const snap=await getDoc(ref("transactions",id));if(snap.exists())snaps.push(snap);}
+  const rows=snaps.map(s=>normalizeTransaction({id:s.id,...s.data()}));
+  if(resolution==="keep_both") {
+    if(rows.length!==2) throw new Error("MIG-010: deben existir ambos movimientos para confirmar que son distintos.");
+    rows.forEach(assertMig010Fingerprint);
+    if(rows.every(r=>r.mig010Resolution==="distinct_confirmed")) return {resolution:"distinct",changed:0};
+    if(rows.some(r=>r.mig010Resolution)) throw new Error("MIG-010: existe una resolución parcial o inesperada; requiere reauditoría.");
+    const batch=writeBatch(db);
+    for(const row of rows){
+      const after={...row,mig010Resolution:"distinct_confirmed"};
+      batch.update(ref("transactions",row.id),{mig010Resolution:"distinct_confirmed",schemaVersion:SCHEMA_VERSION,updatedAt:serverTimestamp()});
+      batch.set(doc(col("auditLog")),auditPayload("transaction",row.id,"UPDATE",row,after,"MIG-010 · revisión manual: ambos movimientos son gastos reales distintos"));
+    }
+    await batch.commit();invalidateCollection("transactions");
+    return {resolution:"distinct",changed:2};
+  }
+  if(!ids.includes(deleteId)) throw new Error("MIG-010: selecciona cuál movimiento duplicado eliminar.");
+  if(rows.length!==2) {
+    const survivor=rows[0];
+    if(rows.length===1&&survivor?.mig010Resolution==="duplicate_resolved") return {resolution:"duplicate",changed:0};
+    throw new Error("MIG-010: el par auditado ya no está íntegro; requiere reauditoría.");
+  }
+  rows.forEach(assertMig010Fingerprint);
+  if(rows.some(r=>r.mig010Resolution)) throw new Error("MIG-010: el par ya tiene una resolución registrada.");
+  const victim=rows.find(r=>r.id===deleteId),survivor=rows.find(r=>r.id!==deleteId);
+  const batch=writeBatch(db);
+  batch.delete(ref("transactions",victim.id));
+  batch.set(doc(col("auditLog")),auditPayload("transaction",victim.id,"DELETE",victim,null,"MIG-010 · duplicado confirmado manualmente y eliminado"));
+  const survivorAfter={...survivor,mig010Resolution:"duplicate_resolved"};
+  batch.update(ref("transactions",survivor.id),{mig010Resolution:"duplicate_resolved",schemaVersion:SCHEMA_VERSION,updatedAt:serverTimestamp()});
+  batch.set(doc(col("auditLog")),auditPayload("transaction",survivor.id,"UPDATE",survivor,survivorAfter,`MIG-010 · duplicado resuelto; eliminado ${victim.id}`));
+  await batch.commit();invalidateCollection("transactions");
+  if(victim.accountId&&victim.date) await markReconciliationsNeedsReview([victim.accountId],victim.date,{reason:"mig010_duplicate_deleted"});
+  return {resolution:"duplicate",changed:2,deletedId:victim.id,survivorId:survivor.id};
 }
 
 export const listCategories=()=>listEntities("categories");

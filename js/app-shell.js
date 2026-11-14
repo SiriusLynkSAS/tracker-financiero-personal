@@ -1,4 +1,4 @@
-import { setupPendingMenu } from "./notifications.js?v=1.0.76";
+import { setupPendingMenu } from "./notifications.js?v=1.0.77";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";
   return path.replace(/\.html$/, "") || "index";

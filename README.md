@@ -1,4 +1,13 @@
-# Tracker Financiero Personal V1.0.76 · Bloque 9 de 11 · MIG-009
+# Tracker Financiero Personal Web V1.0.77 · Bloque 10 de 11 · MIG-010
+
+- MIG-009 validada y cerrada antes de iniciar este bloque.
+- MIG-010 revisa manualmente el único par candidato a duplicado: `FdlrVuBdJL6rKU1zOrU5` (08:42) y `ai2H2yT5roUKoPowLubv` (19:00), ambos `BDE - Casa`, USD 0,45, 2026-10-29.
+- No se elimina por coincidencia automática. El usuario debe escoger Conservar ambos o eliminar explícitamente uno de los dos.
+- Conservar ambos registra `mig010Resolution=distinct_confirmed` sin alterar saldos.
+- Eliminar uno registra la eliminación en auditLog, marca el sobreviviente `duplicate_resolved` y pone conciliaciones posteriores de la cuenta en revisión cuando corresponda.
+- Android no ejecuta la migración; solo protege el par mientras está pendiente.
+
+# Tracker Financiero Personal V1.0.77 · Bloque 9 de 11 · MIG-009
 
 - MIG-008 queda cerrada/validada antes de iniciar este bloque.
 - MIG-009 elimina el campo `id` redundante de 4 de 5 `receivables` auditados.
