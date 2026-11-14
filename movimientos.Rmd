@@ -17,7 +17,7 @@ title: "Movimientos"
 
 <div class="tf-transactions-layout">
   <dialog id="tx-editor-card" class="tf-modal-dialog tf-tx-editor-dialog">
-    <div class="tf-modal-head">
+    <div class="tf-modal-head tf-tx-editor-head">
       <div>
         <div class="tf-section-kicker">Registro rápido</div>
         <h2 id="tx-editor-title">Nuevo movimiento</h2>
@@ -32,103 +32,127 @@ title: "Movimientos"
         <option value="transfer">Transferencia</option>
       </select>
 
-      <div class="tf-tx-type-switch" role="group" aria-label="Tipo de movimiento">
-        <button type="button" class="tf-tx-type-btn" data-tx-type="expense">Gasto</button>
-        <button type="button" class="tf-tx-type-btn" data-tx-type="income">Ingreso</button>
-        <button type="button" class="tf-tx-type-btn" data-tx-type="transfer">Transferencia</button>
-      </div>
+      <div class="tf-tx-static-pane">
+        <div class="tf-tx-type-switch" role="group" aria-label="Tipo de movimiento">
+          <button type="button" class="tf-tx-type-btn" data-tx-type="expense">Gasto</button>
+          <button type="button" class="tf-tx-type-btn" data-tx-type="income">Ingreso</button>
+          <button type="button" class="tf-tx-type-btn" data-tx-type="transfer">Transferencia</button>
+        </div>
 
-      <div class="tf-tx-amount-block">
-        <label for="tx-amount">Monto</label>
-        <div class="tf-tx-amount-input-wrap">
-          <span>$</span>
-          <input id="tx-amount" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" required>
+        <div class="tf-tx-amount-block">
+          <label for="tx-amount">Monto</label>
+          <div class="tf-tx-amount-input-wrap">
+            <span>$</span>
+            <input id="tx-amount" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off" required>
+          </div>
         </div>
       </div>
 
-      <div id="single-account-fields" class="tf-field">
-        <label>Cuenta</label>
-        <select id="tx-account"></select>
-      </div>
+      <div class="tf-tx-details-scroll">
+        <div class="tf-tx-details-title">
+          <div class="tf-section-kicker">Detalles</div>
+          <span>Cuenta, clasificación, fecha, hora y datos opcionales</span>
+        </div>
 
-      <div id="transfer-fields" class="tf-form-grid" hidden>
-        <div class="tf-field"><label>Desde</label><select id="tx-from"></select></div>
-        <div class="tf-field"><label>Hacia</label><select id="tx-to"></select></div>
-      </div>
+        <div id="single-account-fields" class="tf-field">
+          <label>Cuenta</label>
+          <select id="tx-account"></select>
+        </div>
 
-      <div id="category-fields" class="tf-field">
-        <label>Categoría y subcategoría</label>
-        <button id="tx-category-picker" type="button" class="tf-tx-category-picker">Seleccionar categoría y subcategoría</button>
-        <select id="tx-category" hidden aria-hidden="true"></select>
-        <select id="tx-subcategory" hidden aria-hidden="true"></select>
-      </div>
+        <div id="transfer-fields" class="tf-form-grid" hidden>
+          <div class="tf-field"><label>Desde</label><select id="tx-from"></select></div>
+          <div class="tf-field"><label>Hacia</label><select id="tx-to"></select></div>
+        </div>
 
-      <div class="tf-field">
-        <label>Descripción</label>
-        <input id="tx-description" autocomplete="off" placeholder="Ej. Almuerzo, combustible, sueldo…">
-      </div>
+        <div id="category-fields" class="tf-field">
+          <label>Categoría y subcategoría</label>
+          <button id="tx-category-picker" type="button" class="tf-tx-category-picker">Seleccionar categoría y subcategoría</button>
+          <select id="tx-category" hidden aria-hidden="true"></select>
+          <select id="tx-subcategory" hidden aria-hidden="true"></select>
+        </div>
 
-      <div class="tf-form-grid">
         <div class="tf-field">
-          <label>Fecha</label>
-          <input id="tx-date" type="date" required>
+          <label>Descripción</label>
+          <input id="tx-description" autocomplete="off" placeholder="Ej. Almuerzo, combustible, sueldo…">
         </div>
-        <div class="tf-field">
-          <label>Hora</label>
-          <input id="tx-time" type="time" required>
+
+        <div class="tf-form-grid tf-tx-date-time-grid">
+          <div class="tf-field tf-picker-field">
+            <label>Fecha</label>
+            <button id="tx-date-picker-button" type="button" class="tf-picker-button" aria-label="Seleccionar fecha"><span aria-hidden="true">📅</span><strong id="tx-date-display">—</strong></button>
+            <input id="tx-date" class="tf-native-picker-input" type="date" required tabindex="-1" aria-hidden="true">
+          </div>
+          <div class="tf-field tf-picker-field">
+            <label>Hora</label>
+            <button id="tx-time-picker-button" type="button" class="tf-picker-button" aria-label="Seleccionar hora"><span aria-hidden="true">🕒</span><strong id="tx-time-display">—</strong></button>
+            <input id="tx-time" class="tf-native-picker-input" type="time" required tabindex="-1" aria-hidden="true">
+          </div>
         </div>
-      </div>
-      <div class="tf-tx-date-shortcuts">
-          <button type="button" class="tf-btn tf-btn-secondary tf-btn-compact" data-date-shortcut="today">Hoy</button>
+        <div class="tf-tx-date-shortcuts">
+          <button type="button" class="tf-btn tf-btn-secondary tf-btn-compact" data-date-shortcut="today">Ahora</button>
           <button type="button" class="tf-btn tf-btn-secondary tf-btn-compact" data-date-shortcut="yesterday">Ayer</button>
-      </div>
-
-      <details id="tx-more-details" class="tf-tx-more-details">
-        <summary>Más detalles <span>Factura, referencia y divisiones</span></summary>
-        <div class="tf-tx-details-body">
-          <div class="tf-field"><label>Comprobante / referencia</label><input id="tx-receipt" autocomplete="off"></div>
-
-          <div id="invoice-toggle-wrap" class="tf-check" hidden>
-            <input id="tx-has-invoice" type="checkbox">
-            <label>Ingreso con factura e IVA</label>
-          </div>
-
-          <div id="invoice-panel" class="tf-subtle" hidden>
-            <div class="tf-form-grid">
-              <div class="tf-field"><label>Número de factura</label><input id="tx-invoice-number" autocomplete="off"></div>
-              <div class="tf-field"><label>IVA incluido en el total ($)</label><input id="tx-vat" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
-            </div>
-            <div id="tx-invoice-summary" class="tf-muted" style="margin-top:.55rem">Base sin IVA: $0,00</div>
-            <div id="tx-invoice-lock" class="tf-alert tf-alert-info" style="margin-top:.55rem"></div>
-          </div>
-
-          <div id="transfer-charge-panel" class="tf-subtle" hidden>
-            <strong>Cargos e impuestos de la operación</strong>
-            <div class="tf-form-grid" style="margin-top:.65rem">
-              <div class="tf-field"><label>Comisión bancaria ($)</label><input id="tx-fee" type="text" inputmode="decimal" placeholder="0,00"></div>
-              <div class="tf-field"><label>Impuestos ($)</label><input id="tx-tax" type="text" inputmode="decimal" placeholder="0,00"></div>
-              <div class="tf-field"><label>Otros cargos ($)</label><input id="tx-other-charge" type="text" inputmode="decimal" placeholder="0,00"></div>
-            </div>
-            <div id="tx-gross-debit" class="tf-alert tf-alert-info" style="margin-top:.55rem">Total que saldrá: $0,00</div>
-          </div>
-
-          <div id="split-toggle-wrap" class="tf-check">
-            <input id="tx-split-enabled" type="checkbox">
-            <label>Dividir el movimiento entre varias categorías</label>
-          </div>
-          <div id="split-panel" class="tf-subtle" hidden>
-            <div id="split-rows"></div>
-            <div class="tf-actions">
-              <button id="add-split" type="button" class="tf-btn tf-btn-secondary">Añadir división</button>
-              <span id="split-total" class="tf-muted"></span>
-            </div>
-          </div>
         </div>
-      </details>
+
+        <details id="tx-more-details" class="tf-tx-more-details">
+          <summary>Más detalles <span>Factura, referencia y divisiones</span></summary>
+          <div class="tf-tx-details-body">
+            <div class="tf-field"><label>Comprobante / referencia</label><input id="tx-receipt" autocomplete="off"></div>
+
+            <div id="invoice-toggle-wrap" class="tf-check" hidden>
+              <input id="tx-has-invoice" type="checkbox">
+              <label>Ingreso con factura e IVA</label>
+            </div>
+
+            <div id="invoice-panel" class="tf-subtle" hidden>
+              <div class="tf-form-grid">
+                <div class="tf-field"><label>Número de factura</label><input id="tx-invoice-number" autocomplete="off"></div>
+                <div class="tf-field"><label>IVA incluido en el total ($)</label><input id="tx-vat" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+              </div>
+              <div id="tx-invoice-summary" class="tf-muted" style="margin-top:.55rem">Base sin IVA: $0,00</div>
+              <div id="tx-invoice-lock" class="tf-alert tf-alert-info" style="margin-top:.55rem"></div>
+            </div>
+
+            <div id="transfer-charge-panel" class="tf-subtle" hidden>
+              <strong>Cargos e impuestos de la operación</strong>
+              <div class="tf-form-grid" style="margin-top:.65rem">
+                <div class="tf-field"><label>Comisión bancaria ($)</label><input id="tx-fee" type="text" inputmode="decimal" placeholder="0,00"></div>
+                <div class="tf-field"><label>Impuestos ($)</label><input id="tx-tax" type="text" inputmode="decimal" placeholder="0,00"></div>
+                <div class="tf-field"><label>Otros cargos ($)</label><input id="tx-other-charge" type="text" inputmode="decimal" placeholder="0,00"></div>
+              </div>
+              <div id="tx-gross-debit" class="tf-alert tf-alert-info" style="margin-top:.55rem">Total que saldrá: $0,00</div>
+            </div>
+
+            <div id="split-toggle-wrap" class="tf-check">
+              <input id="tx-split-enabled" type="checkbox">
+              <label>Dividir el movimiento entre varias categorías</label>
+            </div>
+            <div id="split-panel" class="tf-subtle" hidden>
+              <div id="split-rows"></div>
+              <div class="tf-actions">
+                <button id="add-split" type="button" class="tf-btn tf-btn-secondary">Añadir división</button>
+                <span id="split-total" class="tf-muted"></span>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
 
       <div class="tf-tx-save-bar">
-        <button id="tx-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button>
-        <button id="tx-submit" class="tf-btn tf-btn-primary" type="submit">Guardar movimiento</button>
+        <div id="tx-edit-confirm" class="tf-tx-inline-confirm" hidden>
+          <div>
+            <strong>Confirmar actualización</strong>
+            <span id="tx-edit-confirm-summary">¿Guardar los cambios realizados?</span>
+            <small id="tx-edit-confirm-impact"></small>
+          </div>
+          <div class="tf-actions">
+            <button id="tx-edit-confirm-back" class="tf-btn tf-btn-secondary" type="button">Volver</button>
+            <button id="tx-edit-confirm-save" class="tf-btn tf-btn-primary" type="button">Confirmar actualización</button>
+          </div>
+        </div>
+        <div id="tx-normal-actions" class="tf-actions tf-tx-normal-actions">
+          <button id="tx-cancel" class="tf-btn tf-btn-secondary" type="button">Cerrar</button>
+          <button id="tx-submit" class="tf-btn tf-btn-primary" type="submit">Guardar movimiento</button>
+        </div>
       </div>
     </form>
   </dialog>
@@ -206,5 +230,5 @@ title: "Movimientos"
   </div>
 </div>
 
-<script type="module" src="js/transactions-v1.js"></script>
+<script type="module" src="js/transactions-v1.js?v=1.0.66"></script>
 ```

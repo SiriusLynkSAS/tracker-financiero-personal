@@ -1275,3 +1275,12 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - El motor de saldos y el ledger ignoran movimientos anteriores a la fecha base.
 - Cuentas nuevas requieren fecha base del saldo inicial.
 - Dry-run sobre RAW 2026-11-08: 15 cuentas legacy, 1 movimiento anterior a createdAt, 0 cambios de saldo esperados.
+
+## V1.0.66 · Editor de movimientos en dos zonas
+
+- Tipo de movimiento y monto permanecen visibles en la parte superior del modal.
+- Cuenta, categoría, descripción, fecha, hora y detalles opcionales se desplazan de forma independiente.
+- Cerrar/Cancelar y Guardar/Actualizar permanecen visibles.
+- Editar un movimiento confirma dentro del mismo modal; no usa una segunda capa de confirmación.
+- Fecha y hora se eligen mediante los selectores nativos al pulsar sus campos visibles.
+- Firebase y la lógica financiera de MIG-002 no cambian.

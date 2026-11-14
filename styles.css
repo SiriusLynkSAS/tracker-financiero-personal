@@ -3555,3 +3555,40 @@ tr.is-muted{opacity:.66}
 
 /* V1.0.59 · cierre de paridad contractual sobre base estable V1.0.58 */
 .tf-actions-compact{display:flex;gap:.35rem;align-items:center;}
+
+/* V1.0.66 · Editor de movimientos en dos zonas */
+.tf-tx-editor-dialog{
+  width:min(720px,calc(100vw - 2rem));
+  height:min(860px,calc(100vh - 2rem));
+  max-height:calc(100vh - 2rem);
+  padding:0;
+  overflow:hidden;
+}
+.tf-tx-editor-dialog[open]{display:flex;flex-direction:column}
+.tf-tx-editor-head{flex:0 0 auto;margin:0;padding:1rem 1.1rem .8rem;border-bottom:1px solid var(--tf-border);background:var(--tf-surface);z-index:4}
+.tf-tx-editor-dialog .tf-tx-quick-form{display:flex;flex-direction:column;min-height:0;flex:1;gap:0}
+.tf-tx-static-pane{flex:0 0 auto;padding:.85rem 1.1rem .65rem;border-bottom:1px solid var(--tf-border);background:var(--tf-surface);z-index:3}
+.tf-tx-static-pane .tf-tx-amount-block{padding:.65rem 0 .15rem}
+.tf-tx-details-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:1rem 1.1rem 1.2rem;display:grid;gap:1rem;overscroll-behavior:contain}
+.tf-tx-details-title{display:flex;align-items:end;justify-content:space-between;gap:1rem;padding-bottom:.15rem}
+.tf-tx-details-title>span{font-size:.78rem;color:var(--tf-muted);text-align:right}
+.tf-tx-editor-dialog .tf-tx-save-bar{flex:0 0 auto;position:static;margin:0;border:0;border-top:1px solid var(--tf-border);border-radius:0;padding:.8rem 1.1rem;background:var(--tf-surface);box-shadow:0 -12px 30px rgba(0,0,0,.06);z-index:5}
+.tf-tx-normal-actions{width:100%;justify-content:flex-end}
+.tf-tx-inline-confirm{width:100%;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.tf-tx-inline-confirm[hidden]{display:none!important}
+.tf-tx-inline-confirm>div:first-child{display:grid;gap:.15rem;min-width:0}
+.tf-tx-inline-confirm span,.tf-tx-inline-confirm small{color:var(--tf-muted)}
+.tf-tx-inline-confirm small{font-size:.74rem}
+.tf-picker-field{position:relative}
+.tf-picker-button{width:100%;min-height:48px;display:flex;align-items:center;justify-content:flex-start;gap:.65rem;border:1px solid var(--tf-border-strong);border-radius:14px;padding:.7rem .85rem;background:var(--tf-surface);color:var(--tf-text);cursor:pointer;text-align:left}
+.tf-picker-button:hover,.tf-picker-button:focus-visible{border-color:var(--tf-accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--tf-accent) 14%,transparent)}
+.tf-picker-button strong{font-size:.95rem}
+.tf-native-picker-input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;left:0!important;bottom:0!important;border:0!important;padding:0!important}
+@media(max-width:720px){
+  .tf-tx-editor-dialog{width:calc(100vw - 1rem);height:calc(100vh - 1rem);max-height:calc(100vh - 1rem)}
+  .tf-tx-editor-head,.tf-tx-static-pane,.tf-tx-details-scroll,.tf-tx-editor-dialog .tf-tx-save-bar{padding-left:.8rem;padding-right:.8rem}
+  .tf-tx-details-title{align-items:flex-start;flex-direction:column;gap:.15rem}
+  .tf-tx-details-title>span{text-align:left}
+  .tf-tx-inline-confirm{align-items:stretch;flex-direction:column}
+  .tf-tx-inline-confirm .tf-actions,.tf-tx-normal-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
+}
