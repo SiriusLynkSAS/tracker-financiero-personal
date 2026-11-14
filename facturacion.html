@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.71"></script>
+<script type="module" src="js/app-shell.js?v=1.0.72"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -172,11 +172,53 @@ ul.task-list li input[type="checkbox"] {
 </div>
 </section>
 
-<dialog id="invoice-editor-dialog" class="tf-dialog tf-dialog-wide">
-  <form method="dialog" onsubmit="return false" class="tf-dialog-card">
-    <div class="tf-dialog-header"><div><div class="tf-section-kicker">Facturación</div><h2 id="invoice-editor-title" class="anchored">Nueva factura</h2></div><button id="invoice-editor-close-x" class="tf-icon-button" type="button" aria-label="Cerrar">×</button></div>
-    <div class="tf-dialog-body">
+<dialog id="invoice-editor-dialog" class="tf-modal-dialog tf-invoice-editor-dialog">
+  <div class="tf-modal-head tf-invoice-editor-head">
+    <div>
+      <div class="tf-section-kicker">Facturación</div>
+      <h2 id="invoice-editor-title" class="anchored">Nueva factura</h2>
+    </div>
+    <button id="invoice-editor-close-x" class="tf-btn tf-btn-secondary tf-btn-compact" type="button">Cerrar</button>
+  </div>
+
+  <form id="invoice-editor-form" onsubmit="return false" class="tf-invoice-editor-form">
+    <select id="invoice-calculation-mode" hidden="" aria-hidden="true">
+      <option value="base_plus_vat">Más IVA</option>
+      <option value="total_includes_vat">Incluye IVA</option>
+    </select>
+
+    <div class="tf-invoice-static-pane">
+      <div class="tf-invoice-mode-switch" role="group" aria-label="Forma de cálculo de factura">
+        <button type="button" class="tf-invoice-mode-btn" data-invoice-mode="base_plus_vat">Más IVA</button>
+        <button type="button" class="tf-invoice-mode-btn" data-invoice-mode="total_includes_vat">Incluye IVA</button>
+      </div>
+
+      <div class="tf-tx-amount-block tf-invoice-amount-block">
+        <label id="invoice-input-label" for="invoice-input-amount">Valor sin IVA</label>
+        <div class="tf-tx-amount-input-wrap">
+          <span>$</span>
+          <input id="invoice-input-amount" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="tf-invoice-vat-static">
+        <label for="invoice-vat-rate">Tarifa IVA</label>
+        <div><input id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" value="13"><span>%</span></div>
+      </div>
+
+      <div class="tf-invoice-preview-grid">
+        <div class="tf-metric"><span class="tf-metric-label">Base</span><strong id="invoice-preview-base">$0,00</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">IVA</span><strong id="invoice-preview-vat">$0,00</strong></div>
+        <div class="tf-metric"><span class="tf-metric-label">Total</span><strong id="invoice-preview-total">$0,00</strong></div>
+      </div>
       <div id="invoice-editor-error" class="tf-alert tf-alert-danger" hidden=""></div>
+    </div>
+
+    <div class="tf-invoice-details-scroll">
+      <div class="tf-tx-details-title">
+        <div><div class="tf-section-kicker">Detalles</div><span>Datos de factura, vínculo contractual y estado de cobro</span></div>
+      </div>
+
       <div class="tf-grid tf-grid-2">
         <div class="tf-field"><label>Código de factura</label><input id="invoice-number" autocomplete="off" placeholder="001-001-000000001"></div>
         <div class="tf-field"><label>Cliente</label><input id="invoice-customer" autocomplete="off"></div>
@@ -186,21 +228,9 @@ ul.task-list li input[type="checkbox"] {
         <div class="tf-field"><label>Fecha de vencimiento</label><input id="invoice-due-date" type="date"></div>
       </div>
 
-      <div class="tf-field" style="margin-top:.9rem"><label>Vincular con cuenta por cobrar contractual <span class="tf-muted">(opcional)</span></label><select id="invoice-receivable"><option value="">Factura independiente</option></select><div class="tf-muted" id="invoice-receivable-note"></div></div>
+      <div class="tf-field"><label>Vincular con cuenta por cobrar contractual <span class="tf-muted">(opcional)</span></label><select id="invoice-receivable"><option value="">Factura independiente</option></select><div class="tf-muted" id="invoice-receivable-note"></div></div>
 
-      <div class="tf-grid tf-grid-2" style="margin-top:.9rem">
-        <div class="tf-field"><label>Forma de ingreso del valor</label><select id="invoice-calculation-mode"><option value="base_plus_vat">Tengo el valor sin IVA</option><option value="total_includes_vat">Tengo el total incluido IVA</option></select></div>
-        <div class="tf-field"><label>Tarifa IVA (%)</label><input id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" value="13"></div>
-        <div class="tf-field"><label id="invoice-input-label">Valor sin IVA</label><input id="invoice-input-amount" type="number" min="0" step="0.01" inputmode="decimal"></div>
-      </div>
-
-      <div class="tf-detail-grid" style="margin-top:1rem">
-        <div class="tf-metric"><span class="tf-metric-label">Base</span><strong id="invoice-preview-base">$0,00</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">IVA</span><strong id="invoice-preview-vat">$0,00</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">TOTAL</span><strong id="invoice-preview-total">$0,00</strong></div>
-      </div>
-
-      <div id="invoice-initial-payment-wrap" style="margin-top:1rem">
+      <div id="invoice-initial-payment-wrap">
         <div class="tf-field"><label>Estado inicial</label><select id="invoice-initial-state"><option value="pending">Pendiente de cobro</option><option value="pay_now">Cobrar ahora</option></select></div>
         <div id="invoice-pay-now-fields" hidden="">
           <div class="tf-grid tf-grid-2" style="margin-top:.8rem">
@@ -211,9 +241,15 @@ ul.task-list li input[type="checkbox"] {
           </div>
         </div>
       </div>
-      <div class="tf-field" style="margin-top:.9rem"><label>Notas</label><textarea id="invoice-notes"></textarea></div>
+      <div class="tf-field"><label>Notas</label><textarea id="invoice-notes"></textarea></div>
     </div>
-    <div class="tf-dialog-actions"><button id="invoice-editor-close" class="tf-btn tf-btn-secondary" type="button">Cancelar</button><button id="invoice-editor-save" class="tf-btn tf-btn-primary" type="button">Crear factura</button></div>
+
+    <div class="tf-invoice-save-bar">
+      <div class="tf-actions tf-invoice-normal-actions">
+        <button id="invoice-editor-close" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
+        <button id="invoice-editor-save" class="tf-btn tf-btn-primary" type="button">Guardar factura</button>
+      </div>
+    </div>
   </form>
 </dialog>
 
@@ -233,7 +269,7 @@ ul.task-list li input[type="checkbox"] {
   </form>
 </dialog>
 
-<script type="module" src="js/invoices.js?v=1.0.71"></script>
+<script type="module" src="js/invoices.js?v=1.0.72"></script>
 
 
 
@@ -645,7 +681,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.71</p>
+<p>Tracker Financiero Personal V1.0.72</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
