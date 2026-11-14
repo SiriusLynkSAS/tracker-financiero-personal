@@ -3,7 +3,7 @@ function monthParts(ym){const [y,m]=String(ym).split("-").map(Number);return {y,
 function dueForMonth(day,ym){const {y,m}=monthParts(ym);const d=Math.min(Number(day||1),new Date(y,m,0).getDate());return isoFromParts(y,m,d);}
 function monthAdd(ym,delta){const {y,m}=monthParts(ym);const d=new Date(y,m-1+delta,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
 function statusFor(due,today){if(due<today)return "overdue";if(due===today)return "today";return "upcoming";}
-export function buildPendingItems({recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],today=todayISO()}){
+export function buildPendingItems({recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],invoices=[],today=todayISO()}){
   const items=[]; const current=today.slice(0,7); const next=monthAdd(current,1);
   for(const r of recurring.filter(x=>x.active!==false)){
     const doneOccurrences=new Set([
@@ -63,6 +63,18 @@ export function buildPendingItems({recurring=[],transactions=[],liabilities=[],p
     const remind=Number(p.reminderDaysBefore??3); if(row.dueDate>addDaysISO(today,remind)) continue;
     const card=accounts.find(a=>a.id===p.parentId); const pending=Math.max(0,Number(row.payment||0)-Number(row.paidAmount||0));
     items.push({key:`card:${p.id}:${row.n}`,kind:"card",entityId:p.id,installmentNumber:Number(row.n),title:`${card?.bank||"Tarjeta"} · cuota ${row.n}`,subtitle:p.description||"Pago de tarjeta",amount:pending||Number(row.payment||0),dueDate:row.dueDate,status:statusFor(row.dueDate,today),actionLabel:"Registrar pago",url:`deudas.html?plan=${encodeURIComponent(p.id)}&installment=${row.n}`});
+  }
+
+  for(const invoice of invoices.filter(x=>x.active!==false&&x.status!=="void")){
+    const pending=Math.max(0,Number(invoice.totalAmount||0)-Number(invoice.paidAmount||0));
+    if(pending<=.009) continue;
+    const due=String(invoice.dueDate||invoice.issueDate||today);
+    items.push({
+      key:`invoice:${invoice.id}`,kind:"invoice",entityId:invoice.id,
+      title:`Factura ${invoice.invoiceNumber||""}`.trim(),subtitle:`Ingreso por cobrar · ${invoice.customerName||"Cliente"}`,
+      amount:pending,dueDate:due,status:statusFor(due,today),actionLabel:"Registrar cobro",
+      url:`facturacion.html?invoice=${encodeURIComponent(invoice.id)}`
+    });
   }
   const rank={overdue:0,today:1,upcoming:2};
   return items.sort((a,b)=>(rank[a.status]-rank[b.status])||a.dueDate.localeCompare(b.dueDate));

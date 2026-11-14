@@ -1,13 +1,13 @@
 import {requireUser} from "./guard.js";
 import {
   listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,
-  saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan
-} from "./data-service.js";
+  saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan,listInvoices
+} from "./data-service.js?v=1.0.70";
 import {buildPendingItems} from "./pending-engine.js";
 import {money,escapeHtml} from "./utils.js";
 import {toast} from "./ui.js";
 
-let items=[],filter="all",recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],categories=[];
+let items=[],filter="all",recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],categories=[],invoices=[];
 let selectedItem=null,txTarget=null,historicalTarget=null;
 const list=document.querySelector("#pending-list");
 const summary=document.querySelector("#pending-summary");
@@ -38,7 +38,7 @@ function openPending(item){
   action.textContent=item.actionLabel||"Abrir acción";
   const historical=document.querySelector("#pending-detail-historical");
   const note=document.querySelector("#pending-detail-historical-note");
-  const showHistorical=item.status==="overdue";
+  const showHistorical=item.status==="overdue"&&item.kind!=="invoice";
   historical.hidden=!showHistorical;
   note.hidden=!showHistorical;
   detailDialog.showModal();
@@ -121,10 +121,10 @@ async function closeHistorical(item,paidDate){
   throw new Error("Tipo de pendiente no soportado.");
 }
 async function load(){
-  [recurring,transactions,liabilities,plans,accounts,categories]=await Promise.all([
-    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories()
+  [recurring,transactions,liabilities,plans,accounts,categories,invoices]=await Promise.all([
+    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories(),listInvoices()
   ]);
-  items=buildPendingItems({recurring,transactions,liabilities,plans,accounts});
+  items=buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices});
   render();
 }
 

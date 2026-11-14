@@ -1,9 +1,9 @@
 import {requireUser} from "./guard.js";
-import {listTransactions,listTaxPayments,listAccounts,saveTaxPayment,atomicWrite} from "./data-service.js";
+import {listTransactions,listTaxPayments,listAccounts,listInvoices,saveTaxPayment,atomicWrite} from "./data-service.js?v=1.0.70";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
-let txs=[],payments=[],accounts=[],pending=[];
+let txs=[],payments=[],accounts=[],issuedInvoices=[],pending=[];
 const mig004Panel=document.querySelector("#mig004-panel"),mig004Body=document.querySelector("#mig004-body"),mig004Count=document.querySelector("#mig004-count"),mig004Apply=document.querySelector("#mig004-apply");
 
 function accountLabel(id){
@@ -24,43 +24,53 @@ function renderMig004(){
 }
 
 function refreshPending(){
-  pending=txs.filter(t=>
-    t.type==="income" &&
-    Number(t.vat||0)>0 &&
-    !t.taxPaymentId &&
-    t.vatStatus!=="paid"
-  );
+  const legacy=txs.filter(t=>
+    t.type==="income" && Number(t.vat||0)>0 && !t.taxPaymentId && t.vatStatus!=="paid" && !t.invoiceId
+  ).map(t=>({
+    key:`tx:${t.id}`,sourceType:"transaction",sourceId:t.id,
+    invoiceNumber:t.invoiceNumber||t.receipt||t.description||"Factura legacy",
+    taxPeriod:String(t.taxPeriod||t.date||"").slice(0,7),date:t.date,
+    baseAmount:Number(t.invoiceBase??Math.max(0,Number(t.amount)-Number(t.vat))),vatAmount:Number(t.vat||0)
+  }));
+  const emitted=issuedInvoices.filter(i=>
+    i.active!==false && i.status!=="void" && Number(i.vatAmount||0)>0 && !i.taxPaymentId && i.vatStatus!=="paid"
+  ).map(i=>({
+    key:`invoice:${i.id}`,sourceType:"invoice",sourceId:i.id,
+    invoiceNumber:i.invoiceNumber||"Factura",taxPeriod:String(i.taxPeriod||i.issueDate||"").slice(0,7),date:i.issueDate,
+    baseAmount:Number(i.baseAmount||0),vatAmount:Number(i.vatAmount||0),customerName:i.customerName||""
+  }));
+  pending=[...emitted,...legacy];
 }
 
 function periods(){
-  return [...new Set(pending.map(t=>String(t.taxPeriod||t.date||"").slice(0,7)).filter(Boolean))]
+  return [...new Set(pending.map(t=>String(t.taxPeriod||"").slice(0,7)).filter(Boolean))]
     .sort().reverse();
 }
 
 function selectedInvoices(){
   return [...document.querySelectorAll("[data-tax-invoice]:checked")]
-    .map(x=>pending.find(t=>t.id===x.dataset.taxInvoice))
+    .map(x=>pending.find(t=>t.key===x.dataset.taxInvoice))
     .filter(Boolean);
 }
 
 function renderInvoiceSelector(){
   const period=document.querySelector("#tax-period").value;
-  const rows=pending.filter(t=>String(t.taxPeriod||t.date||"").slice(0,7)===period);
+  const rows=pending.filter(t=>String(t.taxPeriod||"").slice(0,7)===period);
   document.querySelector("#tax-invoices").innerHTML=rows.map(t=>`
     <label class="tf-plan-source-row">
-      <input type="checkbox" data-tax-invoice="${t.id}" checked>
+      <input type="checkbox" data-tax-invoice="${t.key}" checked>
       <span class="tf-plan-source-main">
-        <strong>${escapeHtml(t.invoiceNumber||t.receipt||t.description||"Factura")}</strong>
-        <span>${escapeHtml(t.date)} · Base ${money(t.invoiceBase??Math.max(0,Number(t.amount)-Number(t.vat)))}</span>
+        <strong>${escapeHtml(t.invoiceNumber||"Factura")}</strong>
+        <span>${escapeHtml(t.date)} · Base ${money(t.baseAmount)}${t.sourceType==="invoice"?" · Facturación":" · Legacy"}</span>
       </span>
-      <strong class="tf-plan-source-amount">IVA ${money(t.vat)}</strong>
+      <strong class="tf-plan-source-amount">IVA ${money(t.vatAmount)}</strong>
     </label>
   `).join("")||`<div class="tf-empty">No hay facturas pendientes en este período.</div>`;
   updateExpected();
 }
 
 function updateExpected(){
-  const expected=sum(selectedInvoices(),x=>x.vat);
+  const expected=sum(selectedInvoices(),x=>x.vatAmount);
   const input=document.querySelector("#tax-expected-input");
   input.value=money(expected);
   const paid=document.querySelector("#tax-paid-input");
@@ -76,7 +86,7 @@ function updateExpected(){
 function render(){
   refreshPending();
   renderMig004();
-  document.querySelector("#tax-reserved").textContent=money(sum(pending,x=>x.vat));
+  document.querySelector("#tax-reserved").textContent=money(sum(pending,x=>x.vatAmount));
   document.querySelector("#tax-paid").textContent=money(sum(payments,x=>x.paidVat));
   document.querySelector("#tax-expected").textContent=money(sum(payments,x=>x.expectedVat));
   document.querySelector("#tax-pending-count").textContent=String(pending.length);
@@ -85,10 +95,10 @@ function render(){
     <div class="tf-plan-source-row">
       <span class="tf-emergency-minimum">IVA</span>
       <span class="tf-plan-source-main">
-        <strong>${escapeHtml(t.invoiceNumber||t.receipt||t.description||"Factura")}</strong>
-        <span>${escapeHtml(String(t.taxPeriod||t.date||"").slice(0,7))} · Base ${money(t.invoiceBase??Math.max(0,Number(t.amount)-Number(t.vat)))}</span>
+        <strong>${escapeHtml(t.invoiceNumber||"Factura")}</strong>
+        <span>${escapeHtml(String(t.taxPeriod||"").slice(0,7))} · Base ${money(t.baseAmount)}${t.sourceType==="invoice"?` · ${escapeHtml(t.customerName||"")}`:" · Legacy"}</span>
       </span>
-      <strong class="tf-plan-source-amount">${money(t.vat)}</strong>
+      <strong class="tf-plan-source-amount">${money(t.vatAmount)}</strong>
     </div>
   `).join("")||`<div class="tf-empty">No existen facturas con IVA pendientes.</div>`;
 
@@ -123,7 +133,7 @@ function render(){
 }
 
 async function refresh(){
-  [txs,payments,accounts]=await Promise.all([listTransactions(),listTaxPayments(),listAccounts()]);
+  [txs,payments,accounts,issuedInvoices]=await Promise.all([listTransactions(),listTaxPayments(),listAccounts(),listInvoices()]);
   render();
 }
 
@@ -161,7 +171,9 @@ document.querySelector("#tax-form").addEventListener("submit",async e=>{
     confirmText:"Registrar"
   }))return;
 
-  await saveTaxPayment({period,paidVat,accountId,paymentDate,notes},selected.map(x=>x.id));
+  const transactionIds=selected.filter(x=>x.sourceType==="transaction").map(x=>x.sourceId);
+  const invoiceEntityIds=selected.filter(x=>x.sourceType==="invoice").map(x=>x.sourceId);
+  await saveTaxPayment({period,paidVat,accountId,paymentDate,notes},transactionIds,invoiceEntityIds);
   e.target.reset();
   document.querySelector("#tax-date").value=todayISO();
   document.querySelector("#tax-paid-input").dataset.touched="";

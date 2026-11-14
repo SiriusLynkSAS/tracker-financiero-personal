@@ -242,6 +242,7 @@ export function monthlyProjection({
   contracts=[],
   debts=[],
   cardPlans=[],
+  invoices=[],
   month=String(todayISO()).slice(0,7),
   today=todayISO()
 }){
@@ -257,6 +258,12 @@ export function monthlyProjection({
     commitments.filter(x=>x.kind==="income"&&x.source==="receivable"),
     x=>x.amount
   );
+
+  const independentInvoicePending=invoices.filter(i=>
+    i.active!==false && i.status!=="void" && !i.receivableId && inMonth(i.dueDate||i.issueDate,month) && Number(i.totalAmount||0)-Number(i.paidAmount||0)>.009
+  );
+  const invoicePendingGross=sum(independentInvoicePending,i=>Math.max(0,Number(i.totalAmount||0)-Number(i.paidAmount||0)));
+  const invoicePendingNet=sum(independentInvoicePending,i=>Math.max(0,Number(i.baseAmount||0)-Number(i.paidBaseAmount||0)));
 
   const expectedIncome=commitments
     .filter(x=>x.kind==="income"&&x.source!=="receivable")
@@ -279,12 +286,12 @@ export function monthlyProjection({
   const projectedIncomeGross=
     sum(monthIncome,x=>x.amount)+
     sum(pendingIncome,x=>x.amount)+
-    receivablePendingIncome;
+    receivablePendingIncome+invoicePendingGross;
 
   const projectedIncomeNet=
-    sum(monthIncome,x=>Math.max(0,Number(x.amount||0)-Number(x.vat||0)))+
+    sum(monthIncome,x=>Number(x.economicAmount||0)>0?Number(x.economicAmount):Math.max(0,Number(x.amount||0)-Number(x.vat||0)))+
     sum(pendingIncome,x=>x.amount)+
-    receivablePendingIncome;
+    receivablePendingIncome+invoicePendingNet;
 
   const accountTypes=new Map(accounts.map(a=>[a.id,a.accountType]));
 
@@ -315,15 +322,9 @@ export function monthlyProjection({
     sum(pendingTransactionExpenses,x=>x.amount)+
     sum(scheduleControlledExpenses,x=>x.amount);
 
-  const reservedVat=sum(
-    transactions.filter(t=>
-      t.type==="income" &&
-      Number(t.vat||0)>0 &&
-      !t.taxPaymentId &&
-      t.vatStatus!=="paid"
-    ),
-    t=>t.vat
-  );
+  const reservedVat=
+    sum(transactions.filter(t=>t.type==="income"&&Number(t.vat||0)>0&&!t.invoiceId&&!t.taxPaymentId&&t.vatStatus!=="paid"),t=>t.vat)+
+    sum(invoices.filter(i=>i.active!==false&&i.status!=="void"&&Number(i.vatAmount||0)>0&&!i.taxPaymentId&&i.vatStatus!=="paid"),i=>i.vatAmount);
 
   const recommendedSavings=Math.max(0,projectedIncomeNet*0.10);
   const availableProjected=
@@ -339,7 +340,7 @@ export function monthlyProjection({
     projectedIncomeGross,
     projectedIncomeNet,
     receivedIncomeGross:sum(monthIncome,x=>x.amount),
-    pendingIncomeGross:sum(pendingIncome,x=>x.amount)+receivablePendingIncome,
+    pendingIncomeGross:sum(pendingIncome,x=>x.amount)+receivablePendingIncome+invoicePendingGross,
     registeredExpenses,
     pendingExpenses,
     recommendedSavings,

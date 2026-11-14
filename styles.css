@@ -3592,3 +3592,7 @@ tr.is-muted{opacity:.66}
   .tf-tx-inline-confirm{align-items:stretch;flex-direction:column}
   .tf-tx-inline-confirm .tf-actions,.tf-tx-normal-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
 }
+
+/* F-FAC-001 */
+.tf-dialog-wide{width:min(980px,calc(100vw - 2rem));max-width:980px;}
+@media (max-width:700px){.tf-dialog-wide{width:calc(100vw - 1rem);max-width:none;}}
