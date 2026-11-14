@@ -1,3 +1,12 @@
+# Tracker Financiero Personal V1.0.76 · Bloque 9 de 11 · MIG-009
+
+- MIG-008 queda cerrada/validada antes de iniciar este bloque.
+- MIG-009 elimina el campo `id` redundante de 4 de 5 `receivables` auditados.
+- El Document ID de Firestore pasa a ser la única fuente canónica de identidad para cuentas por cobrar.
+- Web fuerza el Document ID al leer y elimina `id` antes de cualquier escritura de `receivables`.
+- Android ya utilizaba `DocumentSnapshot.id` y no persistía `id`; ahora muestra un aviso dinámico mientras existan documentos legacy pendientes.
+- No cambia montos, estados, períodos, contratos, facturas vinculadas, movimientos ni saldos.
+
 # Tracker Financiero Personal V1.0.75 · Bloque 8 de 11 · MIG-008
 
 - MIG-007 queda cerrada/validada antes de iniciar este bloque.

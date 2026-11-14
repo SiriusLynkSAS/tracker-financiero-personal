@@ -272,9 +272,10 @@ export function normalizeReceivable(raw={}){
   return {...raw,schemaVersion:integer(raw.schemaVersion,0),contractId:text(raw.contractId),workPeriod:text(raw.workPeriod),amount:nonNegative(raw.amount,0),paidAmount:nonNegative(raw.paidAmount,0),dueDate:text(raw.dueDate),status:text(raw.status)||"pending",active:raw.active!==false};
 }
 export function sanitizeReceivableWrite(raw={}){
-  const amount=nonNegative(raw.amount,0),paidAmount=nonNegative(raw.paidAmount,0);
+  const {id:_redundantId,...source}=raw||{};
+  const amount=nonNegative(source.amount,0),paidAmount=nonNegative(source.paidAmount,0);
   if(paidAmount>amount+0.009) throw new Error("El valor cobrado no puede superar el valor por cobrar.");
-  return {...raw,schemaVersion:SCHEMA_VERSION,contractId:text(raw.contractId),workPeriod:text(raw.workPeriod),amount,paidAmount,dueDate:text(raw.dueDate),status:text(raw.status)||"pending",active:raw.active!==false};
+  return {...source,schemaVersion:SCHEMA_VERSION,contractId:text(source.contractId),workPeriod:text(source.workPeriod),amount,paidAmount,dueDate:text(source.dueDate),status:text(source.status)||"pending",active:source.active!==false};
 }
 
 export function normalizeInvestment(raw={}){

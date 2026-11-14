@@ -4,6 +4,12 @@ title: "Contratos y cobros"
 
 ```{=html}
 <div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Los cobros se generan al cerrar cada mes. El inicio y fin parciales se prorratean por días calendario.</div></div><button class="tf-btn tf-btn-secondary" data-logout>Cerrar sesión</button></div>
+<section id="mig009-panel" class="tf-card" style="margin-bottom:1rem" hidden>
+  <div class="tf-section-heading"><div><div class="tf-section-kicker">Bloque 9 de 11 · MIG-009</div><h2>ID canónico de cuentas por cobrar</h2><div class="tf-muted">Elimina el campo <code>id</code> redundante de cuatro receivables legacy. El document ID de Firestore queda como única fuente de identidad.</div></div></div>
+  <div id="mig009-status" class="tf-alert"></div>
+  <div class="tf-table-wrap" style="margin-top:.8rem"><table class="tf-table"><thead><tr><th>Document ID</th><th>Período</th><th>id interno</th><th>Estado</th></tr></thead><tbody id="mig009-body"></tbody></table></div>
+  <div class="tf-actions" style="margin-top:.8rem"><button id="mig009-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-009</button></div>
+</section>
 <div class="tf-actions" style="margin-bottom:1rem">
 <button id="contract-new" class="tf-btn tf-btn-primary" type="button">Nuevo contrato</button>
 <button id="tariff-new" class="tf-btn tf-btn-secondary" type="button">Nueva tarifa</button>
@@ -43,5 +49,6 @@ title: "Contratos y cobros"
     <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Guardar fechas</button></div>
   </div>
 </dialog>
-<script type="module" src="js/contracts.js?v=1.0.75"></script>
+<script type="module" src="js/contracts.js?v=1.0.76"></script>
+<script type="module" src="js/mig009.js?v=1.0.76"></script>
 ```
