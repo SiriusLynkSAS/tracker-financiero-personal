@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, getDocs, getDocsFromCache, getDoc, getDocFromCache,
-  setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch, runTransaction
+  setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch, runTransaction, deleteField
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
 import {contractPeriodCalculation,contractDesiredStopMonth} from "./contract-math.js";
@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.75";
+} from "./schema.js?v=1.0.76";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -57,7 +57,7 @@ const entityInflight=new Map();
 const MEMORY_TTL_MS=5000;
 
 function entityKey(n,order=null){return `${n}|${order||""}`;}
-function rowsFromSnapshot(snapshot){return snapshot.docs.map(d=>({id:d.id,...d.data()}));}
+function rowsFromSnapshot(snapshot){return snapshot.docs.map(d=>({...d.data(),id:d.id}));}
 function rememberRows(key,rows){entityMemory.set(key,{at:Date.now(),rows});return rows;}
 function invalidateCollection(n){
   for(const key of [...entityMemory.keys()]){
@@ -114,11 +114,11 @@ export async function getEntity(n,id){
       if(typeof navigator==="undefined" || navigator.onLine!==false){
         getDoc(r).catch(()=>{});
       }
-      return {id:cached.id,...cached.data()};
+      return {...cached.data(),id:cached.id};
     }
   }catch{}
   const remote=await getDoc(r);
-  return remote.exists()?{id:remote.id,...remote.data()}:null;
+  return remote.exists()?{...remote.data(),id:remote.id}:null;
 }
 export async function appendAudit(entityType,entityId,action,before=null,after=null,note=""){
   await addDoc(col("auditLog"),auditPayload(entityType,entityId,action,before,after,note));
@@ -204,12 +204,13 @@ export async function atomicWrite(ops=[]){
   const batch=writeBatch(db);
   for(const op of enriched){
     const auditType=op.auditType||op.collection;
+    const writeData=op.collection==="receivables"?sanitizeReceivableWrite(op.data):op.data;
     if(op.action==="delete"){
       batch.delete(op.entityRef);
     }else if(op.action==="update"){
-      batch.update(op.entityRef,{...canonicalStamp(op.data),updatedAt:serverTimestamp()});
+      batch.update(op.entityRef,{...canonicalStamp(writeData),updatedAt:serverTimestamp()});
     }else{
-      batch.set(op.entityRef,{...canonicalStamp(op.data),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+      batch.set(op.entityRef,{...canonicalStamp(writeData),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
     }
     batch.set(
       doc(col("auditLog")),
@@ -218,7 +219,7 @@ export async function atomicWrite(ops=[]){
         op.entityId,
         op.action.toUpperCase(),
         op.old,
-        op.action==="delete"?null:op.data,
+        op.action==="delete"?null:writeData,
         op.note||""
       )
     );
@@ -524,6 +525,43 @@ export const archiveContract=id=>archiveEntity("contracts",id,{auditType:"contra
 export const reactivateContract=id=>reactivateEntity("contracts",id,{auditType:"contract"});
 export const listReceivables=()=>listEntities("receivables").then(r=>r.map(normalizeReceivable));
 export const saveReceivable=(d,id=null)=>saveEntity("receivables",sanitizeReceivableWrite(d),id,{auditType:"receivable"});
+export async function inspectReceivableStoredIds(){
+  const snapshot=await getDocs(col("receivables"));
+  return snapshot.docs.map(d=>{
+    const data=d.data();
+    const hasStoredId=Object.prototype.hasOwnProperty.call(data,"id");
+    return {
+      id:d.id,
+      hasStoredId,
+      storedId:hasStoredId?String(data.id??""):null,
+      contractId:String(data.contractId||""),
+      workPeriod:String(data.workPeriod||""),
+      amount:Number(data.amount||0),
+      paidAmount:Number(data.paidAmount||0),
+      status:String(data.status||"pending")
+    };
+  });
+}
+export async function removeRedundantReceivableIds(ids=[]){
+  const targets=[...new Set(ids.map(x=>String(x||"").trim()).filter(Boolean))];
+  if(!targets.length) return 0;
+  const snapshot=await getDocs(col("receivables"));
+  const byId=new Map(snapshot.docs.map(d=>[d.id,d]));
+  const batch=writeBatch(db);
+  for(const id of targets){
+    const snap=byId.get(id);
+    if(!snap) throw new Error(`MIG-009: no existe receivable ${id}.`);
+    const before=snap.data();
+    if(!Object.prototype.hasOwnProperty.call(before,"id")) continue;
+    if(String(before.id??"")!==id) throw new Error(`MIG-009: el id interno de ${id} no coincide con el document ID.`);
+    const after={...before}; delete after.id;
+    batch.update(ref("receivables",id),{id:deleteField(),updatedAt:serverTimestamp()});
+    batch.set(doc(col("auditLog")),auditPayload("receivable",id,"UPDATE",before,after,"MIG-009 · eliminar campo id redundante; document ID queda como identificador canónico"));
+  }
+  await batch.commit();
+  invalidateCollection("receivables");
+  return targets.length;
+}
 export const listInvestments=()=>listEntities("investments").then(r=>r.map(normalizeInvestment));
 export const saveInvestment=(d,id=null)=>saveEntity("investments",sanitizeInvestmentWrite(d),id,{auditType:"investment"});
 export const archiveInvestment=async()=>{throw new Error("Las inversiones no se archivan directamente. Usa Liquidar, Renovar o Cancelar desde Inversiones.");};
