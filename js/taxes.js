@@ -1,13 +1,26 @@
 import {requireUser} from "./guard.js";
-import {listTransactions,listTaxPayments,listAccounts,saveTaxPayment} from "./data-service.js";
+import {listTransactions,listTaxPayments,listAccounts,saveTaxPayment,atomicWrite} from "./data-service.js";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
 let txs=[],payments=[],accounts=[],pending=[];
+const mig004Panel=document.querySelector("#mig004-panel"),mig004Body=document.querySelector("#mig004-body"),mig004Count=document.querySelector("#mig004-count"),mig004Apply=document.querySelector("#mig004-apply");
 
 function accountLabel(id){
   const a=accounts.find(x=>x.id===id);
   return a?[a.bank,a.alias].filter(Boolean).join(" · "):"—";
+}
+
+
+function txTypeLabel(type){return ({income:"Ingreso",expense:"Egreso",transfer:"Transferencia",investment_out:"Salida a inversión",investment_return:"Retorno de inversión",work_expense:"Gasto de trabajo",work_reimbursement:"Reembolso",work_advance:"Anticipo",work_advance_return:"Devolución de anticipo"})[type]||type||"Movimiento";}
+function legacyVatRows(){return txs.filter(t=>t.legacyVatAmbiguous===true);}
+function renderMig004(){
+  const rows=legacyVatRows();
+  if(!mig004Panel)return;
+  mig004Panel.hidden=!rows.length;
+  if(!rows.length)return;
+  mig004Count.textContent=String(rows.length);
+  mig004Body.innerHTML=rows.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).map(t=>`<tr><td>${escapeHtml(t.date||"—")}</td><td>${escapeHtml(txTypeLabel(t.type))}</td><td>${escapeHtml(t.description||"Sin descripción")}</td><td>${money(t.amount)}</td><td>${money(t.legacyVatRaw)}</td><td><span class="tf-pill tf-pill-warn">Limpiar IVA · conservar trazabilidad</span></td></tr>`).join("");
 }
 
 function refreshPending(){
@@ -62,6 +75,7 @@ function updateExpected(){
 
 function render(){
   refreshPending();
+  renderMig004();
   document.querySelector("#tax-reserved").textContent=money(sum(pending,x=>x.vat));
   document.querySelector("#tax-paid").textContent=money(sum(payments,x=>x.paidVat));
   document.querySelector("#tax-expected").textContent=money(sum(payments,x=>x.expectedVat));
@@ -152,6 +166,26 @@ document.querySelector("#tax-form").addEventListener("submit",async e=>{
   document.querySelector("#tax-date").value=todayISO();
   document.querySelector("#tax-paid-input").dataset.touched="";
   toast("Liquidación de IVA registrada.");
+  await refresh();
+});
+
+
+mig004Apply?.addEventListener("click",async()=>{
+  const rows=legacyVatRows();
+  if(!rows.length)return;
+  const totalRaw=sum(rows,x=>Number(x.legacyVatRaw||0));
+  if(!await confirmAction({
+    title:"Aplicar MIG-004",
+    message:`Normalizar ${rows.length} movimiento(s) con IVA legacy`,
+    impact:[`Se limpiará un total histórico de ${money(totalRaw)} del campo IVA; no del monto del movimiento.`,"No cambia montos, cuentas, saldos ni categorías.","El valor original se conserva en legacyVatRaw y el cambio queda registrado en auditLog."],
+    confirmText:"Aplicar MIG-004"
+  }))return;
+  await atomicWrite(rows.map(t=>({
+    collection:"transactions",id:t.id,action:"update",auditType:"transaction",
+    data:{vat:0,hasInvoice:false,invoiceNumber:"",invoiceBase:0,taxPeriod:"",vatStatus:"none",legacyVatRaw:Number(t.legacyVatRaw||0),legacyVatResolution:"mig004_invalid_equal_amount_cleared"},
+    note:"MIG-004 · normalización de IVA legacy vat==amount sin factura explícita"
+  })));
+  toast("MIG-004 aplicada. El IVA legacy quedó normalizado sin alterar saldos.");
   await refresh();
 });
 

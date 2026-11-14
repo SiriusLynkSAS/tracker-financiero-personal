@@ -1,3 +1,10 @@
+# Tracker Financiero Personal V1.0.68 · MIG-004
+
+- Normalización controlada de IVA legacy ambiguo (`vat == amount` sin `hasInvoice`).
+- Panel de revisión/aplicación en IVA / Impuestos.
+- Conserva `legacyVatRaw` y registra cambios en `auditLog`.
+- No modifica montos, cuentas ni saldos.
+
 # Tracker Financiero Personal V1.0.62
 
 ## V1.0.62 · reversión directa de cobros contractuales
@@ -1276,7 +1283,7 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Cuentas nuevas requieren fecha base del saldo inicial.
 - Dry-run sobre RAW 2026-11-08: 15 cuentas legacy, 1 movimiento anterior a createdAt, 0 cambios de saldo esperados.
 
-## V1.0.67 · Editor de movimientos en dos zonas
+## V1.0.68 · Editor de movimientos en dos zonas
 
 - Tipo de movimiento y monto permanecen visibles en la parte superior del modal.
 - Cuenta, categoría, descripción, fecha, hora y detalles opcionales se desplazan de forma independiente.
