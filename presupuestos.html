@@ -159,7 +159,28 @@ ul.task-list li input[type="checkbox"] {
       <div class="tf-muted">Las alertas aparecen cuando queda 30%, 10% o cuando el presupuesto se sobrepasa.</div>
     </div>
   </div>
-  <div id="budget-list" class="tf-budget-list"></div>
+  <div class="tf-table-wrap tf-budget-table-wrap">
+    
+<table class="tf-table tf-budget-table caption-top">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">Presupuesto</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Límite</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Rollover</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Disponible total</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Gastado</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Queda</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Uso</th>
+<th data-quarto-table-cell-role="th">Estado</th>
+<th class="tf-center" data-quarto-table-cell-role="th">Información</th>
+</tr>
+</thead>
+<tbody id="budget-list">
+</tbody>
+</table>
+
+  </div>
+  <div id="budget-empty" class="tf-empty" hidden=""></div>
 </section>
 
 <dialog id="budget-editor" class="tf-modal-dialog tf-budget-editor-dialog">
@@ -246,7 +267,7 @@ ul.task-list li input[type="checkbox"] {
   <div id="budget-detail-body" class="tf-budget-detail-body"></div>
 </dialog>
 
-<script type="module" src="js/budgets-v1.js?v=1.0.83"></script>
+<script type="module" src="js/budgets-v1.js?v=1.0.84"></script>
 
 
 
@@ -658,7 +679,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.83</p>
+<p>Tracker Financiero Personal V1.0.84</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

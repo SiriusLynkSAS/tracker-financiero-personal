@@ -3720,3 +3720,34 @@ tr.is-muted{opacity:.66}
 .tf-notification-status.is-budget-warning{background:#fff3cd;color:#7a5700}.tf-notification-status.is-budget-critical{background:#ffe3c2;color:#8a3d00}.tf-notification-status.is-budget-over{background:#fde2e4;color:#941b27}
 @media(max-width:720px){.tf-budget-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tf-budget-row-values{grid-template-columns:repeat(3,minmax(0,1fr));gap:.4rem}.tf-budget-month-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.tf-budget-editor-dialog{width:calc(100vw - 1rem);height:calc(100vh - 1rem);max-height:calc(100vh - 1rem)}}
 .tf-notification-section-title{padding:.55rem .75rem .2rem;color:var(--tf-muted);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+
+
+/* AUD-POST-011 · Presupuestos horizontales + Plan mensual por pestañas V1.0.84 */
+.tf-budget-summary-grid{display:flex;flex-wrap:nowrap;gap:.75rem;width:100%;overflow-x:auto;padding-bottom:.1rem}
+.tf-budget-summary-grid>.tf-metric{flex:1 0 190px;min-width:190px}
+.tf-budget-table-wrap{overflow:auto;width:100%}
+.tf-budget-table{min-width:1050px;width:100%;border-collapse:separate;border-spacing:0}
+.tf-budget-table th{white-space:nowrap;text-align:left;background:var(--tf-surface-2);font-size:.78rem;color:var(--tf-muted);padding:.7rem .75rem;border-bottom:1px solid var(--tf-border)}
+.tf-budget-table td{padding:.72rem .75rem;border-bottom:1px solid var(--tf-border);vertical-align:middle}
+.tf-budget-table tbody tr:hover{background:var(--tf-surface-2)}
+.tf-budget-table .tf-num{text-align:right;white-space:nowrap}.tf-budget-table .tf-center{text-align:center}
+.tf-budget-table tbody tr.is-warning{background:color-mix(in srgb,#fff3cd 38%,transparent)}
+.tf-budget-table tbody tr.is-critical{background:color-mix(in srgb,#ffe3c2 42%,transparent)}
+.tf-budget-table tbody tr.is-over{background:color-mix(in srgb,#fde2e4 48%,transparent)}
+.tf-budget-table-usage{display:grid;grid-template-columns:48px 110px;gap:.5rem;align-items:center;justify-content:end}
+.tf-budget-table-usage .tf-budget-row-progress{height:7px}
+.tf-monthly-plan-overview{display:flex;flex-direction:column;align-items:center;gap:.9rem}
+.tf-plan-summary-row{display:flex;flex-wrap:nowrap;overflow-x:auto;width:100%;border:1px solid var(--tf-border);border-radius:1rem;background:var(--tf-surface)}
+.tf-plan-summary-cell{flex:1 0 180px;display:flex;flex-direction:column;gap:.22rem;padding:.85rem 1rem;border-right:1px solid var(--tf-border)}
+.tf-plan-summary-cell:last-child{border-right:0}.tf-plan-summary-cell span{font-size:.78rem;color:var(--tf-muted);font-weight:700}.tf-plan-summary-cell strong{font-size:1.2rem}
+.tf-plan-summary-cell.is-result{background:var(--tf-primary-soft)}
+.tf-plan-equation{display:flex;align-items:center;justify-content:center;gap:.6rem;flex-wrap:wrap;font-size:.95rem;color:var(--tf-muted)}
+.tf-plan-equation strong:last-child{color:var(--tf-primary);font-size:1.08rem}
+.tf-plan-tabs{display:flex;gap:.4rem;margin:1rem 0;border-bottom:1px solid var(--tf-border);overflow-x:auto}
+.tf-plan-tab{border:0;border-bottom:3px solid transparent;background:transparent;color:var(--tf-muted);font:inherit;font-weight:800;padding:.75rem 1.1rem;cursor:pointer;white-space:nowrap}
+.tf-plan-tab.is-active{color:var(--tf-primary);border-bottom-color:var(--tf-primary)}
+.tf-plan-tab-panel[hidden]{display:none!important}
+.tf-plan-execution-row{display:flex;flex-wrap:nowrap;overflow-x:auto;border:1px solid var(--tf-border);border-radius:1rem}
+.tf-plan-execution-row>div{flex:1 0 180px;padding:.9rem 1rem;border-right:1px solid var(--tf-border);display:flex;flex-direction:column;gap:.2rem}
+.tf-plan-execution-row>div:last-child{border-right:0}.tf-plan-execution-row span{font-size:.78rem;color:var(--tf-muted);font-weight:700}.tf-plan-execution-row strong{font-size:1.08rem}.tf-plan-execution-row .is-result{background:var(--tf-primary-soft)}
+@media(max-width:720px){.tf-budget-summary-grid>.tf-metric{flex-basis:165px;min-width:165px}.tf-plan-summary-cell,.tf-plan-execution-row>div{flex-basis:160px}.tf-plan-equation{font-size:.82rem}}

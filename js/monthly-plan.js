@@ -21,8 +21,34 @@ let notes="";
 let dirty=false;
 
 const monthInput=document.querySelector("#monthly-plan-month");
+const monthDialog=document.querySelector("#monthly-plan-month-dialog");
+let pickerYear=new Date().getFullYear();
+let activeTab="plan";
 
 function currentMonth(){ return todayISO().slice(0,7); }
+function monthLabel(value){
+  const [year,month]=String(value).split("-").map(Number);
+  if(!year||!month)return value;
+  const label=new Intl.DateTimeFormat("es-EC",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(Date.UTC(year,month-1,1)));
+  return label.charAt(0).toUpperCase()+label.slice(1);
+}
+function monthShort(month){
+  return new Intl.DateTimeFormat("es-EC",{month:"short",timeZone:"UTC"}).format(new Date(Date.UTC(2026,month-1,1))).replace(".","");
+}
+function renderMonthPicker(){
+  document.querySelector("#monthly-plan-picker-year").textContent=String(pickerYear);
+  document.querySelector("#monthly-plan-month-grid").innerHTML=Array.from({length:12},(_,i)=>{
+    const value=`${pickerYear}-${String(i+1).padStart(2,"0")}`;
+    return `<button type="button" class="tf-budget-month-option ${value===selectedMonth?"is-selected":""}" data-mp-month="${value}">${monthShort(i+1)}</button>`;
+  }).join("");
+}
+function openMonthPicker(){pickerYear=Number(selectedMonth.slice(0,4))||new Date().getFullYear();renderMonthPicker();monthDialog.showModal();}
+function selectMonth(value){monthDialog.close();loadConfig(value);}
+function setTab(tab){
+  activeTab=tab;
+  document.querySelectorAll("[data-mp-tab]").forEach(b=>b.classList.toggle("is-active",b.dataset.mpTab===tab));
+  document.querySelectorAll("[data-mp-panel]").forEach(p=>p.hidden=p.dataset.mpPanel!==tab);
+}
 
 function oldItemToAdjustment(x){
   const map={income:"income",fixed:"commitment",variable:"reserve",saving:"savings",savings:"savings"};
@@ -185,10 +211,10 @@ function render(){
   document.querySelector("#mp-variable-list").innerHTML=buckets.reserve.map(sourceRow).join("")||empty("Sin presupuestos aplicables a este mes.");
 
   for(const [id,v] of [
-    ["mp-kpi-income",c.income],["mp-income-total",c.income],
-    ["mp-kpi-fixed",c.commitments],["mp-fixed-total",c.commitments],
-    ["mp-kpi-saving",c.savings],["mp-saving-total",c.savings],
-    ["mp-kpi-variable",c.reserves],["mp-variable-total",c.reserves],
+    ["mp-kpi-income",c.income],["mp-income-total",c.income],["mp-eq-income",c.income],
+    ["mp-kpi-fixed",c.commitments],["mp-fixed-total",c.commitments],["mp-eq-fixed",c.commitments],
+    ["mp-kpi-saving",c.savings],["mp-saving-total",c.savings],["mp-eq-saving",c.savings],
+    ["mp-kpi-variable",c.reserves],["mp-variable-total",c.reserves],["mp-eq-variable",c.reserves],
     ["mp-kpi-free",c.available],["mp-free-hero",c.available]
   ]){
     document.querySelector(`#${id}`).textContent=money(v);
@@ -216,6 +242,8 @@ function render(){
   document.querySelector("#mp-real-net").classList.toggle("tf-negative",ex.registeredFlow<0);
 
   document.querySelector("#mp-note").value=notes;
+  document.querySelector("#monthly-plan-period-label").textContent=monthLabel(selectedMonth);
+  document.querySelector("#monthly-plan-today").hidden=selectedMonth===currentMonth();
   document.querySelector("#monthly-plan-save-state").textContent=dirty?"Cambios sin guardar":"Plan cargado";
   document.querySelector("#monthly-plan-save-state").classList.toggle("is-dirty",dirty);
   renderAdjustments();
@@ -246,10 +274,16 @@ async function refresh(){
   loadConfig(selectedMonth||currentMonth());
 }
 
-monthInput.addEventListener("change",()=>{if(monthInput.value)loadConfig(monthInput.value)});
 document.querySelector("#monthly-plan-prev").addEventListener("click",()=>loadConfig(shiftMonth(selectedMonth,-1)));
 document.querySelector("#monthly-plan-next").addEventListener("click",()=>loadConfig(shiftMonth(selectedMonth,1)));
 document.querySelector("#monthly-plan-today").addEventListener("click",()=>loadConfig(currentMonth()));
+document.querySelector("#monthly-plan-period-label").addEventListener("click",openMonthPicker);
+document.querySelector("#monthly-plan-month-dialog-close").addEventListener("click",()=>monthDialog.close());
+document.querySelector("#monthly-plan-year-prev").addEventListener("click",()=>{pickerYear--;renderMonthPicker();});
+document.querySelector("#monthly-plan-year-next").addEventListener("click",()=>{pickerYear++;renderMonthPicker();});
+document.querySelector("#monthly-plan-picker-current").addEventListener("click",()=>selectMonth(currentMonth()));
+document.querySelector("#monthly-plan-month-grid").addEventListener("click",e=>{const b=e.target.closest("[data-mp-month]");if(b)selectMonth(b.dataset.mpMonth);});
+document.querySelectorAll("[data-mp-tab]").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.mpTab)));
 
 document.addEventListener("change",e=>{
   const box=e.target.closest("[data-source-toggle]");
@@ -339,4 +373,5 @@ document.querySelector("#mp-save").addEventListener("click",async()=>{
 });
 
 selectedMonth=currentMonth();
+setTab(activeTab);
 requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudo cargar el plan mensual.");}));
