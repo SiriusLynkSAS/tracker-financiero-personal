@@ -709,7 +709,7 @@ function render() {
       <td><strong>${escapeHtml(day)}</strong><div class="tf-muted">${escapeHtml(time||"—")}</div></td>
       <td>
         <div class="tf-tx-ledger-title"><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span> <strong>${escapeHtml(tx.description||"Sin descripción")}</strong></div>
-        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}</div>
+        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}${tx.legacyVatAmbiguous?` · <span class="tf-pill tf-pill-warn">IVA legacy · MIG-004</span>`:""}</div>
       </td>
       <td><strong>${money(tx.amount)}</strong></td>
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
@@ -1084,6 +1084,7 @@ tbody.addEventListener("click", async e => {
 
   if (editButton) {
     const tx = transactions.find(x => x.id === editButton.dataset.edit);
+    if(tx?.legacyVatAmbiguous){toast("Este movimiento tiene IVA legacy ambiguo. Aplica MIG-004 desde IVA / Impuestos antes de editarlo.");return;}
     editingId = tx.id;
     openEditorDialog();
 
