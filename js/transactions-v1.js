@@ -60,6 +60,15 @@ const filterCategoryDialogBody = document.querySelector("#filter-category-dialog
 const filterToggle = document.querySelector("#filter-toggle");
 const filterBody = document.querySelector("#filter-body");
 const LAST_ACCOUNT_KEY = "tracker.lastTransactionAccountId";
+const dateInput=document.querySelector("#tx-date");
+const timeInput=document.querySelector("#tx-time");
+const dateDisplay=document.querySelector("#tx-date-display");
+const timeDisplay=document.querySelector("#tx-time-display");
+const editConfirm=document.querySelector("#tx-edit-confirm");
+const editConfirmSummary=document.querySelector("#tx-edit-confirm-summary");
+const editConfirmImpact=document.querySelector("#tx-edit-confirm-impact");
+const normalActions=document.querySelector("#tx-normal-actions");
+let pendingEditUpdate=null;
 
 let transactionFormDirty=false;
 window.__tfRefreshBlocked=()=>transactionFormDirty || !!editingId || !!recurringContext;
@@ -71,7 +80,26 @@ function openEditorDialog(){
 function closeEditorDialog(){
   if(editorCard?.open) editorCard.close();
 }
-
+function syncDateTimeDisplays(){
+  if(dateDisplay) dateDisplay.textContent=dateInput?.value||"Seleccionar fecha";
+  if(timeDisplay) timeDisplay.textContent=timeInput?.value||"Seleccionar hora";
+}
+function openNativePicker(input){
+  if(!input)return;
+  blurEditorText();
+  try{
+    if(typeof input.showPicker==="function") input.showPicker();
+    else { input.focus(); input.click(); }
+  }catch{ input.focus(); input.click(); }
+}
+function setEditConfirmationVisible(visible,{summary="",impact=""}={}){
+  if(editConfirm) editConfirm.hidden=!visible;
+  if(normalActions) normalActions.hidden=visible;
+  if(visible){
+    if(editConfirmSummary) editConfirmSummary.textContent=summary||"¿Guardar los cambios realizados?";
+    if(editConfirmImpact) editConfirmImpact.textContent=impact||"Se recalcularán saldos y reportes.";
+  }
+}
 function activeAccounts() {
   return accounts.filter(a => a.active !== false);
 }
@@ -592,6 +620,9 @@ historyToggle?.addEventListener("click",()=>{
 
 document.querySelector("#tx-date").value = todayISO();
   document.querySelector("#tx-time").value = nowTime();
+  syncDateTimeDisplays();
+  pendingEditUpdate=null;
+  setEditConfirmationVisible(false);
   ["tx-fee","tx-tax","tx-other-charge"].forEach(id=>{const el=document.querySelector(`#${id}`);if(el)el.value="";});
   type.value = "expense";
   document.querySelector("#tx-amount").value = "";
@@ -602,7 +633,9 @@ document.querySelector("#tx-date").value = todayISO();
   document.querySelector("#tx-vat").disabled = false;
   document.querySelector("#tx-invoice-number").disabled = false;
   document.querySelector("#split-rows").innerHTML = "";
-  document.querySelector("#tx-cancel").hidden = true;
+  document.querySelector("#tx-cancel").hidden = false;
+    document.querySelector("#tx-cancel").textContent = "Cancelar";
+  document.querySelector("#tx-cancel").textContent = "Cerrar";
   document.querySelector("#tx-editor-title").textContent = "Nuevo movimiento";
   if (moreDetails) moreDetails.open = false;
 
@@ -729,6 +762,7 @@ function applyRecurringContext(){
   document.querySelector("#tx-description").value=recurring.name||"";
   document.querySelector("#tx-date").value=todayISO();
   document.querySelector("#tx-time").value=nowTime();
+  syncDateTimeDisplays();
   toggleType();
   if(recurring.accountId && activeAccounts().some(a=>a.id===recurring.accountId)) document.querySelector("#tx-account").value=recurring.accountId;
   fillCategories(recurring.category||"",recurring.subcategory||"");
@@ -736,8 +770,8 @@ function applyRecurringContext(){
   updateSaveButton();
 }
 
-form.addEventListener("input",()=>{transactionFormDirty=true});
-form.addEventListener("change",()=>{transactionFormDirty=true});
+form.addEventListener("input",()=>{transactionFormDirty=true;if(pendingEditUpdate){pendingEditUpdate=null;setEditConfirmationVisible(false);}});
+form.addEventListener("change",()=>{transactionFormDirty=true;if(pendingEditUpdate){pendingEditUpdate=null;setEditConfirmationVisible(false);}});
 type.addEventListener("change", toggleType);
 document.querySelectorAll("[data-tx-type]").forEach(button => {
   button.addEventListener("click", () => {
@@ -841,10 +875,15 @@ document.querySelectorAll("[data-date-shortcut]").forEach(button => {
     if (button.dataset.dateShortcut === "yesterday") date.setDate(date.getDate()-1);
     const local = new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,10);
     document.querySelector("#tx-date").value = local;
+    if(button.dataset.dateShortcut === "today") document.querySelector("#tx-time").value=nowTime();
+    syncDateTimeDisplays();
     updateInvoiceSummary();
   });
 });
-document.querySelector("#tx-date").addEventListener("change",updateInvoiceSummary);
+document.querySelector("#tx-date").addEventListener("change",()=>{syncDateTimeDisplays();updateInvoiceSummary();});
+document.querySelector("#tx-time").addEventListener("change",syncDateTimeDisplays);
+document.querySelector("#tx-date-picker-button")?.addEventListener("click",()=>openNativePicker(dateInput));
+document.querySelector("#tx-time-picker-button")?.addEventListener("click",()=>openNativePicker(timeInput));
 document.querySelector("#tx-vat").addEventListener("input",updateInvoiceSummary);
 document.querySelector("#tx-has-invoice").addEventListener("change",toggleInvoice);
 
@@ -871,6 +910,49 @@ tbody.addEventListener("click",e=>{
 document.querySelector("#tx-detail-close")?.addEventListener("click",()=>detailDialog?.close());
 
 document.querySelector("#tx-cancel").addEventListener("click", reset);
+document.querySelector("#tx-edit-confirm-back")?.addEventListener("click",()=>{pendingEditUpdate=null;setEditConfirmationVisible(false);});
+
+async function persistPreparedTransaction(data,wasEditingId,previousRow){
+  let savedId="";
+  if(wasEditingId){
+    savedId=await saveTransaction(data,wasEditingId);
+    toast("Movimiento actualizado.");
+  }else if(recurringContext){
+    savedId=await saveRecurringTransaction(recurringContext.recurring,recurringContext.occurrence,data);
+    toast(recurringContext.recurring.type==="income"?"Ingreso recurrente registrado.":"Pago recurrente registrado.");
+    recurringContext=null;
+  }else{
+    savedId=await saveTransaction(data);
+    toast("Movimiento registrado.");
+  }
+
+  const optimistic={...(previousRow||{}),...data,id:savedId||wasEditingId};
+  transactions=wasEditingId
+    ? transactions.map(row=>row.id===wasEditingId?optimistic:row)
+    : [optimistic,...transactions.filter(row=>row.id!==optimistic.id)];
+  buildLedgerSnapshots();
+  render();
+
+  const rememberedAccount=data.type==="transfer"?data.fromAccountId:data.accountId;
+  if(rememberedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,rememberedAccount);
+  reset();
+  refresh().catch(err=>console.error("No se pudo contrastar el movimiento recién guardado.",err));
+}
+
+document.querySelector("#tx-edit-confirm-save")?.addEventListener("click",async()=>{
+  if(!pendingEditUpdate)return;
+  const payload=pendingEditUpdate;
+  const button=document.querySelector("#tx-edit-confirm-save");
+  button.disabled=true;
+  try{
+    pendingEditUpdate=null;
+    await persistPreparedTransaction(payload.data,payload.wasEditingId,payload.previousRow);
+  }catch(err){
+    console.error(err);
+    pendingEditUpdate=payload;
+    toast(err?.message||"No se pudo actualizar el movimiento.");
+  }finally{button.disabled=false;}
+});
 
 form.addEventListener("submit", async e => {
   e.preventDefault();
@@ -975,57 +1057,21 @@ form.addEventListener("submit", async e => {
 
   const wasEditingId=editingId;
   const previousRow=wasEditingId?transactions.find(x=>x.id===wasEditingId):null;
-  let savedId="";
-  if (wasEditingId) {
-    const old = previousRow;
-
-    const accountIds = [
-      old.accountId,
-      old.fromAccountId,
-      old.toAccountId,
-      data.accountId,
-      data.fromAccountId,
-      data.toAccountId
-    ].filter(Boolean);
-
-    const impactDate = String(data.date) < String(old.date) ? data.date : old.date;
-    const affected = affectedReconciliations(accountIds, impactDate);
-
-    const impact = ["Recalculará saldos y reportes."];
-
-    if (affected.length) {
-      impact.push(`Invalidará ${affected.length} conciliación(es).`);
-    }
-
-    if (!await confirmAction({
-      title: "Modificar movimiento",
-      message: `${money(old.amount)} → ${money(data.amount)}`,
-      impact
-    })) return;
-
-    savedId=await saveTransaction(data, wasEditingId);
-    toast("Movimiento actualizado.");
-  } else if(recurringContext){
-    savedId=await saveRecurringTransaction(recurringContext.recurring,recurringContext.occurrence,data);
-    toast(recurringContext.recurring.type==="income"?"Ingreso recurrente registrado.":"Pago recurrente registrado.");
-    recurringContext=null;
-  } else {
-    savedId=await saveTransaction(data);
-    toast("Movimiento registrado.");
+  if(wasEditingId){
+    const old=previousRow;
+    const accountIds=[old.accountId,old.fromAccountId,old.toAccountId,data.accountId,data.fromAccountId,data.toAccountId].filter(Boolean);
+    const impactDate=String(data.date)<String(old.date)?data.date:old.date;
+    const affected=affectedReconciliations(accountIds,impactDate);
+    const impact=["Recalculará saldos y reportes."];
+    if(affected.length)impact.push(`Invalidará ${affected.length} conciliación(es).`);
+    pendingEditUpdate={data,wasEditingId,previousRow};
+    setEditConfirmationVisible(true,{
+      summary:`${money(old.amount)} → ${money(data.amount)}`,
+      impact:impact.join(" · ")
+    });
+    return;
   }
-
-  const optimistic={...(previousRow||{}),...data,id:savedId||wasEditingId};
-  transactions=wasEditingId
-    ? transactions.map(row=>row.id===wasEditingId?optimistic:row)
-    : [optimistic,...transactions.filter(row=>row.id!==optimistic.id)];
-  buildLedgerSnapshots();
-  render();
-
-  const rememberedAccount = data.type === "transfer" ? data.fromAccountId : data.accountId;
-  if (rememberedAccount) localStorage.setItem(LAST_ACCOUNT_KEY, rememberedAccount);
-
-  reset();
-  refresh().catch(err=>console.error("No se pudo contrastar el movimiento recién guardado.",err));
+  await persistPreparedTransaction(data,wasEditingId,previousRow);
 });
 
 tbody.addEventListener("click", async e => {
@@ -1042,6 +1088,7 @@ tbody.addEventListener("click", async e => {
 
     document.querySelector("#tx-date").value = tx.date;
     document.querySelector("#tx-time").value = transactionDateTime(tx).slice(11,16)||"00:00";
+    syncDateTimeDisplays();
     document.querySelector("#tx-amount").value = tx.amount;
     document.querySelector("#tx-fee").value = Number(tx.feeAmount||0)||"";
     document.querySelector("#tx-tax").value = Number(tx.taxAmount||0)||"";
@@ -1072,6 +1119,9 @@ tbody.addEventListener("click", async e => {
     updateSplitTotal();
 
     document.querySelector("#tx-cancel").hidden = false;
+    document.querySelector("#tx-cancel").textContent = "Cancelar";
+    pendingEditUpdate=null;
+    setEditConfirmationVisible(false);
     document.querySelector("#tx-editor-title").textContent = "Editar movimiento";
     if (moreDetails) moreDetails.open = !!(tx.receipt || tx.hasInvoice || Number(tx.vat||0)>0 || tx.splits?.length);
     updateSaveButton();
@@ -1121,7 +1171,9 @@ tbody.addEventListener("click", async e => {
 });
 
 document.querySelector("#tx-date").value = todayISO();
+document.querySelector("#tx-time").value = nowTime();
 document.querySelector("#tx-amount").value = "";
+syncDateTimeDisplays();
 toggleType();
 updateSaveButton();
 requireUser(() => refresh().catch(console.error));
