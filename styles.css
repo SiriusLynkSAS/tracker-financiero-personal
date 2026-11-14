@@ -464,7 +464,8 @@ main.content {
   display: block;
 }
 
-.tf-alert-error {
+.tf-alert-error,
+.tf-alert-danger {
   background: var(--tf-negative-soft);
   color: var(--tf-negative);
 }
@@ -3619,6 +3620,7 @@ tr.is-muted{opacity:.66}
 .tf-invoice-preview-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}
 .tf-invoice-preview-grid .tf-metric{text-align:center;padding:.65rem .75rem}
 .tf-invoice-preview-grid .tf-metric strong{font-size:1.05rem}
+.tf-invoice-editor-message{flex:0 0 auto;margin:.65rem 1.1rem 0;max-height:120px;overflow:auto;border:1px solid color-mix(in srgb,var(--tf-negative) 30%,transparent);z-index:7}
 .tf-invoice-static-pane #invoice-editor-error{margin-top:.65rem}
 .tf-invoice-details-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:1rem 1.1rem 1.2rem;display:grid;gap:1rem;overscroll-behavior:contain}
 .tf-invoice-save-bar{flex:0 0 auto;border-top:1px solid var(--tf-border);padding:.8rem 1.1rem;background:var(--tf-surface);box-shadow:0 -12px 30px rgba(0,0,0,.06);z-index:5}
@@ -3627,6 +3629,7 @@ tr.is-muted{opacity:.66}
 @media(max-width:720px){
   .tf-invoice-editor-dialog{width:calc(100vw - 1rem);height:calc(100vh - 1rem);max-height:calc(100vh - 1rem)}
   .tf-invoice-editor-head,.tf-invoice-static-pane,.tf-invoice-details-scroll,.tf-invoice-save-bar{padding-left:.8rem;padding-right:.8rem}
+  .tf-invoice-editor-message{margin-left:.8rem;margin-right:.8rem}
   .tf-invoice-preview-grid{gap:.4rem}
   .tf-invoice-preview-grid .tf-metric{padding:.55rem .35rem}
   .tf-invoice-normal-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
