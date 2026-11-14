@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listTransactions,listTaxPayments,listAccounts,listInvoices,saveTaxPayment,atomicWrite} from "./data-service.js?v=1.0.70";
+import {listTransactions,listTaxPayments,listAccounts,listInvoicesOptional,saveTaxPayment,atomicWrite} from "./data-service.js?v=1.0.71";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
@@ -133,7 +133,7 @@ function render(){
 }
 
 async function refresh(){
-  [txs,payments,accounts,issuedInvoices]=await Promise.all([listTransactions(),listTaxPayments(),listAccounts(),listInvoices()]);
+  [txs,payments,accounts,issuedInvoices]=await Promise.all([listTransactions(),listTaxPayments(),listAccounts(),listInvoicesOptional()]);
   render();
 }
 

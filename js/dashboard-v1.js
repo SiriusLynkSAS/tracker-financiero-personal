@@ -2,8 +2,8 @@ import { requireUser } from "./guard.js";
 import {
   listAccounts,listTransactions,calculateBalances,listLiabilities,listFinancingPlans,
   listInvestments,listAssets,listReceivables,listRecurring,listInsurance,listCategories,
-  listContracts,listInvoices,getEmergencyFund,syncReceivablesClosed
-} from "./data-service.js?v=1.0.70";
+  listContracts,listInvoicesOptional,getEmergencyFund,syncReceivablesClosed
+} from "./data-service.js?v=1.0.71";
 import { money,sum,escapeHtml,todayISO,addDaysISO,isoFromParts,daysBetween } from "./utils.js";
 import { assetDepreciation } from "./asset-math.js";
 import { categoryStyle } from "./category-catalog.js";
@@ -172,7 +172,7 @@ async function init(){
   const syncedReceivables=await syncReceivablesClosed();
   const [accounts,txs,debts,plans,investments,assets,recur,ins,categories,contracts,invoices,emergencyConfig]=await Promise.all([
     listAccounts(),listTransactions(),listLiabilities(),listFinancingPlans(),listInvestments(),listAssets(),
-    listRecurring(),listInsurance(),listCategories(),listContracts(),listInvoices(),getEmergencyFund()
+    listRecurring(),listInsurance(),listCategories(),listContracts(),listInvoicesOptional(),getEmergencyFund()
   ]);
   const recv=syncedReceivables;
   const balances=calculateBalances(accounts,txs),active=accounts.filter(a=>a.active!==false);

@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.70";
+} from "./schema.js?v=1.0.71";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -1316,6 +1316,23 @@ function invoiceStatus(total,paid,dueDate){
 export const listInvoices=()=>listEntities("invoices","issueDate")
   .then(r=>r.map(normalizeInvoice))
   .then(r=>r.sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))||String(b.invoiceNumber).localeCompare(String(a.invoiceNumber))));
+
+export function isPermissionDeniedError(err){
+  const code=String(err?.code||"").toLowerCase();
+  const msg=String(err?.message||err||"").toLowerCase();
+  return code.includes("permission-denied") || msg.includes("missing or insufficient permissions") || msg.includes("permission denied");
+}
+
+export async function listInvoicesOptional(){
+  try{return await listInvoices();}
+  catch(err){
+    if(isPermissionDeniedError(err)){
+      console.warn("Facturación no disponible: las reglas Firestore de invoices todavía no están publicadas.",err);
+      return [];
+    }
+    throw err;
+  }
+}
 
 async function assertUniqueInvoiceNumber(invoiceNumber,excludeId=""){
   const code=String(invoiceNumber||"").trim().toLowerCase();
