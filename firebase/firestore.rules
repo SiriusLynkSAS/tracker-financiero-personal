@@ -24,7 +24,7 @@ service cloud.firestore {
           && shortString(request.resource.data.bank,120)
           && shortString(request.resource.data.alias,120)
           && request.resource.data.accountType in ['savings','checking','credit_card','cash']
-          && number(request.resource.data.openingBalance)
+          && isNumber(request.resource.data.openingBalance)
           && (!canonical(request.resource.data) || (
             nonEmptyString(request.resource.data.bank,120)
             && nonEmptyString(request.resource.data.alias,120)
@@ -306,9 +306,9 @@ service cloud.firestore {
         allow create,update: if isOwner(userId)
           && request.resource.data.accountId is string
           && request.resource.data.date is string
-          && number(request.resource.data.trackerBalance)
-          && number(request.resource.data.bankBalance)
-          && number(request.resource.data.difference)
+          && isNumber(request.resource.data.trackerBalance)
+          && isNumber(request.resource.data.bankBalance)
+          && isNumber(request.resource.data.difference)
           && (!canonical(request.resource.data) || isoDate(request.resource.data.date));
         allow delete: if false;
       }

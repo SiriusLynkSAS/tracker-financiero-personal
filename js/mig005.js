@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
-import {listAccounts,listTransactions,calculateBalances,atomicWrite} from "./data-service.js?v=1.0.72";
+import {listAccounts,listTransactions,calculateBalances,atomicWrite} from "./data-service.js?v=1.0.73";
 import {money,escapeHtml} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
-import {classifyMig005Rows,validateMig005Signature} from "./mig005-logic.js?v=1.0.72";
+import {classifyMig005Rows,validateMig005Signature} from "./mig005-logic.js?v=1.0.73";
 
 let accounts=[],transactions=[];
 const panel=document.querySelector("#mig005-panel");

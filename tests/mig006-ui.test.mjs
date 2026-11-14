@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const js=fs.readFileSync(new URL('../js/mig006.js',import.meta.url),'utf8');
+const rmd=fs.readFileSync(new URL('../recurrentes.Rmd',import.meta.url),'utf8');
+assert.match(js,/u2XzlnZaKRqXHrucSaRi/);
+assert.match(js,/recurring_u2XzlnZaKRqXHrucSaRi_2026-10/);
+assert.match(js,/keep_historical/);
+assert.match(js,/aligned_to_template/);
+assert.match(js,/calculateBalances/);
+assert.match(js,/reconciliations/);
+assert.match(rmd,/Bloque 6 de 11 · MIG-006/);
+assert.match(rmd,/Conservar histórico/);
+assert.match(rmd,/Alinear con plantilla/);
+console.log('mig006-ui.test.mjs OK');

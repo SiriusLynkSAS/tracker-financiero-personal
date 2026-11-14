@@ -40,6 +40,8 @@ title: "Facturación"
     <button id="invoice-editor-close-x" class="tf-btn tf-btn-secondary tf-btn-compact" type="button">Cerrar</button>
   </div>
 
+  <div id="invoice-editor-error" class="tf-alert tf-alert-danger tf-invoice-editor-message" hidden role="alert" aria-live="assertive"></div>
+
   <form id="invoice-editor-form" onsubmit="return false" class="tf-invoice-editor-form">
     <select id="invoice-calculation-mode" hidden aria-hidden="true">
       <option value="base_plus_vat">Más IVA</option>
@@ -62,7 +64,7 @@ title: "Facturación"
 
       <div class="tf-invoice-vat-static">
         <label for="invoice-vat-rate">Tarifa IVA</label>
-        <div><input id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" value="13"><span>%</span></div>
+        <div><input id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" value="15"><span>%</span></div>
       </div>
 
       <div class="tf-invoice-preview-grid">
@@ -70,7 +72,6 @@ title: "Facturación"
         <div class="tf-metric"><span class="tf-metric-label">IVA</span><strong id="invoice-preview-vat">$0,00</strong></div>
         <div class="tf-metric"><span class="tf-metric-label">Total</span><strong id="invoice-preview-total">$0,00</strong></div>
       </div>
-      <div id="invoice-editor-error" class="tf-alert tf-alert-danger" hidden></div>
     </div>
 
     <div class="tf-invoice-details-scroll">
@@ -128,5 +129,5 @@ title: "Facturación"
   </form>
 </dialog>
 
-<script type="module" src="js/invoices.js?v=1.0.72"></script>
+<script type="module" src="js/invoices.js?v=1.0.73"></script>
 ```

@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const rmd=fs.readFileSync(new URL('../facturacion.Rmd',import.meta.url),'utf8');
+const js=fs.readFileSync(new URL('../js/invoices.js',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+const headPos=rmd.indexOf('tf-invoice-editor-head');
+const errorPos=rmd.indexOf('invoice-editor-error');
+const formPos=rmd.indexOf('invoice-editor-form');
+assert.ok(headPos>=0 && errorPos>headPos && errorPos<formPos,'El error debe quedar visible entre cabecera y formulario');
+assert.match(rmd,/invoice-vat-rate[^>]*[\s\S]*?value="15"/);
+assert.match(js,/DEFAULT_VAT_RATE=15/);
+assert.match(js,/notifyInvoice\(message,\{error:true\}\)/);
+assert.match(css,/\.tf-alert-error,[\s\S]*\.tf-alert-danger/);
+console.log('fac-vat-modal-message.test.mjs OK');

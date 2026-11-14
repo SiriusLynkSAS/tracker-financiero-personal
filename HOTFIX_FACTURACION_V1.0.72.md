@@ -1,4 +1,4 @@
-# Tracker Financiero Personal V1.0.72
+# Tracker Financiero Personal V1.0.73
 
 Correcciones sobre V1.0.71 + reglas Firestore corregidas.
 

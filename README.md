@@ -1,7 +1,22 @@
-# Tracker Financiero Personal V1.0.72 · Bloque 5 de 11 · MIG-005
+# Tracker Financiero Personal V1.0.73 · Bloque 6 de 11 · MIG-006
 
 
-## V1.0.72 · Hotfix de activación F-FAC-001
+## Bloque 6 de 11 · MIG-006
+
+- Caso auditado único: recurrente `Quincena 2`, ocurrencia `2026-10`.
+- La plantilla auditada usa `Sueldo / BDE` y Banco de la Producción · Ahorros.
+- La ocurrencia histórica usa `Chauchas / Hidrología - Gring Construc SAS` y Banco Pichincha · Ahorros Principal.
+- No se corrige automáticamente: Web presenta dos decisiones explícitas, **Conservar histórico** o **Alinear con plantilla**.
+- Si se alinea, se muestra el impacto de saldos y las conciliaciones cerradas posteriores afectadas se marcan para revisión.
+- Android detecta el caso y dirige la resolución a Web.
+
+## Ajustes de Facturación incluidos
+
+- IVA predeterminado para nuevas facturas: **15%** en Web y Android.
+- Errores/advertencias durante la creación o edición se muestran dentro del modal, inmediatamente debajo de la cabecera, no en un toast oculto detrás del diálogo.
+- Corrección adicional de reglas Firestore: se reemplazaron cuatro referencias residuales a `number(...)` por `isNumber(...)`.
+
+## V1.0.73 · Hotfix de activación F-FAC-001
 
 - Resumen, Pendientes, IVA y notificaciones ya no quedan en cero/bloqueados si la nueva colección `invoices` aún no tiene reglas Firestore publicadas.
 - Facturación muestra un diagnóstico explícito de permisos en vez de repetir el mensaje genérico de carga.

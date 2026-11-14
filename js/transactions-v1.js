@@ -9,7 +9,7 @@ import {
   listRecurring,
   saveRecurringTransaction,
   transactionInAccountLedger
-} from "./data-service.js?v=1.0.72";
+} from "./data-service.js?v=1.0.73";
 import {
   todayISO,
   money,
@@ -25,7 +25,7 @@ import {
   setSubcategorySelect
 } from "./category-catalog.js";
 import { confirmAction, toast } from "./ui.js";
-import { hasResidualTransferAccountRefs, isAuditedMig005Candidate } from "./mig005-logic.js?v=1.0.72";
+import { hasResidualTransferAccountRefs, isAuditedMig005Candidate } from "./mig005-logic.js?v=1.0.73";
 
 let accounts = [];
 let transactions = [];
