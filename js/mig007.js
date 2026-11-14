@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {getEntity,atomicWrite} from "./data-service.js?v=1.0.77";
+import {getEntity,atomicWrite} from "./data-service.js?v=1.0.82";
 import {money,escapeHtml} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 

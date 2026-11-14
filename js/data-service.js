@@ -16,8 +16,8 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.78";
-import {AUD_POST_007_TARGET,inspectAudPost007Raw,sanitizeContractPaymentWrite} from "./post-audit-logic.js?v=1.0.80";
+} from "./schema.js?v=1.0.82";
+import {AUD_POST_007_TARGET,inspectAudPost007Raw,sanitizeContractPaymentWrite} from "./post-audit-logic.js?v=1.0.82";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -267,7 +267,7 @@ export const listTransactions=()=>listEntities("transactions","date")
 export async function saveTransaction(d,id=null){
   const old=id?await getEntity("transactions",id):null;
   if(old){
-    if(residualTransferRefsOnExpense(old)) throw new Error("Este movimiento conserva referencias legacy de transferencia. Aplica MIG-005 desde Movimientos antes de editarlo.");
+    if(residualTransferRefsOnExpense(old)) throw new Error("Este movimiento conserva referencias de cuenta inconsistentes. Requiere revisión antes de editarlo.");
     if(old.taxPaymentId) throw new Error("Este movimiento está vinculado a una liquidación de IVA. Modifícalo desde IVA / Impuestos.");
     if(old.tripExpenseId || old.tripSettlementId) throw new Error("Este movimiento está vinculado a una comisión. Modifícalo desde Comisiones / Viáticos.");
     if(old.reconciliationAdjustment) throw new Error("Este movimiento pertenece a una conciliación. Modifícalo desde Conciliación.");
@@ -299,7 +299,7 @@ export async function saveTransaction(d,id=null){
 }
 export async function removeTransaction(id){
   const row=await getEntity("transactions",id);
-  if(residualTransferRefsOnExpense(row)) throw new Error("Este movimiento conserva referencias legacy de transferencia. Aplica MIG-005 desde Movimientos antes de eliminarlo.");
+  if(residualTransferRefsOnExpense(row)) throw new Error("Este movimiento conserva referencias de cuenta inconsistentes. Requiere revisión antes de eliminarlo.");
   if(row?.taxPaymentId){
     throw new Error("Este movimiento está vinculado a una liquidación de IVA y no puede eliminarse.");
   }

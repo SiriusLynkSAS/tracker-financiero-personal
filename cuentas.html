@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.78"></script>
+<script type="module" src="js/app-shell.js?v=1.0.82"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -124,66 +124,101 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<div class="tf-page-header"><div><h1>Bancos y cuentas</h1><div class="tf-muted">Varias cuentas por banco y tarjetas con cupo, corte y fecha de pago.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
+
+<div class="tf-page-header">
+  <div>
+    <h1>Bancos y cuentas</h1>
+    <div class="tf-muted">Cuentas agrupadas por banco o institución. El detalle y la edición se abren solo cuando los necesitas.</div>
+  </div>
+  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
+</div>
+
 <div class="tf-actions" style="margin-bottom:1rem">
-  <button id="account-new" class="tf-btn tf-btn-primary" type="button">Nueva cuenta</button>
+  <button id="account-new" class="tf-btn tf-btn-primary" type="button">+ Nueva cuenta</button>
   <button id="account-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden="">Archivadas</button>
 </div>
-<div id="mig002-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
-  <h2 class="anchored">MIG-002 · Fecha base de saldos</h2>
-  <p class="tf-muted">Las cuentas legacy no tienen una fecha que indique desde cuándo el saldo inicial se combina con los movimientos. Revisa las fechas sugeridas; no se modifica ningún movimiento ni saldo inicial.</p>
-  <div id="mig002-warning" class="tf-alert tf-alert-warn is-visible" hidden=""></div>
-  <div class="tf-table-wrap">
-<table class="tf-table caption-top">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">Cuenta</th>
-<th data-quarto-table-cell-role="th">Saldo inicial</th>
-<th data-quarto-table-cell-role="th">Creada</th>
-<th data-quarto-table-cell-role="th">Primer movimiento</th>
-<th data-quarto-table-cell-role="th">Fecha base propuesta</th>
-</tr>
-</thead>
-<tbody id="mig002-body">
-</tbody>
-</table>
-</div>
-  <div class="tf-actions" style="margin-top:1rem"><button id="mig002-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-002</button></div>
-</div>
-<div id="mig011-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
-  <h2 class="anchored">Bloque 11 de 11 · MIG-011</h2>
-  <p class="tf-muted">Normaliza la identidad institucional de las dos cuentas DeUna/Deuna! detectadas en la auditoría. Las cuentas permanecen separadas: no se fusionan IDs, saldos ni movimientos.</p>
-  <div id="mig011-status" class="tf-alert tf-alert-info is-visible"></div>
-  <div class="tf-table-wrap" style="margin-top:.8rem">
-<table class="tf-table caption-top">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">ID cuenta</th>
-<th data-quarto-table-cell-role="th">Banco legacy</th>
-<th data-quarto-table-cell-role="th">Alias</th>
-<th data-quarto-table-cell-role="th">Estado</th>
-<th data-quarto-table-cell-role="th">Saldo inicial</th>
-<th data-quarto-table-cell-role="th">institutionId</th>
-<th data-quarto-table-cell-role="th">Nombre canónico</th>
-</tr>
-</thead>
-<tbody id="mig011-body">
-</tbody>
-</table>
-</div>
-  <div class="tf-actions" style="margin-top:1rem"><button id="mig011-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-011</button></div>
-</div>
-<div id="account-editor" class="tf-card" style="margin-bottom:1rem" hidden=""><h2 id="account-editor-title" class="anchored">Nueva cuenta</h2><form id="account-form" class="tf-form-grid">
-<div class="tf-field"><label>Banco / institución</label><input id="bank" required=""></div><div class="tf-field"><label>Alias</label><input id="alias" required=""></div>
-<div class="tf-field"><label>Tipo</label><select id="account-type"><option value="savings">Ahorros</option><option value="checking">Corriente</option><option value="credit_card">Tarjeta de crédito</option><option value="cash">Efectivo / billetera</option></select></div><div class="tf-field"><label>Últimos 4 dígitos</label><input id="last4" maxlength="4" pattern="[0-9]{0,4}"></div>
-<div class="tf-field"><label id="opening-label">Saldo inicial ($)</label><input id="opening-balance" type="number" step="0.01" value="0"></div>
-<div class="tf-field"><label>Fecha base del saldo inicial</label><input id="opening-balance-as-of" type="date" required=""><div class="tf-muted">Los movimientos desde esta fecha forman parte del saldo de la cuenta.</div></div>
-<div id="credit-fields" class="tf-span-2 tf-form-grid" hidden=""><div class="tf-field"><label>Cupo total ($)</label><input id="credit-limit" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Día de corte</label><input id="closing-day" type="number" min="1" max="31" value="18"></div><div class="tf-field"><label>Día de pago</label><input id="payment-day" type="number" min="1" max="31" value="5"></div><div class="tf-field"><label>Recordar (días antes)</label><input id="card-reminder" type="number" min="0" max="30" value="3"></div><div class="tf-field"><label>Saldo estado actual ($)</label><input id="statement-balance" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Pago mínimo ($)</label><input id="minimum-payment" type="number" min="0" step="0.01" value="0"></div></div>
-<div class="tf-span-2 tf-actions"><button id="account-submit" class="tf-btn tf-btn-primary">Guardar cuenta</button><button id="account-cancel" class="tf-btn tf-btn-secondary" type="button" hidden="">Cancelar</button></div></form></div><div id="accounts-root"></div>
 
+<div id="accounts-root"></div>
 
-<script type="module" src="js/accounts-v1.js?v=1.0.78"></script>
-<script type="module" src="js/mig011.js?v=1.0.78"></script>
+<dialog id="account-detail" class="tf-modal-dialog tf-account-detail-dialog">
+  <div class="tf-modal-head">
+    <div>
+      <div class="tf-section-kicker">Cuenta</div>
+      <h2 id="account-detail-title" class="anchored">Detalle de cuenta</h2>
+    </div>
+    <button id="account-detail-close" class="tf-btn tf-btn-secondary tf-btn-compact" type="button">Cerrar</button>
+  </div>
+  <div id="account-detail-body" class="tf-account-detail-body"></div>
+</dialog>
+
+<dialog id="account-editor" class="tf-modal-dialog tf-account-editor-dialog">
+  <div class="tf-modal-head tf-account-editor-head">
+    <div>
+      <div class="tf-section-kicker">Cuenta bancaria</div>
+      <h2 id="account-editor-title" class="anchored">Nueva cuenta</h2>
+    </div>
+    <button id="account-editor-close" class="tf-btn tf-btn-secondary tf-btn-compact" type="button">Cerrar</button>
+  </div>
+
+  <form id="account-form" class="tf-account-editor-form">
+    <select id="account-type" hidden="" aria-hidden="true">
+      <option value="savings">Ahorros</option>
+      <option value="checking">Corriente</option>
+      <option value="credit_card">Tarjeta de crédito</option>
+      <option value="cash">Efectivo / billetera</option>
+    </select>
+
+    <div class="tf-account-static-pane">
+      <div class="tf-account-type-switch" role="group" aria-label="Tipo de cuenta">
+        <button type="button" class="tf-account-type-btn" data-account-type="savings">Ahorros</button>
+        <button type="button" class="tf-account-type-btn" data-account-type="checking">Corriente</button>
+        <button type="button" class="tf-account-type-btn" data-account-type="credit_card">Tarjeta</button>
+        <button type="button" class="tf-account-type-btn" data-account-type="cash">Efectivo</button>
+      </div>
+
+      <div class="tf-account-opening-block">
+        <label id="opening-label" for="opening-balance">Saldo inicial</label>
+        <div class="tf-account-opening-input-wrap">
+          <span>$</span>
+          <input id="opening-balance" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="0" required="">
+        </div>
+      </div>
+    </div>
+
+    <div class="tf-account-details-scroll">
+      <div class="tf-tx-details-title">
+        <div class="tf-section-kicker">Detalles</div>
+        <span>Institución, alias, fecha base y configuración de la cuenta</span>
+      </div>
+
+      <div class="tf-form-grid">
+        <div class="tf-field"><label>Banco / institución</label><input id="bank" autocomplete="organization" required=""></div>
+        <div class="tf-field"><label>Alias</label><input id="alias" autocomplete="off" required=""></div>
+        <div class="tf-field"><label>Últimos 4 dígitos</label><input id="last4" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{0,4}" autocomplete="off" placeholder="1234"></div>
+        <div class="tf-field"><label>Fecha base del saldo inicial</label><input id="opening-balance-as-of" type="date" required=""><div class="tf-muted">Los movimientos desde esta fecha forman parte del saldo de la cuenta.</div></div>
+      </div>
+
+      <div id="credit-fields" class="tf-subtle" hidden="">
+        <div class="tf-section-heading"><div><strong>Detalles de tarjeta de crédito</strong></div></div>
+        <div class="tf-form-grid" style="margin-top:.7rem">
+          <div class="tf-field"><label>Cupo total ($)</label><input id="credit-limit" type="text" inputmode="decimal" autocomplete="off" value="0"></div>
+          <div class="tf-field"><label>Día de corte</label><input id="closing-day" type="text" inputmode="numeric" maxlength="2" value="18"></div>
+          <div class="tf-field"><label>Día de pago</label><input id="payment-day" type="text" inputmode="numeric" maxlength="2" value="5"></div>
+          <div class="tf-field"><label>Recordar (días antes)</label><input id="card-reminder" type="text" inputmode="numeric" maxlength="2" value="3"></div>
+          <div class="tf-field"><label>Saldo estado actual ($)</label><input id="statement-balance" type="text" inputmode="decimal" autocomplete="off" value="0"></div>
+          <div class="tf-field"><label>Pago mínimo ($)</label><input id="minimum-payment" type="text" inputmode="decimal" autocomplete="off" value="0"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tf-account-save-bar">
+      <button id="account-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
+      <button id="account-submit" class="tf-btn tf-btn-primary" type="submit">Guardar cuenta</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="js/accounts-v1.js?v=1.0.82"></script>
 
 
 
@@ -595,7 +630,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.80</p>
+<p>Tracker Financiero Personal V1.0.82</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

@@ -9,7 +9,7 @@ import {
   listRecurring,
   saveRecurringTransaction,
   transactionInAccountLedger
-} from "./data-service.js?v=1.0.80";
+} from "./data-service.js?v=1.0.82";
 import {
   todayISO,
   money,
@@ -25,8 +25,7 @@ import {
   setSubcategorySelect
 } from "./category-catalog.js";
 import { confirmAction, toast } from "./ui.js";
-import { hasResidualTransferAccountRefs, isAuditedMig005Candidate } from "./mig005-logic.js?v=1.0.77";
-import { isMig010AuditedCandidate } from "./mig010-logic.js?v=1.0.77";
+import { hasResidualTransferAccountRefs } from "./mig005-logic.js?v=1.0.82";
 
 let accounts = [];
 let transactions = [];
@@ -711,7 +710,7 @@ function render() {
       <td><strong>${escapeHtml(day)}</strong><div class="tf-muted">${escapeHtml(time||"—")}</div></td>
       <td>
         <div class="tf-tx-ledger-title"><span class="tf-pill">${escapeHtml(tx.reconciliationAdjustment?"Ajuste de conciliación":txLabel(tx.type))}</span> <strong>${escapeHtml(tx.description||"Sin descripción")}</strong></div>
-        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}${tx.legacyVatAmbiguous?` · <span class="tf-pill tf-pill-warn">IVA legacy · MIG-004</span>`:""}${hasResidualTransferAccountRefs(tx)?` · <span class="tf-pill tf-pill-warn">${isAuditedMig005Candidate(tx)?"Referencia legacy · MIG-005":"Referencia legacy · revisar"}</span>`:""}${isMig010AuditedCandidate(tx)&&!tx.mig010Resolution?` · <span class="tf-pill tf-pill-warn">Candidato · MIG-010</span>`:""}</div>
+        <div class="tf-muted">${escapeHtml(account)}${category?` · ${escapeHtml(category)}`:""}${charges>0?` · cargos ${money(charges)}`:""}${tx.legacyVatAmbiguous?` · <span class="tf-pill tf-pill-warn">IVA requiere revisión</span>`:""}${hasResidualTransferAccountRefs(tx)?` · <span class="tf-pill tf-pill-warn">Referencias de cuenta · revisar</span>`:""}</div>
       </td>
       <td><strong>${money(tx.amount)}</strong></td>
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
@@ -1086,9 +1085,8 @@ tbody.addEventListener("click", async e => {
 
   if (editButton) {
     const tx = transactions.find(x => x.id === editButton.dataset.edit);
-    if(tx?.legacyVatAmbiguous){toast("Este movimiento tiene IVA legacy ambiguo. Aplica MIG-004 desde IVA / Impuestos antes de editarlo.");return;}
-    if(hasResidualTransferAccountRefs(tx)){toast(isAuditedMig005Candidate(tx)?"Este movimiento está auditado en MIG-005. Aplica el Bloque 5 desde Movimientos antes de editarlo.":"Este movimiento conserva referencias de transferencia no auditadas. Requiere revisión antes de editarlo.");return;}
-    if(isMig010AuditedCandidate(tx)&&!tx.mig010Resolution){toast("Este movimiento forma parte del par auditado MIG-010. Resuelve primero el Bloque 10 para conservar ambos o eliminar el duplicado correcto.");return;}
+    if(tx?.legacyVatAmbiguous){toast("Este movimiento tiene información de IVA inconsistente. Revísalo desde IVA / Impuestos antes de editarlo.");return;}
+    if(hasResidualTransferAccountRefs(tx)){toast("Este movimiento conserva referencias de cuenta inconsistentes. Requiere revisión antes de editarlo.");return;}
     editingId = tx.id;
     openEditorDialog();
 
@@ -1138,8 +1136,7 @@ tbody.addEventListener("click", async e => {
 
   if (deleteButton) {
     const tx = transactions.find(x => x.id === deleteButton.dataset.delete);
-    if(hasResidualTransferAccountRefs(tx)){toast(isAuditedMig005Candidate(tx)?"Este movimiento está auditado en MIG-005. Aplica el Bloque 5 antes de eliminarlo.":"Este movimiento conserva referencias de transferencia no auditadas y no puede eliminarse sin revisión.");return;}
-    if(isMig010AuditedCandidate(tx)&&!tx.mig010Resolution){toast("Este movimiento forma parte del par auditado MIG-010. Usa el Bloque 10 para resolverlo con trazabilidad.");return;}
+    if(hasResidualTransferAccountRefs(tx)){toast("Este movimiento conserva referencias de cuenta inconsistentes y no puede eliminarse sin revisión.");return;}
     const accountIds = [
       tx.accountId,
       tx.fromAccountId,
@@ -1187,6 +1184,4 @@ document.querySelector("#tx-amount").value = "";
 syncDateTimeDisplays();
 toggleType();
 updateSaveButton();
-window.addEventListener("tf-mig005-applied",()=>refresh().catch(console.error));
-window.addEventListener("tf-mig010-applied",()=>refresh().catch(console.error));
 requireUser(() => refresh().catch(console.error));

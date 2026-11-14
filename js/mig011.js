@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
-import {listAccounts,atomicWrite} from "./data-service.js?v=1.0.78";
+import {listAccounts,atomicWrite} from "./data-service.js?v=1.0.82";
 import {confirmAction,toast} from "./ui.js";
 import {escapeHtml,money} from "./utils.js";
-import {inspectMig011,MIG011_CASES,MIG011_TARGET} from "./mig011-logic.js?v=1.0.78";
+import {inspectMig011,MIG011_CASES,MIG011_TARGET} from "./mig011-logic.js?v=1.0.82";
 
 const panel=document.querySelector("#mig011-panel"),statusBox=document.querySelector("#mig011-status"),body=document.querySelector("#mig011-body"),apply=document.querySelector("#mig011-apply");
 let accounts=[];

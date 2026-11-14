@@ -3640,3 +3640,54 @@ tr.is-muted{opacity:.66}
   .tf-invoice-normal-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}
   .tf-invoice-save-bar .tf-btn-primary{min-width:0}
 }
+
+/* =========================================================
+   V1.0.81 · selector de fecha unificado + confirmación top-layer
+   ========================================================= */
+.tf-date-only-picker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.45rem;align-items:center}
+.tf-date-only-picker .tf-date-only-button{min-width:0}
+.tf-date-only-picker .tf-date-only-button.is-empty strong{color:var(--tf-text-muted)}
+.tf-date-clear{border:0;background:transparent;color:var(--tf-text-muted);font:inherit;font-weight:700;padding:.5rem .25rem;cursor:pointer}
+.tf-date-clear:hover,.tf-date-clear:focus-visible{color:var(--tf-accent);outline:none;text-decoration:underline}
+.tf-confirm-dialog{width:min(560px,calc(100vw - 2rem));max-height:calc(100vh - 2rem);overflow:auto;margin:auto}
+.tf-confirm-dialog::backdrop{background:rgba(17,24,39,.56);backdrop-filter:blur(4px)}
+.tf-confirm-dialog h3{margin:.1rem 0 .6rem}
+@media(max-width:640px){.tf-date-only-picker{grid-template-columns:1fr}.tf-date-clear{justify-self:start;padding-left:.1rem}}
+
+/* V1.0.82 · Cuentas: listado por institución + editor modal alineado a Movimientos */
+.tf-bank-list-section{margin:0 0 1.15rem}
+.tf-bank-list-heading{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin:0 0 .55rem;padding:.15rem .1rem}
+.tf-bank-list-heading h2{margin:.05rem 0 0;font-size:1.1rem}
+.tf-account-list-table td{vertical-align:middle}
+.tf-account-info-cell{width:54px;text-align:right}
+.tf-icon-btn{width:38px;height:38px;border:1px solid var(--tf-border);border-radius:12px;background:var(--tf-surface);color:var(--tf-text);font:inherit;font-size:1.15rem;cursor:pointer;display:inline-grid;place-items:center}
+.tf-icon-btn:hover,.tf-icon-btn:focus-visible{border-color:var(--tf-accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--tf-accent) 14%,transparent)}
+.tf-account-detail-dialog{width:min(720px,calc(100vw - 1.25rem))}
+.tf-account-detail-body{padding:1rem 1.1rem 1.1rem}
+.tf-account-detail-card{box-shadow:none;border:0;padding:0}
+.tf-account-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin:.9rem 0}
+.tf-account-detail-grid>div{border:1px solid var(--tf-border);border-radius:12px;padding:.7rem .8rem;background:var(--tf-surface-subtle)}
+.tf-account-detail-grid span{display:block;color:var(--tf-text-muted);font-size:.78rem;margin-bottom:.2rem}
+.tf-account-detail-grid strong{font-size:.96rem}
+.tf-account-editor-dialog{width:min(760px,calc(100vw - 1.25rem));max-height:min(860px,calc(100vh - 1.25rem));padding:0;overflow:hidden}
+.tf-account-editor-form{display:flex;flex-direction:column;min-height:0;max-height:calc(100vh - 92px)}
+.tf-account-editor-head{flex:0 0 auto}
+.tf-account-static-pane{flex:0 0 auto;padding:1rem 1.1rem .9rem;border-bottom:1px solid var(--tf-border);background:linear-gradient(180deg,color-mix(in srgb,var(--tf-accent) 5%,var(--tf-surface)),var(--tf-surface))}
+.tf-account-type-switch{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.5rem;margin-bottom:.9rem}
+.tf-account-type-btn{min-height:42px;border:1px solid var(--tf-border-strong);border-radius:12px;background:var(--tf-surface);color:var(--tf-text);font:inherit;font-weight:750;cursor:pointer;padding:.55rem .45rem}
+.tf-account-type-btn:hover,.tf-account-type-btn:focus-visible{border-color:var(--tf-accent);outline:none}
+.tf-account-type-btn.is-active{background:var(--tf-accent);border-color:var(--tf-accent);color:var(--tf-on-accent,#fff)}
+.tf-account-opening-block label{display:block;font-size:.82rem;font-weight:800;color:var(--tf-text-muted);margin-bottom:.25rem}
+.tf-account-opening-input-wrap{display:flex;align-items:center;gap:.45rem;border:1px solid var(--tf-border-strong);border-radius:16px;background:var(--tf-surface);padding:.45rem .8rem}
+.tf-account-opening-input-wrap span{font-size:1.4rem;font-weight:800;color:var(--tf-text-muted)}
+.tf-account-opening-input-wrap input{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;font-size:2rem!important;font-weight:850!important;padding:.2rem 0!important;min-width:0;width:100%}
+.tf-account-details-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:1rem 1.1rem}
+.tf-account-save-bar{flex:0 0 auto;display:flex;justify-content:flex-end;gap:.65rem;border-top:1px solid var(--tf-border);padding:.8rem 1.1rem;background:var(--tf-surface);box-shadow:0 -12px 30px rgba(0,0,0,.06);position:sticky;bottom:0;z-index:5}
+.tf-account-save-bar .tf-btn-primary{min-width:170px}
+@media(max-width:760px){
+  .tf-account-type-switch{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tf-account-detail-grid{grid-template-columns:1fr}
+  .tf-account-list-table th:nth-child(3),.tf-account-list-table td:nth-child(3),.tf-account-list-table th:nth-child(5),.tf-account-list-table td:nth-child(5),.tf-account-list-table th:nth-child(6),.tf-account-list-table td:nth-child(6){display:none}
+  .tf-account-save-bar .tf-btn{flex:1}
+}
+.tf-linked-highlight{outline:3px solid color-mix(in srgb,var(--tf-accent) 55%,transparent);outline-offset:3px;transition:outline-color .5s ease}

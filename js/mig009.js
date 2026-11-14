@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
-import {inspectReceivableStoredIds,removeRedundantReceivableIds} from "./data-service.js?v=1.0.77";
+import {inspectReceivableStoredIds,removeRedundantReceivableIds} from "./data-service.js?v=1.0.82";
 import {confirmAction,toast} from "./ui.js";
 import {escapeHtml} from "./utils.js";
-import {inspectMig009,MIG009_REDUNDANT_IDS,MIG009_CANONICAL_ID} from "./mig009-logic.js?v=1.0.77";
+import {inspectMig009,MIG009_REDUNDANT_IDS,MIG009_CANONICAL_ID} from "./mig009-logic.js?v=1.0.82";
 
 const panel=document.querySelector("#mig009-panel");
 const statusBox=document.querySelector("#mig009-status");

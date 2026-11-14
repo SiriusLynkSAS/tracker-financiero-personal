@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.78"></script>
+<script type="module" src="js/app-shell.js?v=1.0.82"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -125,25 +125,6 @@ ul.task-list li input[type="checkbox"] {
 
 
 <div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Los cobros se generan al cerrar cada mes. El inicio y fin parciales se prorratean por días calendario.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<section id="mig009-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
-  <div class="tf-section-heading"><div><div class="tf-section-kicker">Bloque 9 de 11 · MIG-009</div><h2 class="anchored">ID canónico de cuentas por cobrar</h2><div class="tf-muted">Elimina el campo <code>id</code> redundante de cuatro receivables legacy. El document ID de Firestore queda como única fuente de identidad.</div></div></div>
-  <div id="mig009-status" class="tf-alert"></div>
-  <div class="tf-table-wrap" style="margin-top:.8rem">
-<table class="tf-table caption-top">
-<thead>
-<tr class="header">
-<th data-quarto-table-cell-role="th">Document ID</th>
-<th data-quarto-table-cell-role="th">Período</th>
-<th data-quarto-table-cell-role="th">id interno</th>
-<th data-quarto-table-cell-role="th">Estado</th>
-</tr>
-</thead>
-<tbody id="mig009-body">
-</tbody>
-</table>
-</div>
-  <div class="tf-actions" style="margin-top:.8rem"><button id="mig009-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-009</button></div>
-</section>
 <section id="aud-post-007-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
   <div class="tf-section-heading"><div><div class="tf-section-kicker">Auditoría post-migración · AUD-POST-007</div><h2 class="anchored">Identidad canónica de cobro contractual</h2><div class="tf-muted">Elimina únicamente el campo <code>id</code> redundante del contractPayment auditado. No cambia contrato, movimiento, monto, cuenta, estado ni asignaciones.</div></div></div>
   <div id="aud-post-007-status" class="tf-alert"></div>
@@ -206,8 +187,7 @@ ul.task-list li input[type="checkbox"] {
     <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Guardar fechas</button></div>
   </div>
 </dialog>
-<script type="module" src="js/contracts.js?v=1.0.80"></script>
-<script type="module" src="js/mig009.js?v=1.0.77"></script>
+<script type="module" src="js/contracts.js?v=1.0.82"></script>
 
 
 
@@ -619,7 +599,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.80</p>
+<p>Tracker Financiero Personal V1.0.82</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

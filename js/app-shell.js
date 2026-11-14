@@ -1,4 +1,5 @@
-import { setupPendingMenu } from "./notifications.js?v=1.0.77";
+import { setupPendingMenu } from "./notifications.js?v=1.0.82";
+import { initDateOnlyPickers } from "./date-picker.js?v=1.0.82";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";
   return path.replace(/\.html$/, "") || "index";
@@ -239,5 +240,6 @@ if (!isLogin) {
 
     setTheme(document.documentElement.getAttribute("data-theme") || "light");
     setupPendingMenu();
+    initDateOnlyPickers();
   });
 }

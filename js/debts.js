@@ -24,6 +24,7 @@ let editingDebtId=null;
 let editingCardPlanId=null;
 let planPreviewSchedule=[];
 let debtSaving=false;
+let requestedCardApplied=false;
 
 const debtList=document.querySelector("#debt-list");
 const planList=document.querySelector("#plan-list");
@@ -1218,7 +1219,7 @@ function render(){
     const linkedPlans=plans.filter(p=>p.active!==false && p.parentId===a.id);
     const plannedPending=linkedPlans.reduce((s,p)=>s+planTotals(p).pending,0);
     return `
-      <div class="tf-card tf-credit-plan-card tf-debt-card-shell">
+      <div class="tf-card tf-credit-plan-card tf-debt-card-shell" data-card-account="${escapeHtml(a.id)}">
         <div class="tf-card-context tf-card-context-card">Tarjeta · saldo real</div>
         <div class="tf-debt-card-header">
           <div class="tf-debt-card-title-group">
@@ -1252,7 +1253,7 @@ function render(){
       const count=(p.schedule||[]).length;
 
       return `
-        <div class="tf-card tf-credit-plan-card tf-debt-card-shell">
+        <div class="tf-card tf-credit-plan-card tf-debt-card-shell" data-card-parent="${escapeHtml(p.parentId)}">
           <div class="tf-card-context tf-card-context-card">Tarjeta</div>
 
           <div class="tf-debt-card-header">
@@ -1985,6 +1986,27 @@ async function refresh(){
   renderDebtPaymentTransactions();
 
   render();
+  if(!requestedCardApplied){
+    const requested=new URLSearchParams(location.search).get("card")||"";
+    const card=accounts.find(a=>a.id===requested&&a.accountType==="credit_card");
+    if(card){
+      requestedCardApplied=true;
+      requestAnimationFrame(()=>{
+        const nodes=[...document.querySelectorAll("[data-card-account],[data-card-parent]")];
+        const target=nodes.find(node=>node.dataset.cardAccount===requested||node.dataset.cardParent===requested);
+        if(target){
+          target.classList.add("tf-linked-highlight");
+          target.scrollIntoView({behavior:"smooth",block:"center"});
+          setTimeout(()=>target.classList.remove("tf-linked-highlight"),2200);
+        }else{
+          planEditorSection.hidden=false;
+          document.querySelector("#plan-card").value=requested;
+          document.querySelector("#plan-editor-title").textContent="Nuevo plan de tarjeta";
+          planEditorSection.scrollIntoView({behavior:"smooth",block:"start"});
+        }
+      });
+    }
+  }
 }
 
 function togglePlanType(){

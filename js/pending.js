@@ -2,7 +2,7 @@ import {requireUser} from "./guard.js";
 import {
   listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,
   saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan,listInvoicesOptional
-} from "./data-service.js?v=1.0.77";
+} from "./data-service.js?v=1.0.82";
 import {buildPendingItems} from "./pending-engine.js";
 import {money,escapeHtml} from "./utils.js";
 import {toast} from "./ui.js";

@@ -10,7 +10,7 @@ import {categoriesForType,subcategoriesFor} from "./category-catalog.js";
 import {confirmAction,toast} from "./ui.js";
 
 let accounts=[],txs=[],rows=[],categories=[];
-let editingId="",classifyingId="";
+let editingId="",classifyingId="",requestedAccountApplied=false;
 const tbody=document.querySelector("#recn-body");
 
 const statusLabel={
@@ -135,8 +135,18 @@ async function refresh(){
     listAccounts({includeArchived:false}),listTransactions(),listReconciliations(),listCategories()
   ]);
   const opts=options();
-  document.querySelector("#recn-account").innerHTML=opts;
-  document.querySelector("#recover-account").innerHTML=opts;
+  const recnAccount=document.querySelector("#recn-account");
+  const recoverAccount=document.querySelector("#recover-account");
+  const prevRecn=recnAccount.value,prevRecover=recoverAccount.value;
+  recnAccount.innerHTML=opts;
+  recoverAccount.innerHTML=opts;
+  if(prevRecn&&accounts.some(a=>a.id===prevRecn))recnAccount.value=prevRecn;
+  if(prevRecover&&accounts.some(a=>a.id===prevRecover))recoverAccount.value=prevRecover;
+  if(!requestedAccountApplied){
+    const requested=new URLSearchParams(location.search).get("account")||"";
+    if(requested&&accounts.some(a=>a.id===requested)){recnAccount.value=requested;recoverAccount.value=requested}
+    requestedAccountApplied=true;
+  }
   render();
 }
 
