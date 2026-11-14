@@ -38,7 +38,25 @@ title: "Presupuestos"
       <div class="tf-muted">Las alertas aparecen cuando queda 30%, 10% o cuando el presupuesto se sobrepasa.</div>
     </div>
   </div>
-  <div id="budget-list" class="tf-budget-list"></div>
+  <div class="tf-table-wrap tf-budget-table-wrap">
+    <table class="tf-table tf-budget-table">
+      <thead>
+        <tr>
+          <th>Presupuesto</th>
+          <th class="tf-num">Límite</th>
+          <th class="tf-num">Rollover</th>
+          <th class="tf-num">Disponible total</th>
+          <th class="tf-num">Gastado</th>
+          <th class="tf-num">Queda</th>
+          <th class="tf-num">Uso</th>
+          <th>Estado</th>
+          <th class="tf-center">Información</th>
+        </tr>
+      </thead>
+      <tbody id="budget-list"></tbody>
+    </table>
+  </div>
+  <div id="budget-empty" class="tf-empty" hidden></div>
 </section>
 
 <dialog id="budget-editor" class="tf-modal-dialog tf-budget-editor-dialog">
@@ -125,5 +143,5 @@ title: "Presupuestos"
   <div id="budget-detail-body" class="tf-budget-detail-body"></div>
 </dialog>
 
-<script type="module" src="js/budgets-v1.js?v=1.0.83"></script>
+<script type="module" src="js/budgets-v1.js?v=1.0.84"></script>
 ```

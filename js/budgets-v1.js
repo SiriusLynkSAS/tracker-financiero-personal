@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listBudgets,listTransactions,listCategories,saveBudget,removeBudget} from "./data-service.js?v=1.0.83";
+import {listBudgets,listTransactions,listCategories,saveBudget,removeBudget} from "./data-service.js?v=1.0.84";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {sortCategoryRows,categoriesForType,subcategoriesFor} from "./category-catalog.js";
 import {confirmAction,toast} from "./ui.js";
@@ -54,23 +54,23 @@ function render(){
     const m=budgetMetricsForMonth({budget:b,budgets,transactions:txs,month:viewMonth});
     totalAvailable+=m.available;totalSpent+=m.spent;
     const usage=pct(m.spent,m.available),alert=budgetAlertForMetrics({budget:b,metrics:m,month:viewMonth});
-    const carry=b.rollover&&m.carry>0?`<span class="tf-budget-rollover">↻ +${money(m.carry)}</span>`:"";
-    const warning=alert?`<span class="tf-budget-alert-pill ${alertClass(alert)}">${alertLabel(alert)}</span>`:"";
-    return `<div class="tf-budget-row ${alertClass(alert)}" data-budget-row="${escapeHtml(b.id)}">
-      <div class="tf-budget-row-main">
-        <div class="tf-budget-row-title"><strong>${escapeHtml(b.category)} · ${escapeHtml(b.subcategory)}</strong>${warning}</div>
-        <div class="tf-budget-row-values">
-          <span><small>Límite</small><strong>${money(m.base)}</strong>${carry}</span>
-          <span><small>Gastado</small><strong>${money(m.spent)}</strong></span>
-          <span><small>Disponible</small><strong class="${m.remaining<0?"tf-negative":""}">${money(m.remaining)}</strong></span>
-        </div>
-        <div class="tf-budget-row-progress"><span style="width:${Math.min(100,usage)}%"></span></div>
-        <div class="tf-muted">${Math.round(usage)}% utilizado${m.available>0?` de ${money(m.available)}`:""}</div>
-      </div>
-      <button class="tf-icon-button" type="button" data-budget-info="${escapeHtml(b.id)}" aria-label="Información de ${escapeHtml(b.category)} ${escapeHtml(b.subcategory)}">ⓘ</button>
-    </div>`;
+    const state=alert?alertLabel(alert):"En rango";
+    return `<tr class="${alertClass(alert)}" data-budget-row="${escapeHtml(b.id)}">
+      <td><strong>${escapeHtml(b.category)} · ${escapeHtml(b.subcategory)}</strong></td>
+      <td class="tf-num">${money(m.base)}</td>
+      <td class="tf-num">${b.rollover?money(m.carry):"—"}</td>
+      <td class="tf-num">${money(m.available)}</td>
+      <td class="tf-num">${money(m.spent)}</td>
+      <td class="tf-num ${m.remaining<0?"tf-negative":""}">${money(m.remaining)}</td>
+      <td class="tf-num"><div class="tf-budget-table-usage"><strong>${Math.round(usage)}%</strong><span class="tf-budget-row-progress"><span style="width:${Math.min(100,usage)}%"></span></span></div></td>
+      <td><span class="tf-budget-alert-pill ${alertClass(alert)}">${escapeHtml(state)}</span></td>
+      <td class="tf-center"><button class="tf-icon-button" type="button" data-budget-info="${escapeHtml(b.id)}" aria-label="Información de ${escapeHtml(b.category)} ${escapeHtml(b.subcategory)}">ⓘ</button></td>
+    </tr>`;
   }).join("");
-  list.innerHTML=html||`<div class="tf-empty">No hay presupuestos para ${escapeHtml(monthLabel(viewMonth))}. Usa “Nuevo presupuesto” para crear el primero.</div>`;
+  list.innerHTML=html;
+  const emptyBox=$("budget-empty");
+  emptyBox.hidden=rows.length>0;
+  emptyBox.textContent=rows.length?"":`No hay presupuestos para ${monthLabel(viewMonth)}. Usa “Nuevo presupuesto” para crear el primero.`;
   const remaining=totalAvailable-totalSpent,usage=pct(totalSpent,totalAvailable);
   $("budget-summary-available").textContent=money(totalAvailable);
   $("budget-summary-spent").textContent=money(totalSpent);
@@ -79,7 +79,6 @@ function render(){
   $("budget-summary-use").textContent=`${Math.round(usage)}%`;
   $("budget-summary-progress").style.width=`${Math.min(100,usage)}%`;
 }
-
 async function refresh(){
   [budgets,txs,cats]=await Promise.all([listBudgets(),listTransactions(),listCategories()]);
   cats=sortCategoryRows(cats);

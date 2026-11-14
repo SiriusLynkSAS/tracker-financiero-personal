@@ -1,3 +1,5 @@
+# Tracker Financiero Personal Web V1.0.84 · AUD-POST-011 Presupuestos + Plan mensual
+
 # Tracker Financiero Personal Web V1.0.83 · AUD-POST-010 Presupuestos y alertas
 
 - Retira de las pantallas operativas todas las observaciones/paneles MIG; las migraciones permanecen solo como trazabilidad interna.

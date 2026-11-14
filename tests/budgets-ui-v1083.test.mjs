@@ -10,6 +10,9 @@ assert.doesNotMatch(rmd,/budget-legacy-card|Presupuestos legacy|MIG-/,'no debe m
 assert.match(rmd,/id="budget-period-label"/,'debe existir navegación mensual central');
 assert.match(rmd,/id="budget-category-picker"/,'categoría/subcategoría debe usar selector concatenado');
 assert.match(rmd,/id="budget-summary-available"/,'debe mostrar resumen mensual');
+assert.match(rmd,/<table class="tf-table tf-budget-table">/,'presupuestos debe visualizarse como tabla');
+assert.match(rmd,/Disponible total[\s\S]*Gastado[\s\S]*Queda[\s\S]*Uso[\s\S]*Estado[\s\S]*Información/,'la tabla debe exponer cada elemento como columna');
+assert.match(js,/<tr class=/,'cada presupuesto debe renderizarse como fila de tabla');
 assert.match(rmd,/id="budget-detail-dialog"/,'debe existir detalle por presupuesto');
 assert.match(js,/categoriesForType\(cats,"expense"\)/,'debe derivar categorías de egreso');
 assert.match(js,/data-budget-subcategory/,'debe concatenar selección de subcategoría');
