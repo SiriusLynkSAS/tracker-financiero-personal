@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>fs.readFileSync(new URL(p, import.meta.url),'utf8');
+const data=read('../js/data-service.js');
+const dash=read('../js/dashboard-v1.js');
+const inv=read('../js/invoices.js');
+const rmd=read('../facturacion.Rmd');
+const rules=read('../firebase/firestore.rules');
+assert.match(data,/export async function listInvoicesOptional/);
+assert.match(dash,/listInvoicesOptional\(\)/);
+assert.match(inv,/listAccounts\(\),listReceivables\(\),listContracts\(\)/);
+assert.match(inv,/setFeatureState\(err\)/);
+assert.match(rmd,/invoice-feature-alert/);
+assert.match(rmd,/invoice-editor-error/);
+assert.match(rules,/match \/invoices\/\{id\}/);
+console.log('fac001-hotfix.test.mjs OK');

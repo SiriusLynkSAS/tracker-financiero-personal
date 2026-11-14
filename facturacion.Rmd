@@ -15,6 +15,8 @@ title: "Facturación"
   Una factura pendiente no modifica ninguna cuenta. El movimiento de ingreso se crea únicamente al registrar un cobro. La tarifa IVA inicial es editable y queda congelada en cada factura.
 </div>
 
+<div id="invoice-feature-alert" class="tf-alert tf-alert-danger" hidden></div>
+
 <div class="tf-grid tf-grid-3" style="margin-top:1rem">
   <div class="tf-card"><div class="tf-kpi-label">Base facturada</div><div id="invoice-kpi-base" class="tf-kpi-value">$0,00</div></div>
   <div class="tf-card"><div class="tf-kpi-label">IVA generado</div><div id="invoice-kpi-vat" class="tf-kpi-value">$0,00</div></div>
@@ -33,6 +35,7 @@ title: "Facturación"
   <form method="dialog" onsubmit="return false" class="tf-dialog-card">
     <div class="tf-dialog-header"><div><div class="tf-section-kicker">Facturación</div><h2 id="invoice-editor-title">Nueva factura</h2></div><button id="invoice-editor-close-x" class="tf-icon-button" type="button" aria-label="Cerrar">×</button></div>
     <div class="tf-dialog-body">
+      <div id="invoice-editor-error" class="tf-alert tf-alert-danger" hidden></div>
       <div class="tf-grid tf-grid-2">
         <div class="tf-field"><label>Código de factura</label><input id="invoice-number" autocomplete="off" placeholder="001-001-000000001"></div>
         <div class="tf-field"><label>Cliente</label><input id="invoice-customer" autocomplete="off"></div>
@@ -89,5 +92,5 @@ title: "Facturación"
   </form>
 </dialog>
 
-<script type="module" src="js/invoices.js?v=1.0.70"></script>
+<script type="module" src="js/invoices.js?v=1.0.71"></script>
 ```

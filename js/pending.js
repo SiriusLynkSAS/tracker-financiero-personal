@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
 import {
   listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,
-  saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan,listInvoices
-} from "./data-service.js?v=1.0.70";
+  saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan,listInvoicesOptional
+} from "./data-service.js?v=1.0.71";
 import {buildPendingItems} from "./pending-engine.js";
 import {money,escapeHtml} from "./utils.js";
 import {toast} from "./ui.js";
@@ -122,7 +122,7 @@ async function closeHistorical(item,paidDate){
 }
 async function load(){
   [recurring,transactions,liabilities,plans,accounts,categories,invoices]=await Promise.all([
-    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories(),listInvoices()
+    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories(),listInvoicesOptional()
   ]);
   items=buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices});
   render();
