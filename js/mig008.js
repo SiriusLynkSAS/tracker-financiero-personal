@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
-import {getEntity,atomicWrite} from "./data-service.js?v=1.0.77";
+import {getEntity,atomicWrite} from "./data-service.js?v=1.0.82";
 import {money,escapeHtml} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
-import {MIG008_TARGETS,inspectMig008Debt,migrateMig008Schedule,mig008Summary} from "./mig008-logic.js?v=1.0.77";
+import {MIG008_TARGETS,inspectMig008Debt,migrateMig008Schedule,mig008Summary} from "./mig008-logic.js?v=1.0.82";
 
 const panel=document.querySelector("#mig008-panel");
 const statusBox=document.querySelector("#mig008-status");

@@ -1,8 +1,8 @@
 import {requireUser} from "./guard.js";
-import {inspectMig010Transactions,resolveMig010} from "./data-service.js?v=1.0.77";
+import {inspectMig010Transactions,resolveMig010} from "./data-service.js?v=1.0.82";
 import {confirmAction,toast} from "./ui.js";
 import {escapeHtml,money} from "./utils.js";
-import {inspectMig010,MIG010_IDS} from "./mig010-logic.js?v=1.0.77";
+import {inspectMig010,MIG010_IDS} from "./mig010-logic.js?v=1.0.82";
 
 const panel=document.querySelector("#mig010-panel"),statusBox=document.querySelector("#mig010-status"),body=document.querySelector("#mig010-body");
 const keep=document.querySelector("#mig010-keep"),delMorning=document.querySelector("#mig010-delete-morning"),delEvening=document.querySelector("#mig010-delete-evening");

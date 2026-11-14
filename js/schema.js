@@ -29,12 +29,18 @@ export function normalizeAccount(raw={}){
     institutionIdentitySource:text(raw.institutionIdentitySource),
     alias:text(raw.alias),
     accountType:text(raw.accountType)||"savings",
+    last4:text(raw.last4).replace(/\D/g,"").slice(-4),
     openingBalance:finite(raw.openingBalance,0),
     openingBalanceAsOf:text(raw.openingBalanceAsOf||raw.ledgerStartDate),
     ledgerStartDate:text(raw.ledgerStartDate||raw.openingBalanceAsOf),
     openingBalanceDateSource:text(raw.openingBalanceDateSource),
     legacyOpeningBalanceAsOfMissing:!text(raw.openingBalanceAsOf||raw.ledgerStartDate),
     creditLimit:nonNegative(raw.creditLimit,0),
+    closingDay:raw.closingDay===null||raw.closingDay===undefined?null:Math.min(31,Math.max(1,integer(raw.closingDay,1))),
+    paymentDay:raw.paymentDay===null||raw.paymentDay===undefined?null:Math.min(31,Math.max(1,integer(raw.paymentDay,1))),
+    reminderDaysBefore:raw.reminderDaysBefore===null||raw.reminderDaysBefore===undefined?null:Math.min(30,Math.max(0,integer(raw.reminderDaysBefore,3))),
+    statementBalance:nonNegative(raw.statementBalance,0),
+    minimumPayment:nonNegative(raw.minimumPayment,0),
     active:raw.active!==false
   };
 }
@@ -44,19 +50,34 @@ export function sanitizeAccountWrite(raw={}){
   if(!["savings","checking","credit_card","cash"].includes(accountType)) throw new Error("Tipo de cuenta no válido.");
   if(!text(raw.bank)) throw new Error("Ingresa la institución o banco.");
   if(!text(raw.alias)) throw new Error("Ingresa el nombre de la cuenta.");
+  const last4=text(raw.last4);
+  if(last4 && !/^\d{1,4}$/.test(last4)) throw new Error("Los últimos 4 dígitos deben contener solo números.");
   const openingBalance=finite(raw.openingBalance,NaN);
   if(!Number.isFinite(openingBalance)) throw new Error("Saldo inicial no válido.");
   const openingBalanceAsOf=text(raw.openingBalanceAsOf||raw.ledgerStartDate);
   if(openingBalanceAsOf && !isoDate(openingBalanceAsOf)) throw new Error("Fecha base del saldo inicial no válida.");
   const institution=resolveInstitutionIdentity(text(raw.bank),text(raw.institutionId),text(raw.institutionDisplayName));
+  const card=accountType==="credit_card";
+  let closingDay=null,paymentDay=null,reminderDaysBefore=null;
+  if(card){
+    closingDay=Number(raw.closingDay);
+    paymentDay=Number(raw.paymentDay);
+    reminderDaysBefore=Number(raw.reminderDaysBefore);
+    if(!Number.isInteger(closingDay)||closingDay<1||closingDay>31) throw new Error("El día de corte debe estar entre 1 y 31.");
+    if(!Number.isInteger(paymentDay)||paymentDay<1||paymentDay>31) throw new Error("El día de pago debe estar entre 1 y 31.");
+    if(!Number.isInteger(reminderDaysBefore)||reminderDaysBefore<0||reminderDaysBefore>30) throw new Error("El recordatorio debe estar entre 0 y 30 días.");
+  }
   return {
     ...raw,
     schemaVersion:SCHEMA_VERSION,
-    bank:text(raw.bank),institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,institutionIdentitySource:text(raw.institutionIdentitySource)||(institution.matched?"catalog_known_alias":""),alias:text(raw.alias),accountType,openingBalance,
+    bank:text(raw.bank),institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,institutionIdentitySource:text(raw.institutionIdentitySource)||(institution.matched?"catalog_known_alias":""),alias:text(raw.alias),accountType,last4,openingBalance,
     openingBalanceAsOf,
     ledgerStartDate:openingBalanceAsOf,
     openingBalanceDateSource:text(raw.openingBalanceDateSource),
-    creditLimit:nonNegative(raw.creditLimit,0),
+    creditLimit:card?nonNegative(raw.creditLimit,0):0,
+    closingDay,paymentDay,reminderDaysBefore,
+    statementBalance:card?nonNegative(raw.statementBalance,0):0,
+    minimumPayment:card?nonNegative(raw.minimumPayment,0):0,
     active:raw.active!==false
   };
 }

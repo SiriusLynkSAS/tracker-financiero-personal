@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional} from "./data-service.js?v=1.0.77";
+import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional} from "./data-service.js?v=1.0.82";
 import {buildPendingItems} from "./pending-engine.js";
 import {money,escapeHtml} from "./utils.js";
 

@@ -1,3 +1,15 @@
+# Tracker Financiero Personal Web V1.0.82 · AUD-POST-009 Bancos y cuentas
+
+- Retira de las pantallas operativas todas las observaciones/paneles MIG; las migraciones permanecen solo como trazabilidad interna.
+- Bancos y cuentas usa listado por institución, detalle mediante icono de información y editor modal para crear/editar.
+- La edición conserva el mismo Document ID y el ID no se muestra al usuario.
+- Tipo de cuenta y saldo inicial quedan arriba; detalles son desplazables; Cerrar/Cancelar/Guardar permanecen visibles.
+- Fecha base usa el selector global de Movimientos, sin escritura manual ni hora.
+- Últimos 4 dígitos y campos numéricos tienen validación de entrada y validación canónica.
+- Auditoría de referencias: 218 vínculos efectivos hacia cuentas y 0 huérfanos en el RAW revisado.
+- Conciliación acepta `?account=<id>` para preseleccionar la cuenta al abrir desde el detalle.
+- Firebase config, reglas e índices sin cambios.
+
 # Tracker Financiero Personal Web V1.0.80 · Auditoría post-migración
 
 Parche de integridad posterior a la auditoría V1.0.79.
@@ -1408,3 +1420,9 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Una factura incluida en una liquidación de IVA no puede alterar valores tributarios ni anularse.
 - Exportación JSON y auditoría RAW incorporan la colección `invoices`.
 - Firebase permanece en el mismo proyecto y `js/firebase-config.js` no cambia.
+
+## V1.0.81 · AUD-POST-008 · Fechas y confirmaciones
+- Se unifica el selector de fecha Web con el patrón de Movimientos para todos los campos `type=date`.
+- Los campos opcionales permiten quitar la fecha.
+- `confirmAction` usa `<dialog>` modal top-layer para no quedar detrás de editores abiertos, corrigiendo Editar fechas en Contratos.
+- No se modifica lógica financiera ni se añade hora a fechas contractuales/operativas.

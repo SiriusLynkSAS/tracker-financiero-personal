@@ -15,12 +15,6 @@ title: "IVA / Impuestos"
   Las facturas emitidas desde Facturación y los comprobantes legacy con IVA alimentan esta reserva. Al liquidar se conserva el valor esperado y se descuenta de la cuenta únicamente lo realmente pagado.
 </div>
 
-<section id="mig004-panel" class="tf-card" style="margin-top:1rem" hidden>
-  <div class="tf-section-heading"><div><h2>MIG-004 · IVA legacy</h2><div class="tf-muted">Movimientos antiguos donde el campo IVA contiene exactamente el mismo valor que el monto total y no existe una factura explícita.</div></div><strong id="mig004-count">0</strong></div>
-  <div class="tf-alert tf-alert-warn is-visible" style="margin-top:.8rem">Estos valores no se consideran IVA mientras estén pendientes de normalización. MIG-004 conserva el valor original en <code>legacyVatRaw</code>, limpia el IVA canónico y registra la corrección en auditoría.</div>
-  <div class="tf-table-wrap" style="margin-top:.8rem"><table class="tf-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Monto</th><th>IVA legacy</th><th>Acción</th></tr></thead><tbody id="mig004-body"></tbody></table></div>
-  <div class="tf-actions" style="margin-top:1rem"><button id="mig004-apply" class="tf-btn tf-btn-primary" type="button">Aplicar MIG-004</button></div>
-</section>
 
 <div class="tf-grid tf-grid-3" style="margin-top:1rem">
   <div class="tf-card"><div class="tf-kpi-label">IVA reservado</div><div id="tax-reserved" class="tf-kpi-value">$0,00</div></div>
@@ -55,5 +49,5 @@ title: "IVA / Impuestos"
   <div id="tax-payment-list" class="tf-grid tf-grid-3"></div>
 </section>
 
-<script type="module" src="js/taxes.js?v=1.0.77"></script>
+<script type="module" src="js/taxes.js?v=1.0.82"></script>
 ```

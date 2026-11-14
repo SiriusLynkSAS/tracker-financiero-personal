@@ -26,5 +26,5 @@ Solo el rendimiento neto = ingreso financiero.</div></section></div><div id="inv
 </div>
 
 
-<script type="module" src="js/investments.js?v=1.0.78"></script>
+<script type="module" src="js/investments.js?v=1.0.82"></script>
 ```

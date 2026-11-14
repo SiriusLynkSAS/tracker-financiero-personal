@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed,removeTransaction,inspectAudPost007ContractPayment,repairAudPost007ContractPayment} from "./data-service.js?v=1.0.80";
+import {listContracts,saveContract,listReceivables,listAssets,listAccounts,listTransactions,atomicWrite,syncReceivablesClosed,removeTransaction,inspectAudPost007ContractPayment,repairAudPost007ContractPayment} from "./data-service.js?v=1.0.82";
 import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
