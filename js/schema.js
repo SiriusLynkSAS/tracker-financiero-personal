@@ -100,6 +100,10 @@ export function normalizeTransaction(raw={}){
     reconciliationId:text(raw.reconciliationId),liabilityId:text(raw.liabilityId),debtPaymentId:text(raw.debtPaymentId),
     recurringId:text(raw.recurringId),recurringOccurrence:text(raw.recurringOccurrence),recurringScheduledDate:text(raw.recurringScheduledDate),
     investmentId:text(raw.investmentId),contractPaymentId:text(raw.contractPaymentId),settlementId:text(raw.settlementId),
+    contractId:text(raw.contractId),
+    contractAllocations:Array.isArray(raw.contractAllocations)?raw.contractAllocations.map(a=>({
+      receivableId:text(a?.receivableId),contractId:text(a?.contractId),workPeriod:text(a?.workPeriod),amount:nonNegative(a?.amount,0)
+    })).filter(a=>a.receivableId&&a.amount>0):[],
     invoiceId:text(raw.invoiceId),invoicePaymentId:text(raw.invoicePaymentId),
     economicAmount:nonNegative(raw.economicAmount,0),invoiceVatComponent:nonNegative(raw.invoiceVatComponent,0),
     feeAmount,taxAmount,otherChargeAmount,
@@ -147,6 +151,7 @@ export function sanitizeTransactionWrite(raw={}){
     feeAmount:row.feeAmount,taxAmount:row.taxAmount,otherChargeAmount:row.otherChargeAmount,grossDebitAmount:row.grossDebitAmount,
     recurringId:nullableText(row.recurringId),recurringOccurrence:nullableText(row.recurringOccurrence),recurringScheduledDate:nullableText(row.recurringScheduledDate),
     investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId),
+    contractId:nullableText(row.contractId),contractAllocations:row.contractAllocations,
     invoiceId:nullableText(row.invoiceId),invoicePaymentId:nullableText(row.invoicePaymentId),
     economicAmount:row.economicAmount>0?row.economicAmount:0,invoiceVatComponent:row.invoiceVatComponent>0?row.invoiceVatComponent:0
   };

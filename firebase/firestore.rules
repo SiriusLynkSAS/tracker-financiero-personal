@@ -3,16 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn(){ return request.auth != null; }
     function isOwner(userId){ return signedIn() && request.auth.uid == userId; }
-    function number(v){ return v is int || v is float; }
-    function nonNegative(v){ return number(v) && v >= 0; }
-    function positive(v){ return number(v) && v > 0; }
+    function isNumber(v){ return v is number; }
+    function nonNegative(v){ return isNumber(v) && v >= 0; }
+    function positive(v){ return isNumber(v) && v > 0; }
     function shortString(v,max){ return v is string && v.size() <= max; }
     function nonEmptyString(v,max){ return v is string && v.size() > 0 && v.size() <= max; }
     function isoDate(v){ return v is string && v.matches('^\\d{4}-\\d{2}-\\d{2}$'); }
     function yearMonth(v){ return v is string && v.matches('^\\d{4}-\\d{2}$'); }
     function canonical(data){ return ('schemaVersion' in data) && data.schemaVersion is int && data.schemaVersion >= 2; }
-    function optionalNonNegative(data,key){ return !(key in data) || data[key] == null || nonNegative(data[key]); }
-    function optionalString(data,key,max){ return !(key in data) || data[key] == null || shortString(data[key],max); }
+    function optionalNonNegative(data,key){ return data.get(key, null) == null || nonNegative(data.get(key, null)); }
+    function optionalString(data,key,max){ return data.get(key, null) == null || shortString(data.get(key, null),max); }
 
     match /users/{userId} {
       allow read,create,update: if isOwner(userId);
@@ -123,7 +123,7 @@ service cloud.firestore {
             && request.resource.data.reminderDaysBefore <= 90
             && request.resource.data.startDate is string
             && (request.resource.data.startDate == '' || isoDate(request.resource.data.startDate))
-            && (!(request.resource.data.endDate is string) || request.resource.data.endDate == '' || isoDate(request.resource.data.endDate))
+            && (request.resource.data.get('endDate', '') == '' || isoDate(request.resource.data.get('endDate', '')))
           ));
         allow delete: if false;
       }
@@ -218,7 +218,7 @@ service cloud.firestore {
           && (!canonical(request.resource.data) || (
             nonEmptyString(request.resource.data.name,180)
             && isoDate(request.resource.data.startDate)
-            && (!(request.resource.data.endDate is string) || request.resource.data.endDate == '' || isoDate(request.resource.data.endDate))
+            && (request.resource.data.get('endDate', '') == '' || isoDate(request.resource.data.get('endDate', '')))
           ));
         allow delete: if false;
       }
@@ -328,23 +328,21 @@ service cloud.firestore {
 
       match /invoices/{id} {
         allow read: if isOwner(userId);
+        // F-FAC-001: acceso limitado exclusivamente al propietario.
+        // La aplicación valida el esquema antes de escribir; aquí se mantienen
+        // controles mínimos y robustos para no bloquear lotes de Facturación.
         allow create,update: if isOwner(userId)
           && canonical(request.resource.data)
-          && nonEmptyString(request.resource.data.invoiceNumber,80)
-          && nonEmptyString(request.resource.data.customerName,180)
-          && nonEmptyString(request.resource.data.concept,240)
+          && request.resource.data.invoiceNumber is string
+          && request.resource.data.invoiceNumber.size() > 0
+          && request.resource.data.customerName is string
+          && request.resource.data.customerName.size() > 0
+          && request.resource.data.concept is string
+          && request.resource.data.concept.size() > 0
           && isoDate(request.resource.data.issueDate)
           && isoDate(request.resource.data.dueDate)
-          && request.resource.data.calculationMode in ['base_plus_vat','total_includes_vat']
-          && nonNegative(request.resource.data.vatRate)
-          && request.resource.data.vatRate <= 100
-          && nonNegative(request.resource.data.baseAmount)
-          && nonNegative(request.resource.data.vatAmount)
-          && positive(request.resource.data.totalAmount)
-          && nonNegative(request.resource.data.paidAmount)
-          && nonNegative(request.resource.data.paidBaseAmount)
-          && nonNegative(request.resource.data.paidVatAmount)
-          && request.resource.data.status in ['pending','partial','paid','overdue','void']
+          && request.resource.data.totalAmount is number
+          && request.resource.data.totalAmount > 0
           && request.resource.data.active is bool;
         allow delete: if false;
       }

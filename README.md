@@ -1,7 +1,7 @@
-# Tracker Financiero Personal V1.0.71 · Bloque 5 de 11 · MIG-005
+# Tracker Financiero Personal V1.0.72 · Bloque 5 de 11 · MIG-005
 
 
-## V1.0.71 · Hotfix de activación F-FAC-001
+## V1.0.72 · Hotfix de activación F-FAC-001
 
 - Resumen, Pendientes, IVA y notificaciones ya no quedan en cero/bloqueados si la nueva colección `invoices` aún no tiene reglas Firestore publicadas.
 - Facturación muestra un diagnóstico explícito de permisos en vez de repetir el mensaje genérico de carga.

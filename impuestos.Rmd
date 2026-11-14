@@ -55,5 +55,5 @@ title: "IVA / Impuestos"
   <div id="tax-payment-list" class="tf-grid tf-grid-3"></div>
 </section>
 
-<script type="module" src="js/taxes.js?v=1.0.71"></script>
+<script type="module" src="js/taxes.js?v=1.0.72"></script>
 ```

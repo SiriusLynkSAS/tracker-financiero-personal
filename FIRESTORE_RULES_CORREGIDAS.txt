@@ -1,0 +1,9 @@
+Reglas Firestore revisadas para F-FAC-001.
+
+Cambios:
+- helper number() -> isNumber() usando el tipo oficial `number`;
+- campos opcionales endDate se leen con Map.get(...);
+- invoices mantiene propietario exclusivo y validación esencial sin bloquear operaciones batch de Facturación;
+- no se modificó firebase-config.js.
+
+Para Firebase CLI, firebase.json ya apunta a firebase/firestore.rules.

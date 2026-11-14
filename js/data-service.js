@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.71";
+} from "./schema.js?v=1.0.72";
 
 function uid(){
   const v=auth.currentUser?.uid;
@@ -338,33 +338,79 @@ export async function removeTransaction(id){
     return;
   }
   if(row?.contractPaymentId){
-    const allocations=Array.isArray(row.contractAllocations)?row.contractAllocations
-      .map(a=>({receivableId:String(a?.receivableId||""),amount:Math.max(0,Number(a?.amount||0))}))
+    const normalizeAllocations=value=>Array.isArray(value)?value
+      .map(a=>({
+        receivableId:String(a?.receivableId||""),
+        contractId:String(a?.contractId||""),
+        workPeriod:String(a?.workPeriod||""),
+        amount:Math.max(0,Number(a?.amount||0))
+      }))
       .filter(a=>a.receivableId&&a.amount>0):[];
+
+    // Los cobros Web legacy guardaban contractAllocations dentro del documento
+    // transaction. normalizeTransaction los descartaba, por eso la reversión
+    // quedaba bloqueada aun cuando Firestore conservaba el detalle.
+    let sourceRow=row;
+    let allocations=normalizeAllocations(row.contractAllocations);
     if(!allocations.length){
-      throw new Error("Este cobro contractual no contiene el detalle necesario para una reversión segura. Reviértelo desde Contratos.");
+      try{
+        const fresh=await getDoc(ref("transactions",id));
+        if(fresh.exists()){
+          sourceRow={id:fresh.id,...fresh.data()};
+          allocations=normalizeAllocations(sourceRow.contractAllocations);
+        }
+      }catch(err){console.warn("No se pudo releer el movimiento contractual crudo.",err);}
     }
+
+    // Android usa contractPayments como registro estructurado. Si el movimiento
+    // no contiene las asignaciones, se acepta esa fuente únicamente por ID.
+    let paymentRecord=null;
+    if(!allocations.length){
+      try{
+        paymentRecord=await getEntity("contractPayments",row.contractPaymentId);
+        allocations=normalizeAllocations(paymentRecord?.allocations);
+      }catch(err){console.warn("No se pudo leer contractPayments para la reversión.",err);}
+    }
+
+    if(!allocations.length){
+      throw new Error("Este cobro contractual no contiene asignaciones verificables. No se eliminó ningún dato.");
+    }
+    const allocationTotal=roundMoney(allocations.reduce((s,a)=>s+a.amount,0));
+    if(Math.abs(allocationTotal-Number(sourceRow.amount||row.amount||0))>.02){
+      throw new Error("Las asignaciones del cobro contractual no coinciden con el monto del movimiento. No se eliminó ningún dato.");
+    }
+
     const rows=[];
     for(const allocation of allocations){
       const receivable=await getEntity("receivables",allocation.receivableId);
-      if(receivable)rows.push({allocation,receivable});
+      if(!receivable) throw new Error(`No se encontró la cuenta por cobrar ${allocation.receivableId}. No se eliminó ningún dato.`);
+      rows.push({allocation,receivable});
     }
+
     const batch=writeBatch(db);
     for(const {allocation,receivable} of rows){
-      const newPaid=Math.max(0,Number(receivable.paidAmount||0)-allocation.amount);
+      const newPaid=Math.max(0,roundMoney(Number(receivable.paidAmount||0)-allocation.amount));
       const amount=Number(receivable.amount||0);
       const status=newPaid>=amount-.009?"paid":newPaid>.009?"partial":"pending";
       const after={...receivable,paidAmount:newPaid,status};
       batch.update(ref("receivables",receivable.id),{paidAmount:newPaid,status,updatedAt:serverTimestamp()});
       batch.set(doc(col("auditLog")),auditPayload("receivable",receivable.id,"UPDATE",receivable,after,"Reversión automática al eliminar movimiento de cobro contractual"));
     }
+
+    if(paymentRecord?.id){
+      const paymentAfter={...paymentRecord,status:"reversed",reversedReason:"movement_deleted",schemaVersion:SCHEMA_VERSION};
+      batch.set(ref("contractPayments",paymentRecord.id),{...paymentAfter,reversedAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true});
+      batch.set(doc(col("auditLog")),auditPayload("contractPayment",paymentRecord.id,"REVERSE",paymentRecord,paymentAfter,"Reversión desde Movimientos Web"));
+    }
+
     batch.delete(ref("transactions",id));
-    batch.set(doc(col("auditLog")),auditPayload("transaction",id,"DELETE",row,null,"Eliminación de ingreso contractual con reversión de cuenta por cobrar"));
+    batch.set(doc(col("auditLog")),auditPayload("transaction",id,"DELETE",sourceRow,null,"Eliminación de ingreso contractual con reversión de cuenta por cobrar"));
     await batch.commit();
     invalidateCollection("transactions");
     invalidateCollection("receivables");
-    const accountIds=[...new Set([row?.accountId,row?.fromAccountId,row?.toAccountId].filter(Boolean))];
-    if(accountIds.length&&row?.date)await markReconciliationsNeedsReview(accountIds,row.date,{reason:"contract_payment_deleted"});
+    invalidateCollection("contractPayments");
+    const accountIds=[...new Set([sourceRow?.accountId,sourceRow?.fromAccountId,sourceRow?.toAccountId].filter(Boolean))];
+    if(accountIds.length&&sourceRow?.date)await markReconciliationsNeedsReview(accountIds,sourceRow.date,{reason:"contract_payment_deleted"});
     return;
   }
   if(row?.settlementId){
