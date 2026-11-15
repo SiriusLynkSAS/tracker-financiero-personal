@@ -273,6 +273,7 @@ export async function saveTransaction(d,id=null){
     if(old.tripExpenseId || old.tripSettlementId) throw new Error("Este movimiento está vinculado a una comisión. Modifícalo desde Comisiones / Viáticos.");
     if(old.reconciliationAdjustment) throw new Error("Este movimiento pertenece a una conciliación. Modifícalo desde Conciliación.");
     if(old.debtPaymentId || old.liabilityId) throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
+    if(old.insurancePolicyId && old.recurringId) throw new Error("Este movimiento corresponde a una prima de seguro. Modifícalo desde Seguros.");
     if(old.recurringId) throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes antes de volver a registrarlo.");
     if(old.investmentId) throw new Error("Este movimiento está vinculado a una inversión. Modifícalo desde Inversiones.");
     if(old.assetId) throw new Error("Este movimiento está vinculado a un activo. Modifícalo desde Activos.");
@@ -314,6 +315,9 @@ export async function removeTransaction(id){
   }
   if(row?.debtPaymentId || row?.liabilityId){
     throw new Error("Este movimiento está vinculado a un pago de deuda. Modifícalo desde Deudas y tarjetas.");
+  }
+  if(row?.insurancePolicyId && row?.recurringId){
+    throw new Error("Este movimiento corresponde a una prima de seguro. Corrígelo desde Seguros; no puede eliminarse directamente.");
   }
   if(row?.recurringId){
     throw new Error("Este movimiento ejecuta un recurrente. Reviértelo desde Recurrentes para volver a habilitar esa ocurrencia.");
@@ -695,6 +699,73 @@ export async function registerInsurancePremium(policyId,{date,accountId,hasInvoi
   recurring.id=recurringId;
   const cat=insurancePremiumCategory(policy.type);
   return saveRecurringTransaction(recurring,String(date||"").slice(0,7),{type:"expense",date,amount:premium,vat:Math.max(0,Number(vat||0)),receipt:"",description:`Prima seguro · ${policy.name||policy.provider}`,hasInvoice:!!hasInvoice,invoiceNumber:hasInvoice?String(invoiceNumber||"").trim():"",invoiceBase:hasInvoice?Math.max(0,premium-Number(vat||0)):0,taxPeriod:hasInvoice&&Number(vat||0)>0?String(date).slice(0,7):"",taxPaymentId:"",vatStatus:hasInvoice&&Number(vat||0)>0?"pending":"none",category:cat.category,subcategory:cat.subcategory,accountId:usedAccount,fromAccountId:null,toAccountId:null,splits:[],insurancePolicyId:policyId,insurancePremiumPayment:true});
+}
+
+export async function correctInsurancePremiumPayment(transactionId,{date,amount,accountId,hasInvoice=false,invoiceNumber="",vat=0}={}){
+  const oldRaw=await getEntity("transactions",transactionId);
+  const oldTx=normalizeTransaction(oldRaw||{});
+  if(!oldTx.id || !oldTx.insurancePolicyId || !oldTx.recurringId || oldTx.insuranceUsageId){
+    throw new Error("Pago de prima de seguro no encontrado.");
+  }
+  if(oldTx.taxPaymentId) throw new Error("Este pago ya está vinculado a una liquidación de IVA y no puede corregirse.");
+  const policy=await getEntity("insurance",oldTx.insurancePolicyId);
+  if(!policy) throw new Error("Seguro vinculado no encontrado.");
+  const correctedAmount=Math.max(0,Number(amount||0));
+  const correctedVat=Math.max(0,Number(vat||0));
+  const correctedDate=String(date||"").slice(0,10);
+  const usedAccount=String(accountId||"").trim();
+  if(!(correctedAmount>0)) throw new Error("El monto del pago debe ser mayor que cero.");
+  if(!usedAccount) throw new Error("Selecciona la cuenta de pago.");
+  if(correctedVat>correctedAmount+.009) throw new Error("El IVA no puede superar el monto pagado.");
+  const occurrence=correctedDate.slice(0,7);
+  if(!/^\d{4}-\d{2}$/.test(occurrence)) throw new Error("Fecha de pago no válida.");
+  const recurringId=String(oldTx.recurringId||policy.premiumRecurringId||insurancePremiumRecurringId(policy.id));
+  const targetId=recurringOccurrenceId(recurringId,occurrence);
+  if(targetId!==oldTx.id){
+    const existing=await getEntity("transactions",targetId);
+    if(existing) throw new Error("Ya existe una prima registrada para el mes seleccionado.");
+  }
+  const recurring=await getEntity("recurring",recurringId);
+  const [year,month]=occurrence.split("-").map(Number);
+  const maxDay=new Date(year,month,0).getDate();
+  const scheduledDay=Math.min(Math.max(1,Number(recurring?.dayOfMonth||policy.paymentDay||1)),maxDay);
+  const scheduledDate=`${occurrence}-${String(scheduledDay).padStart(2,"0")}`;
+  const oldDateTime=String(oldRaw?.transactionDateTime||"");
+  const timePart=oldDateTime.includes("T")?oldDateTime.split("T")[1]:"";
+  const cat=insurancePremiumCategory(policy.type);
+  const txAfter=sanitizeTransactionWrite({
+    ...oldRaw,
+    id:undefined,
+    type:"expense",date:correctedDate,transactionDateTime:timePart?`${correctedDate}T${timePart}`:"",
+    amount:correctedAmount,vat:hasInvoice?correctedVat:0,
+    accountId:usedAccount,fromAccountId:null,toAccountId:null,
+    description:String(oldTx.description||`Prima seguro · ${policy.name||policy.provider}`).trim(),
+    receipt:"",hasInvoice:!!hasInvoice,invoiceNumber:hasInvoice?String(invoiceNumber||"").trim():"",
+    invoiceBase:hasInvoice?Math.max(0,correctedAmount-correctedVat):0,
+    taxPeriod:hasInvoice&&correctedVat>0?occurrence:"",taxPaymentId:"",vatStatus:hasInvoice&&correctedVat>0?"pending":"none",
+    category:oldTx.category||cat.category,subcategory:oldTx.subcategory||cat.subcategory,
+    recurringId,recurringOccurrence:occurrence,recurringScheduledDate:scheduledDate,
+    insurancePolicyId:policy.id,insurancePremiumPayment:true,
+    grossDebitAmount:correctedAmount+Math.max(0,Number(oldTx.feeAmount||0))+Math.max(0,Number(oldTx.taxAmount||0))+Math.max(0,Number(oldTx.otherChargeAmount||0))
+  });
+  delete txAfter.id;
+  if(!txAfter.transactionDateTime) delete txAfter.transactionDateTime;
+  const batch=writeBatch(db);
+  if(targetId===oldTx.id){
+    batch.set(ref("transactions",oldTx.id),{...txAfter,updatedAt:serverTimestamp()},{merge:true});
+    batch.set(doc(col("auditLog")),auditPayload("transaction",oldTx.id,"UPDATE",oldRaw,txAfter,"Corrección de pago de prima de seguro"));
+  }else{
+    batch.set(ref("transactions",targetId),{...txAfter,createdAt:oldRaw?.createdAt||serverTimestamp(),updatedAt:serverTimestamp()});
+    batch.delete(ref("transactions",oldTx.id));
+    batch.set(doc(col("auditLog")),auditPayload("transaction",oldTx.id,"DELETE",oldRaw,null,`Corrección de prima: ocurrencia trasladada a ${occurrence}`));
+    batch.set(doc(col("auditLog")),auditPayload("transaction",targetId,"CREATE",null,txAfter,"Corrección de pago de prima de seguro"));
+  }
+  await batch.commit();
+  invalidateCollection("transactions");
+  const affected=[oldTx.accountId,usedAccount].filter(Boolean);
+  const since=[oldTx.date,correctedDate].filter(Boolean).sort()[0]||correctedDate;
+  if(affected.length&&since) await markReconciliationsNeedsReview([...new Set(affected)],since,{reason:"insurance_premium_corrected"});
+  return targetId;
 }
 
 export async function registerInsuranceCoverage(policyId,usage,transactionData=null){
