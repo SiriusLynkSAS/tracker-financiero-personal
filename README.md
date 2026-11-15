@@ -1,7 +1,7 @@
-# Web V1.0.92 · Pendientes · navegación histórica + paridad Android
+# Web V1.0.93 · Pendientes · navegación histórica + paridad Android
 
 
-## V1.0.92 · Pendientes · navegación histórica
+## V1.0.93 · Pendientes · navegación histórica
 
 - Las notificaciones de pagos/cuotas ya no saltan directamente a pagar: abren el Centro de Pendientes en el elemento seleccionado.
 - Desde ese detalle se puede elegir entre registrar el pago/cobro o **Ya pagado / histórico**, igual que en Android.
@@ -1481,3 +1481,15 @@ Plan mensual, proyecciones, presupuestos y reportes usan esta misma regla.
 - Los campos opcionales permiten quitar la fecha.
 - `confirmAction` usa `<dialog>` modal top-layer para no quedar detrás de editores abiertos, corrigiendo Editar fechas en Contratos.
 - No se modifica lógica financiera ni se añade hora a fechas contractuales/operativas.
+
+
+## V1.0.93 — Cierre de paridad V1
+- Pendientes se incorpora a la navegación principal.
+- Centro de Pendientes integra alertas de presupuesto como Android.
+- Viáticos permite corregir el valor reconocido desde Web.
+- IVA/Impuestos legacy redirige al módulo canónico Facturación.
+- Ajustes de paridad derivados de la auditoría Web/Android.
+
+- Categorías y Metas usan ventanas modales para homologar la metodología de edición con Android.
+- Suite de cierre V1: 27 pruebas ejecutables PASS; schema.test.mjs continúa requiriendo su JSON externo.
+- Firebase (configuración, reglas e índices) permanece sin cambios.

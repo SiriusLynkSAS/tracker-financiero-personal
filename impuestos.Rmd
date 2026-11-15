@@ -3,6 +3,6 @@ title: "IVA / Impuestos"
 ---
 
 ```{=html}
-<div class="tf-page-header"><div><h1>IVA / Impuestos</h1><div class="tf-muted">El seguimiento de IVA ahora forma parte de Facturación.</div></div></div>
-<div class="tf-card"><p>El IVA generado, el IVA a favor, la estimación mensual y el registro del pago real se gestionan desde <strong>Facturación</strong>.</p><a class="tf-btn tf-btn-primary" href="facturacion.html#iva">Abrir Facturación · IVA</a></div>
+<div class="tf-card"><h1>IVA integrado en Facturación</h1><p class="tf-muted">El módulo tributario operativo se administra desde Facturación para mantener una única metodología.</p><a class="tf-btn tf-btn-primary" href="facturacion.html">Abrir Facturación / IVA</a></div>
+<script>location.replace("facturacion.html");</script>
 ```

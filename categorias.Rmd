@@ -16,7 +16,7 @@ title: "Categorías"
   <button id="category-new" class="tf-btn tf-btn-primary" type="button">Nueva categoría / subcategoría</button>
 </div>
 
-<div id="category-create-panel" class="tf-card" hidden>
+<dialog id="category-create-panel" class="tf-modal-dialog">
   <div class="tf-section-heading">
     <div><div class="tf-section-kicker">Crear</div><h2>Nueva categoría / subcategoría</h2></div>
   </div>
@@ -41,9 +41,9 @@ title: "Categorías"
       <button id="category-create-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
     </div>
   </form>
-</div>
+</dialog>
 
-<div id="category-style-panel" class="tf-card" style="margin-top:1rem" hidden>
+<dialog id="category-style-panel" class="tf-modal-dialog">
   <div class="tf-section-heading">
     <div><div class="tf-section-kicker">Editar</div><h2 id="category-style-title">Estilo de categoría</h2></div>
   </div>
@@ -56,7 +56,7 @@ title: "Categorías"
       <button id="category-style-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
     </div>
   </form>
-</div>
+</dialog>
 
 <div class="tf-card" style="margin-top:1rem">
   <div class="tf-table-wrap">
@@ -67,5 +67,5 @@ title: "Categorías"
   </div>
 </div>
 
-<script type="module" src="js/categories-v1.js"></script>
+<script type="module" src="js/categories-v1.js?v=1.0.93"></script>
 ```

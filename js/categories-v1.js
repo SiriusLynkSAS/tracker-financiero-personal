@@ -16,6 +16,8 @@ const tbody=document.querySelector("#category-body");
 const createPanel=document.querySelector("#category-create-panel");
 const stylePanel=document.querySelector("#category-style-panel");
 const newButton=document.querySelector("#category-new");
+function openModal(dialog){ if(dialog && !dialog.open) dialog.showModal(); }
+function closeModal(dialog){ if(dialog?.open) dialog.close(); }
 
 function setupPicker(gridId,hiddenId,selected,filter=""){
   const grid=document.querySelector(`#${gridId}`);
@@ -176,13 +178,13 @@ newButton.addEventListener("click",()=>{
   document.querySelector("#category-icon-search").value="";
   setupPicker("category-icon-grid","category-icon","wallet");
   setupColors("category-color-grid","category-color","blue");
-  createPanel.hidden=false;
-  stylePanel.hidden=true;
+  closeModal(stylePanel);
+  openModal(createPanel);
   syncNewCategoryStyleMode();
   document.querySelector("#category-name").focus();
 });
-document.querySelector("#category-create-cancel").addEventListener("click",()=>{createPanel.hidden=true});
-document.querySelector("#category-style-cancel").addEventListener("click",()=>{stylePanel.hidden=true});
+document.querySelector("#category-create-cancel").addEventListener("click",()=>closeModal(createPanel));
+document.querySelector("#category-style-cancel").addEventListener("click",()=>closeModal(stylePanel));
 
 document.querySelector("#category-icon-search").addEventListener("input",e=>{
   setupPicker("category-icon-grid","category-icon",document.querySelector("#category-icon").value,e.target.value);
@@ -233,7 +235,7 @@ document.querySelector("#category-form").addEventListener("submit",async e=>{
   setupColors("category-color-grid","category-color","blue");
   syncNewCategoryStyleMode();
 
-  createPanel.hidden=true;
+  closeModal(createPanel);
   toast(
     existing
       ? "Subcategoría agregada con el estilo de su categoría."
@@ -254,7 +256,7 @@ document.querySelector("#category-style-form").addEventListener("submit",async e
     collection:"categories",id:c.id,action:"update",auditType:"category",
     data:{...c,icon,color}
   })));
-  stylePanel.hidden=true;
+  closeModal(stylePanel);
   toast("Estilo actualizado.");
   await refresh();
 });
@@ -268,9 +270,8 @@ tbody.addEventListener("click",async e=>{
     document.querySelector("#style-category").value=row.category;
     document.querySelector("#category-style-title").textContent=`Editar ${row.category}`;
     loadStyle();
-    createPanel.hidden=true;
-    stylePanel.hidden=false;
-    stylePanel.scrollIntoView({behavior:"smooth",block:"start"});
+    closeModal(createPanel);
+    openModal(stylePanel);
     return;
   }
   const b=e.target.closest("[data-delete]");if(!b)return;

@@ -20,8 +20,8 @@ title: "Metas"
   <button id="goal-new" class="tf-btn tf-btn-primary" type="button">Nueva meta</button>
   <button id="goal-archived-toggle" class="tf-btn tf-btn-secondary" type="button" hidden>Archivadas</button>
 </div>
-<section id="goal-editor" class="tf-card" style="margin-top:1rem" hidden>
-  <h2 id="goal-editor-title">Nueva meta</h2>
+<dialog id="goal-editor" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Meta financiera</div><h2 id="goal-editor-title">Nueva meta</h2></div><button id="goal-editor-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
   <form id="goal-form" class="tf-form-grid">
     <input id="goal-id" type="hidden">
     <div class="tf-field"><label>Meta</label><input id="goal-name" required></div>
@@ -32,13 +32,13 @@ title: "Metas"
     <div class="tf-field"><label>Acumulado manual ($)</label><input id="goal-saved" type="number" min="0" step="0.01" value="0"></div>
     <div class="tf-span-2 tf-actions">
       <button id="goal-submit" class="tf-btn tf-btn-primary">Guardar meta</button>
-      <button id="goal-cancel" class="tf-btn tf-btn-secondary" type="button" hidden>Cancelar edición</button>
+      <button id="goal-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button>
     </div>
   </form>
-</section>
+</dialog>
 
 <div class="tf-table-wrap" style="margin-top:1rem"><table class="tf-table tf-goal-table"><thead><tr><th>Meta</th><th class="tf-num">Objetivo</th><th class="tf-num">Acumulado</th><th class="tf-num">Pendiente</th><th>Fecha objetivo</th><th>Progreso</th><th>Información</th></tr></thead><tbody id="goal-list"></tbody></table></div>
 <dialog id="goal-detail-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Meta financiera</div><h2 id="goal-detail-title">Detalle</h2></div><button id="goal-detail-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div><div id="goal-detail-body"></div></dialog>
 
-<script type="module" src="js/goals.js?v=1.0.86"></script>
+<script type="module" src="js/goals.js?v=1.0.93"></script>
 ```

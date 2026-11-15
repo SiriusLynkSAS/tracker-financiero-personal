@@ -48,10 +48,9 @@ function resetForm(){
   document.querySelector("#goal-saved").value=0;
   document.querySelector("#goal-account").value="";
   document.querySelector("#goal-submit").textContent="Guardar meta";
-  document.querySelector("#goal-cancel").hidden=true;
   document.querySelector("#goal-saved").disabled=false;
   document.querySelector("#goal-editor-title").textContent="Nueva meta";
-  editor.hidden=true;
+  if(editor.open)editor.close();
 }
 function toggleManual(){
   const linked=!!document.querySelector("#goal-account").value;
@@ -88,7 +87,8 @@ async function refresh(){
 
 document.querySelector("#goal-account").addEventListener("change",toggleManual);
 document.querySelector("#goal-cancel").addEventListener("click",resetForm);
-newButton.addEventListener("click",()=>{resetForm();editor.hidden=false;document.querySelector("#goal-name").focus()});
+document.querySelector("#goal-editor-close").addEventListener("click",resetForm);
+newButton.addEventListener("click",()=>{resetForm();editor.showModal();document.querySelector("#goal-name").focus()});
 archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;resetForm();render();renderEmergency()});
 
 document.querySelector("#goal-form").addEventListener("submit",async e=>{
@@ -127,7 +127,7 @@ list.addEventListener("click",async e=>{
   }
   if(edit){
     const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;
-    editor.hidden=false;
+    if(!editor.open)editor.showModal();
     document.querySelector("#goal-editor-title").textContent="Editar meta";
     document.querySelector("#goal-id").value=g.id;
     document.querySelector("#goal-name").value=g.name||"";
@@ -137,8 +137,7 @@ list.addEventListener("click",async e=>{
     document.querySelector("#goal-account").value=g.accountId||"";
     document.querySelector("#goal-saved").value=Number(g.savedManual||0);
     document.querySelector("#goal-submit").textContent="Actualizar meta";
-    document.querySelector("#goal-cancel").hidden=false;
-    toggleManual();scrollTo({top:0,behavior:"smooth"});
+    toggleManual();
   }
   if(reactivate){await reactivateGoal(reactivate.dataset.reactivate);await refresh()}
   if(archive&&await confirmAction({title:"Archivar meta",message:"Se conserva su historial.",confirmText:"Archivar"})){
@@ -152,7 +151,7 @@ document.querySelector("#goal-detail-close").addEventListener("click",()=>docume
 
 document.querySelector("#goal-detail-body").addEventListener("click",async e=>{
   const edit=e.target.closest("[data-edit]"), archive=e.target.closest("[data-archive]"), reactivate=e.target.closest("[data-reactivate]");
-  if(edit){document.querySelector("#goal-detail-dialog").close();const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;editor.hidden=false;document.querySelector("#goal-editor-title").textContent="Editar meta";document.querySelector("#goal-id").value=g.id;document.querySelector("#goal-name").value=g.name||"";document.querySelector("#goal-target").value=Number(g.target||0);document.querySelector("#goal-date").value=g.targetDate||"";document.querySelector("#goal-priority").value=g.priority||"medium";document.querySelector("#goal-account").value=g.accountId||"";document.querySelector("#goal-saved").value=Number(g.savedManual||0);document.querySelector("#goal-submit").textContent="Actualizar meta";document.querySelector("#goal-cancel").hidden=false;toggleManual();scrollTo({top:0,behavior:"smooth"});}
+  if(edit){document.querySelector("#goal-detail-dialog").close();const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;if(!editor.open)editor.showModal();document.querySelector("#goal-editor-title").textContent="Editar meta";document.querySelector("#goal-id").value=g.id;document.querySelector("#goal-name").value=g.name||"";document.querySelector("#goal-target").value=Number(g.target||0);document.querySelector("#goal-date").value=g.targetDate||"";document.querySelector("#goal-priority").value=g.priority||"medium";document.querySelector("#goal-account").value=g.accountId||"";document.querySelector("#goal-saved").value=Number(g.savedManual||0);document.querySelector("#goal-submit").textContent="Actualizar meta";toggleManual();}
   if(reactivate){await reactivateGoal(reactivate.dataset.reactivate);document.querySelector("#goal-detail-dialog").close();await refresh();}
   if(archive&&await confirmAction({title:"Archivar meta",message:"Se conserva su historial.",confirmText:"Archivar"})){await archiveGoal(archive.dataset.archive);document.querySelector("#goal-detail-dialog").close();await refresh();}
 });

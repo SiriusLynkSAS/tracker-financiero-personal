@@ -1,6 +1,6 @@
 import {requireUser} from "./guard.js";
-import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional,listBudgets} from "./data-service.js?v=1.0.92";
-import {buildPendingItems} from "./pending-engine.js?v=1.0.92";
+import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional,listBudgets} from "./data-service.js?v=1.0.93";
+import {buildPendingItems} from "./pending-engine.js?v=1.0.93";
 import {buildBudgetAlerts} from "./budget-alerts.js";
 import {money,escapeHtml,todayISO} from "./utils.js";
 

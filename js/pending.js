@@ -1,14 +1,15 @@
 import {requireUser} from "./guard.js";
 import {
-  listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,
+  listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,listBudgets,
   saveRecurringTransaction,listInvoicesOptional,
   closeRecurringOccurrenceHistorical,closeLiabilityInstallmentHistorical,closeFinancingPlanInstallmentHistorical
-} from "./data-service.js?v=1.0.92";
-import {buildPendingItems,closeHistoricalInstallment} from "./pending-engine.js?v=1.0.92";
+} from "./data-service.js?v=1.0.93";
+import {buildPendingItems,closeHistoricalInstallment} from "./pending-engine.js?v=1.0.93";
+import {buildBudgetAlerts} from "./budget-alerts.js?v=1.0.93";
 import {money,escapeHtml} from "./utils.js";
 import {toast} from "./ui.js";
 
-let items=[],filter="all",recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],categories=[],invoices=[];
+let items=[],filter="all",recurring=[],transactions=[],liabilities=[],plans=[],accounts=[],categories=[],invoices=[],budgets=[];
 let selectedItem=null,txTarget=null,historicalTarget=null;
 const list=document.querySelector("#pending-list");
 const summary=document.querySelector("#pending-summary");
@@ -16,13 +17,14 @@ const detailDialog=document.querySelector("#pending-detail-dialog");
 const txDialog=document.querySelector("#pending-transaction-dialog");
 const historicalDialog=document.querySelector("#pending-historical-dialog");
 
-function statusLabel(x){return x==="overdue"?"Vencido":x==="today"?"Vence hoy":"Próximo";}
+function statusLabel(x){return x==="overdue"?"Vencido":x==="today"?"Vence hoy":x==="budget"?"Presupuesto":"Próximo";}
 function renderSummary(){
   if(!summary)return;
   const overdue=items.filter(x=>x.status==="overdue").length;
   const today=items.filter(x=>x.status==="today").length;
   const upcoming=items.filter(x=>x.status==="upcoming").length;
-  summary.innerHTML=`<div class="tf-section-heading"><div><div class="tf-section-kicker">Centro de pendientes</div><h2>${items.length} pendiente(s)</h2><div class="tf-muted">${overdue} vencido(s) · ${today} hoy · ${upcoming} próximo(s)</div></div></div>`;
+  const budget=items.filter(x=>x.status==="budget").length;
+  summary.innerHTML=`<div class="tf-section-heading"><div><div class="tf-section-kicker">Centro de pendientes</div><h2>${items.length} pendiente(s)</h2><div class="tf-muted">${overdue} vencido(s) · ${today} hoy · ${upcoming} próximo(s) · ${budget} presupuesto(s)</div></div></div>`;
 }
 function render(){
   renderSummary();
@@ -34,7 +36,9 @@ function openPending(item){
   selectedItem=item;
   document.querySelector("#pending-detail-status").textContent=statusLabel(item.status);
   document.querySelector("#pending-detail-title").textContent=item.title;
-  document.querySelector("#pending-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Monto</span><strong>${money(item.amount)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Vence</span><strong>${escapeHtml(item.dueDate)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Detalle</span><strong>${escapeHtml(item.subtitle||"—")}</strong></div></div>`;
+  document.querySelector("#pending-detail-body").innerHTML=item.kind==="budget"
+    ?`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Disponible</span><strong>${money(item.available)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Gastado</span><strong>${money(item.spent)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Restante</span><strong>${money(item.remaining)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Período</span><strong>${escapeHtml(item.month)}</strong></div></div>`
+    :`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Monto</span><strong>${money(item.amount)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Vence</span><strong>${escapeHtml(item.dueDate)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Detalle</span><strong>${escapeHtml(item.subtitle||"—")}</strong></div></div>`;
   const action=document.querySelector("#pending-detail-action");
   action.textContent=item.actionLabel||"Abrir acción";
   const historical=document.querySelector("#pending-detail-historical");
@@ -123,10 +127,14 @@ async function closeHistorical(item,paidDate){
   throw new Error("Tipo de pendiente no soportado.");
 }
 async function load(){
-  [recurring,transactions,liabilities,plans,accounts,categories,invoices]=await Promise.all([
-    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories(),listInvoicesOptional()
+  [recurring,transactions,liabilities,plans,accounts,categories,invoices,budgets]=await Promise.all([
+    listRecurring(),listTransactions(),listLiabilities(),listFinancingPlans(),listAccounts({includeArchived:false}),listCategories(),listInvoicesOptional(),listBudgets()
   ]);
-  items=buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices});
+  const financialItems=buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices});
+  const budgetItems=buildBudgetAlerts({budgets,transactions}).map(b=>({
+    ...b,status:"budget",subtitle:b.label,dueDate:b.month,actionLabel:"Revisar presupuesto"
+  }));
+  items=[...financialItems,...budgetItems];
   render();
   const focus=new URLSearchParams(location.search).get("focus");
   if(focus){
