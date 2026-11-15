@@ -3767,3 +3767,10 @@ tr.is-muted{opacity:.66}
 .tf-info-button{white-space:nowrap}
 .tf-field.is-disabled{opacity:.55}
 @media(max-width:900px){.tf-plan-dual-summary{grid-template-columns:1fr!important}}
+
+/* AUD-POST-016 · cronogramas de deuda/tarjeta: ancho operativo completo */
+.tf-schedule-dialog{width:min(96vw,1380px)!important;max-width:1380px!important;}
+.tf-schedule-dialog .tf-modal-scroll{overflow:auto;}
+.tf-schedule-dialog .tf-table-wrap{overflow:auto;}
+.tf-schedule-dialog .tf-table{min-width:1120px;}
+@media(max-width:760px){.tf-schedule-dialog{width:96vw!important;}.tf-schedule-dialog .tf-table{min-width:980px;}}

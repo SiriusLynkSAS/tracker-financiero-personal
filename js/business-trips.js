@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listBusinessTrips,saveBusinessTrip,listTripExpenses,listTripSettlements,createTripExpense,updateTripExpenseRecognition,voidTripExpense,createTripSettlement,listAccounts,listCategories} from "./data-service.js?v=1.0.87";
+import {listBusinessTrips,saveBusinessTrip,listTripExpenses,listTripSettlements,createTripExpense,updateTripExpenseRecognition,voidTripExpense,createTripSettlement,listAccounts,listCategories} from "./data-service.js?v=1.0.89";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 

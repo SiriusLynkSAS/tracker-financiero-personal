@@ -89,10 +89,11 @@ export function monthlyCommitments({
     const type=String(r.type||"").toLowerCase();
     if(!["income","expense"].includes(type)) continue;
 
+    const insuranceLinked=!!(r.insurancePolicyId||String(r.sourceKind||"")==="insurance_premium");
     rows.push({
-      key:`recurring:${r.id}`,
+      key:insuranceLinked?`insurance:${r.insurancePolicyId||r.id}`:`recurring:${r.id}`,
       kind:type,
-      source:"recurring",
+      source:insuranceLinked?"insurance":"recurring",
       label:r.name||"Recurrente",
       detail:[r.category,r.subcategory].filter(Boolean).join(" · ") ||
         `Día ${Number(r.dayOfMonth||1)}`,
@@ -102,7 +103,9 @@ export function monthlyCommitments({
     });
   }
 
+  const insuranceWithLinkedRecurring=new Set(recurring.filter(r=>r.active!==false&&(r.insurancePolicyId||String(r.sourceKind||"")==="insurance_premium")).map(r=>String(r.insurancePolicyId||"")).filter(Boolean));
   for(const p of insurance){
+    if(insuranceWithLinkedRecurring.has(String(p.id))) continue;
     if(p.active===false || !appliesToMonth(p,month)) continue;
     const amount=Number(p.monthlyPremium||0);
     if(!(amount>0)) continue;
@@ -252,7 +255,7 @@ export function monthlyProjection({
 
   const monthTx=analyticTransactions(transactions.filter(t=>inMonth(t.date,month)));
   const monthIncome=monthTx.filter(t=>t.type==="income");
-  const monthExpenseActivity=monthTx.filter(t=>["expense","investment_out"].includes(t.type));
+  const monthExpenseActivity=monthTx.filter(t=>t.type==="expense");
 
   const receivablePendingIncome=sum(
     commitments.filter(x=>x.kind==="income"&&x.source==="receivable"),
@@ -297,7 +300,7 @@ export function monthlyProjection({
 
   const cashExpenses=sum(
     monthTx.filter(t=>
-      ["expense","investment_out"].includes(t.type) &&
+      t.type==="expense" &&
       accountTypes.get(t.accountId)!=="credit_card"
     ),
     t=>t.amount
@@ -511,6 +514,7 @@ export function emergencyFundSummary({
   insurance=[],
   debts=[],
   cardPlans=[],
+  investments=[],
   balances={},
   projection=null,
   today=todayISO()
@@ -577,18 +581,21 @@ export function emergencyFundSummary({
 
   for(const row of recurring){
     if(row.active===false || row.type!=="expense" || !automaticEssentialRecurring(row)) continue;
-    const key=`recurring:${row.id}`;
+    const insuranceLinked=!!(row.insurancePolicyId||String(row.sourceKind||"")==="insurance_premium");
+    const key=insuranceLinked?`insurance:${row.insurancePolicyId||row.id}`:`recurring:${row.id}`;
     components.push({
       key,
       label:row.name||row.subcategory||row.category||"Gasto recurrente",
       detail:[row.category,row.subcategory].filter(Boolean).join(" · "),
-      source:"recurring",
+      source:insuranceLinked?"insurance":"recurring",
       amount:Math.max(0,Number(row.amount||0)),
       counted:cfg.essentialOverrides[key]??true
     });
   }
 
+  const insuranceWithLinkedEssential=new Set(recurring.filter(r=>r.active!==false&&(r.insurancePolicyId||String(r.sourceKind||"")==="insurance_premium")).map(r=>String(r.insurancePolicyId||"")).filter(Boolean));
   for(const row of insurance){
+    if(insuranceWithLinkedEssential.has(String(row.id))) continue;
     if(row.active===false) continue;
     const amount=Number(row.monthlyPremium||0);
     if(!(amount>0)) continue;
@@ -647,11 +654,27 @@ export function emergencyFundSummary({
 
   const essentialMonthly=sum(components.filter(x=>x.counted),x=>x.amount);
   const targetAmount=essentialMonthly*Math.max(1,Number(cfg.targetMonths||6));
-  const currentAmount=sum(
-    cfg.linkedAccountIds,
+  const activeInvestments=investments.filter(x=>x.active!==false&&x.status==="active");
+  const classified=activeInvestments.filter(x=>["immediate","secondary"].includes(x.emergencyFundTier));
+  const emergencyHoldingIds=new Set(classified.filter(x=>x.holdingAccountId).map(x=>String(x.holdingAccountId)));
+  const bankImmediate=sum(
+    cfg.linkedAccountIds.filter(id=>!emergencyHoldingIds.has(String(id))),
     id=>Math.max(0,Number(balances[id]||0))
   );
+  const seenHolding=new Set();
+  const uniqueClassified=classified.filter(x=>{
+    if(!x.holdingAccountId) return true;
+    const id=String(x.holdingAccountId);if(seenHolding.has(id)) return false;seenHolding.add(id);return true;
+  });
+  const investmentAmount=x=>x.holdingAccountId
+    ? Math.max(0,Number(balances[x.holdingAccountId]||0))
+    : Math.max(0,Number(x.currentBalance ?? x.principal ?? 0));
+  const immediateInvestments=sum(uniqueClassified.filter(x=>x.emergencyFundTier==="immediate"),investmentAmount);
+  const secondaryAmount=sum(uniqueClassified.filter(x=>x.emergencyFundTier==="secondary"),investmentAmount);
+  const currentAmount=bankImmediate+immediateInvestments;
+  const totalEmergencyAssets=currentAmount+secondaryAmount;
   const coverageMonths=essentialMonthly>0?currentAmount/essentialMonthly:0;
+  const coverageMonthsWithSecondary=essentialMonthly>0?totalEmergencyAssets/essentialMonthly:0;
   const progress=targetAmount>0?Math.min(1,Math.max(0,currentAmount/targetAmount)):0;
   const recommendedSavings=Math.max(0,Number(projection?.recommendedSavings||0));
   const remaining=Math.max(0,targetAmount-currentAmount);
@@ -670,7 +693,12 @@ export function emergencyFundSummary({
     essentialMonthly,
     targetAmount,
     currentAmount,
+    bankImmediate,
+    immediateInvestments,
+    secondaryAmount,
+    totalEmergencyAssets,
     coverageMonths,
+    coverageMonthsWithSecondary,
     progress,
     recommendedSavings,
     suggestedContribution,

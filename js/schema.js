@@ -126,14 +126,14 @@ export function normalizeTransaction(raw={}){
     reconciliationId:text(raw.reconciliationId),liabilityId:text(raw.liabilityId),debtPaymentId:text(raw.debtPaymentId),
     recurringId:text(raw.recurringId),recurringOccurrence:text(raw.recurringOccurrence),recurringScheduledDate:text(raw.recurringScheduledDate),
     mig010Resolution:text(raw.mig010Resolution),
-    investmentId:text(raw.investmentId),contractPaymentId:text(raw.contractPaymentId),settlementId:text(raw.settlementId),
+    investmentId:text(raw.investmentId),assetId:text(raw.assetId),contractPaymentId:text(raw.contractPaymentId),settlementId:text(raw.settlementId),
     insuranceUsageId:text(raw.insuranceUsageId),insurancePolicyId:text(raw.insurancePolicyId),
     contractId:text(raw.contractId),
     contractAllocations:Array.isArray(raw.contractAllocations)?raw.contractAllocations.map(a=>({
       receivableId:text(a?.receivableId),contractId:text(a?.contractId),workPeriod:text(a?.workPeriod),amount:nonNegative(a?.amount,0)
     })).filter(a=>a.receivableId&&a.amount>0):[],
     invoiceId:text(raw.invoiceId),invoicePaymentId:text(raw.invoicePaymentId),
-    economicAmount:nonNegative(raw.economicAmount,0),invoiceVatComponent:nonNegative(raw.invoiceVatComponent,0),
+    economicAmount:nonNegative(raw.economicAmount,0),invoiceVatComponent:nonNegative(raw.invoiceVatComponent,0),contractReceivableComponent:nonNegative(raw.contractReceivableComponent,0),
     feeAmount,taxAmount,otherChargeAmount,
     grossDebitAmount:grossStored>0?grossStored:amount+feeAmount+taxAmount+otherChargeAmount,
     splits:Array.isArray(raw.splits)?raw.splits:[]
@@ -179,11 +179,11 @@ export function sanitizeTransactionWrite(raw={}){
     feeAmount:row.feeAmount,taxAmount:row.taxAmount,otherChargeAmount:row.otherChargeAmount,grossDebitAmount:row.grossDebitAmount,
     recurringId:nullableText(row.recurringId),recurringOccurrence:nullableText(row.recurringOccurrence),recurringScheduledDate:nullableText(row.recurringScheduledDate),
     mig010Resolution:nullableText(row.mig010Resolution),
-    investmentId:nullableText(row.investmentId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId),
+    investmentId:nullableText(row.investmentId),assetId:nullableText(row.assetId),contractPaymentId:nullableText(row.contractPaymentId),settlementId:nullableText(row.settlementId),
     insuranceUsageId:nullableText(row.insuranceUsageId),insurancePolicyId:nullableText(row.insurancePolicyId),
     contractId:nullableText(row.contractId),contractAllocations:row.contractAllocations,
     invoiceId:nullableText(row.invoiceId),invoicePaymentId:nullableText(row.invoicePaymentId),
-    economicAmount:row.economicAmount>0?row.economicAmount:0,invoiceVatComponent:row.invoiceVatComponent>0?row.invoiceVatComponent:0
+    economicAmount:row.economicAmount>0?row.economicAmount:0,invoiceVatComponent:row.invoiceVatComponent>0?row.invoiceVatComponent:0,contractReceivableComponent:row.contractReceivableComponent>0?row.contractReceivableComponent:0
   };
   if(dt) out.transactionDateTime=dt; else delete out.transactionDateTime;
   delete out.legacyVatRaw;delete out.legacyVatAmbiguous;delete out.dateTimeInferred;
@@ -197,6 +197,8 @@ export function normalizeInvoice(raw={}){
   const paidAmount=Math.min(nonNegative(raw.paidAmount,0),totalAmount);
   const paidBaseAmount=Math.min(nonNegative(raw.paidBaseAmount,0),baseAmount);
   const paidVatAmount=Math.min(nonNegative(raw.paidVatAmount,Math.max(0,paidAmount-paidBaseAmount)),vatAmount);
+  // Legacy linked invoices used the tax base as the contractual amount. New writes persist the explicit contractual amount.
+  const contractualAmount=nonNegative(raw.contractualAmount,text(raw.receivableId)?baseAmount:0);
   const dueDate=text(raw.dueDate);
   const today=new Date();
   const todayIso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
@@ -211,7 +213,7 @@ export function normalizeInvoice(raw={}){
     invoiceNumber:text(raw.invoiceNumber),customerName:text(raw.customerName),customerId:text(raw.customerId),
     issueDate:text(raw.issueDate),dueDate,concept:text(raw.concept),notes:text(raw.notes),
     calculationMode:["base_plus_vat","total_includes_vat"].includes(text(raw.calculationMode))?text(raw.calculationMode):"base_plus_vat",
-    vatRate:nonNegative(raw.vatRate,13),baseAmount,vatAmount,totalAmount,paidAmount,paidBaseAmount,paidVatAmount,status,active:raw.active!==false,
+    vatRate:nonNegative(raw.vatRate,13),baseAmount,vatAmount,totalAmount,paidAmount,paidBaseAmount,paidVatAmount,contractualAmount,status,active:raw.active!==false,
     contractId:text(raw.contractId),receivableId:text(raw.receivableId),taxPeriod:text(raw.taxPeriod||(text(raw.issueDate).slice(0,7))),
     vatStatus:text(raw.vatStatus)||(vatAmount>0?"pending":"none"),taxPaymentId:text(raw.taxPaymentId)
   };
@@ -233,7 +235,7 @@ export function sanitizeInvoiceWrite(raw={}){
     ...raw,schemaVersion:SCHEMA_VERSION,invoiceNumber:row.invoiceNumber,customerName:row.customerName,customerId:row.customerId,
     issueDate:row.issueDate,dueDate:row.dueDate,concept:row.concept,notes:row.notes,calculationMode:row.calculationMode,
     vatRate:row.vatRate,baseAmount:row.baseAmount,vatAmount:row.vatAmount,totalAmount:row.totalAmount,paidAmount:row.paidAmount,
-    paidBaseAmount:row.paidBaseAmount,paidVatAmount:row.paidVatAmount,status:row.status,active:row.active,contractId:nullableText(row.contractId),receivableId:nullableText(row.receivableId),
+    paidBaseAmount:row.paidBaseAmount,paidVatAmount:row.paidVatAmount,contractualAmount:row.receivableId?row.contractualAmount:0,status:row.status,active:row.active,contractId:nullableText(row.contractId),receivableId:nullableText(row.receivableId),
     taxPeriod:row.taxPeriod,vatStatus:row.vatStatus,taxPaymentId:nullableText(row.taxPaymentId)
   };
 }
@@ -321,7 +323,14 @@ export function normalizeInvestment(raw={}){
     ...raw,schemaVersion:integer(raw.schemaVersion,0),bank:text(raw.bank),institutionId:text(raw.institutionId),institutionDisplayName:text(raw.institutionDisplayName),name:text(raw.name),principal,annualRate,
     rateType:text(raw.rateType)||"nominal",calculation:text(raw.calculation)||"compound",capitalization:text(raw.capitalization)||"monthly",
     startDate:text(raw.startDate),termValue:nonNegative(raw.termValue,0),termUnit:text(raw.termUnit)||"months",maturityDate:text(raw.maturityDate),
-    withholding:nonNegative(raw.withholding,0),fees:nonNegative(raw.fees,0),sourceAccountId:text(raw.sourceAccountId),
+    withholding:nonNegative(raw.withholding,0),fees:nonNegative(raw.fees,0),sourceAccountId:text(raw.sourceAccountId),holdingAccountId:text(raw.holdingAccountId),
+    currentBalance:nonNegative(raw.currentBalance??principal,principal),
+    liquidity:["immediate","restricted","maturity"].includes(text(raw.liquidity))?text(raw.liquidity):"maturity",
+    withdrawalPenalty:["none","lost_interest","other"].includes(text(raw.withdrawalPenalty))?text(raw.withdrawalPenalty):"none",
+    emergencyFundTier:["none","immediate","secondary"].includes(text(raw.emergencyFundTier))?text(raw.emergencyFundTier):"none",
+    recurringContributionAmount:nonNegative(raw.recurringContributionAmount,0),
+    recurringContributionDay:Math.min(31,Math.max(1,integer(raw.recurringContributionDay,1))),
+    capitalTransactionId:text(raw.capitalTransactionId),
     capitalMovementMode:text(raw.capitalMovementMode)||"historical",reminderDaysBefore:Math.min(365,Math.max(0,integer(raw.reminderDaysBefore,0))),
     status,active,legacyStatusConflict:(!active&&rawStatus==="active")||(!has(raw,"status"))
   };
@@ -338,6 +347,9 @@ export function sanitizeInvestmentWrite(raw={}){
   if(row.maturityDate&&!isoDate(row.maturityDate)) throw new Error("Fecha de vencimiento no válida.");
   if(!["automatic","linked_existing","historical","already_registered"].includes(row.capitalMovementMode)) throw new Error("Modo de capital no válido.");
   if(!["active","liquidated","renewed","cancelled","legacy_inactive"].includes(row.status)) throw new Error("Estado de inversión no válido.");
+  if(row.emergencyFundTier==="immediate" && row.liquidity!=="immediate") throw new Error("Solo una inversión de liquidez inmediata puede integrar el fondo disponible inmediato.");
+  if(row.emergencyFundTier==="immediate" && row.withdrawalPenalty!=="none") throw new Error("El fondo inmediato no puede tener penalización de retiro.");
+  if(row.holdingAccountId && row.sourceAccountId && row.holdingAccountId===row.sourceAccountId && row.capitalMovementMode!=="historical") throw new Error("La cuenta origen y la cuenta que contiene la inversión deben ser diferentes.");
   const institution=resolveInstitutionIdentity(row.bank,row.institutionId,row.institutionDisplayName);
   return {...raw,...row,institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,schemaVersion:SCHEMA_VERSION};
 }

@@ -2,8 +2,8 @@ import {requireUser} from "./guard.js";
 import {
   getEmergencyFund,saveEmergencyFund,listAccounts,listTransactions,listRecurring,
   listInsurance,listLiabilities,listFinancingPlans,calculateBalances,saveTransaction,
-  listContracts,syncReceivablesClosed
-} from "./data-service.js?v=1.0.86";
+  listContracts,listInvestments,syncReceivablesClosed
+} from "./data-service.js?v=1.0.89";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 import {
@@ -11,7 +11,7 @@ import {
 } from "./planning.js";
 
 let config=defaultEmergencyFundConfig();
-let accounts=[],txs=[],recurring=[],insurance=[],debts=[],cardPlans=[],contracts=[],receivables=[],balances={},summary=null;
+let accounts=[],txs=[],recurring=[],insurance=[],debts=[],cardPlans=[],contracts=[],receivables=[],investments=[],balances={},summary=null;
 let transferMode=null;
 
 function accountLabel(a){ return [a.bank,a.alias].filter(Boolean).join(" · ")||"Cuenta"; }
@@ -29,7 +29,7 @@ function projection(){
 
 function calculate(){
   summary=emergencyFundSummary({
-    config,accounts,transactions:txs,recurring,insurance,debts,cardPlans,balances,
+    config,accounts,investments,transactions:txs,recurring,insurance,debts,cardPlans,balances,
     projection:projection(),today:todayISO()
   });
 }
@@ -63,6 +63,22 @@ function renderComponents(){
     `).join("");
 }
 
+
+function renderInvestments(){
+  const root=document.querySelector("#ef-investment-list");
+  if(!root)return;
+  const rows=investments.filter(i=>i.active!==false&&["immediate","secondary"].includes(String(i.emergencyFundTier||"none")));
+  root.innerHTML=rows.map(i=>{
+    const tier=String(i.emergencyFundTier||"none");
+    const balance=i.holdingAccountId
+      ? Math.max(0,Number(balances[i.holdingAccountId]||0))
+      : Math.max(0,Number(i.currentBalance??i.principal??0));
+    const liquidity=String(i.liquidity||"restricted")==="immediate"?"Liquidez inmediata":"Reserva secundaria";
+    const penalty=String(i.withdrawalPenalty||"none")==="none"?"sin penalización":String(i.withdrawalPenalty)==="lost_interest"?"pierde intereses al retirar":"con penalización";
+    return `<div class="tf-summary-row"><span><strong>${escapeHtml(i.name||i.bank||"Inversión")}</strong><br><small class="tf-muted">${escapeHtml(liquidity)} · ${escapeHtml(penalty)}</small></span><strong>${money(balance)}</strong></div>`;
+  }).join("")||`<div class="tf-empty">No hay inversiones clasificadas para el fondo de emergencia.</div>`;
+}
+
 function renderTransfers(){
   const rows=txs
     .filter(t=>t.type==="transfer"&&String(t.description||"").toLocaleLowerCase("es").includes("fondo de emergencia"))
@@ -79,6 +95,11 @@ function render(){
   calculate();
 
   document.querySelector("#ef-current").textContent=money(summary.currentAmount);
+  document.querySelector("#ef-bank-immediate").textContent=money(summary.bankImmediate||0);
+  document.querySelector("#ef-investment-immediate").textContent=money(summary.immediateInvestments||0);
+  document.querySelector("#ef-secondary").textContent=money(summary.secondaryAmount||0);
+  document.querySelector("#ef-total-emergency").textContent=money(summary.totalEmergencyAssets||summary.currentAmount||0);
+  document.querySelector("#ef-coverage-secondary").textContent=`${Number(summary.coverageMonthsWithSecondary||0).toFixed(1)} meses`;
   document.querySelector("#ef-target").textContent=money(summary.targetAmount);
   document.querySelector("#ef-coverage").textContent=`${summary.coverageMonths.toFixed(1)} meses`;
   document.querySelector("#ef-objective").textContent=`${summary.config.targetMonths} meses`;
@@ -114,6 +135,7 @@ function render(){
   document.querySelector("#ef-withdraw").disabled=!hasFund;
 
   renderAccounts();
+  renderInvestments();
   renderComponents();
   renderTransfers();
 }
@@ -135,11 +157,11 @@ async function saveConfig(next,note=""){
 
 async function refresh(){
   receivables=await syncReceivablesClosed();
-  const [saved,a,t,r,i,d,p,c]=await Promise.all([
+  const [saved,a,t,r,i,d,p,c,inv]=await Promise.all([
     getEmergencyFund(),listAccounts(),listTransactions(),listRecurring(),listInsurance(),
-    listLiabilities(),listFinancingPlans(),listContracts()
+    listLiabilities(),listFinancingPlans(),listContracts(),listInvestments()
   ]);
-  accounts=a;txs=t;recurring=r;insurance=i;debts=d;cardPlans=p;contracts=c;
+  accounts=a;txs=t;recurring=r;insurance=i;debts=d;cardPlans=p;contracts=c;investments=inv;
   balances=calculateBalances(accounts,txs);
   config={...defaultEmergencyFundConfig(),...(saved||{})};
   if(!Array.isArray(config.linkedAccountIds))config.linkedAccountIds=[];
