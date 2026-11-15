@@ -1,4 +1,4 @@
-import { setupPendingMenu } from "./notifications.js?v=1.0.92";
+import { setupPendingMenu } from "./notifications.js?v=1.0.93";
 import { initDateOnlyPickers } from "./date-picker.js?v=1.0.83";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";
@@ -65,6 +65,7 @@ const groups = [
     items: [
       ["cuentas","Bancos y cuentas","wallet"],
       ["movimientos","Movimientos","arrows"],
+      ["pendientes","Pendientes","bell"],
       ["categorias","Categorías","tags"]
     ]
   },

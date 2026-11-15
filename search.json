@@ -39,7 +39,7 @@
     "href": "impuestos.html",
     "title": "IVA / Impuestos",
     "section": "",
-    "text": "IVA / ImpuestosEl seguimiento de IVA ahora forma parte de Facturación.\nEl IVA generado, el IVA a favor, la estimación mensual y el registro del pago real se gestionan desde Facturación.Abrir Facturación · IVA"
+    "text": "IVA integrado en FacturaciónEl módulo tributario operativo se administra desde Facturación para mantener una única metodología.Abrir Facturación / IVA"
   },
   {
     "objectID": "deudas.html",
@@ -74,7 +74,7 @@
     "href": "pendientes.html",
     "title": "Pendientes",
     "section": "",
-    "text": "PendientesPagos, cuotas e ingresos que requieren una acción.\n\nTodosVencidosHoyPróximos\n\n\n  PendienteDetalleCerrar\n  \n  \n    Abrir acción\n    Ya pagado / histórico\n  \n  Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.\n\n\n\n  Pendiente recurrenteRegistrar movimientoCerrar\n  \n    Fecha\n    Hora\n    Descripción\n    Monto ($)\n    Cuenta\n    Categoría\n    Subcategoría\n    Registrar\n  \n\n\n\n  Pendiente vencidoCerrar como históricoCerrar\n  \n  Fecha real del pago\n  No crea un movimiento ni modifica saldos.\n  Cerrar histórico"
+    "text": "PendientesPagos, cuotas, ingresos y alertas de presupuesto que requieren atención.\n\nTodosVencidosHoyPróximosPresupuesto\n\n\n  PendienteDetalleCerrar\n  \n  \n    Abrir acción\n    Ya pagado / histórico\n  \n  Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.\n\n\n\n  Pendiente recurrenteRegistrar movimientoCerrar\n  \n    Fecha\n    Hora\n    Descripción\n    Monto ($)\n    Cuenta\n    Categoría\n    Subcategoría\n    Registrar\n  \n\n\n\n  Pendiente vencidoCerrar como históricoCerrar\n  \n  Fecha real del pago\n  No crea un movimiento ni modifica saldos.\n  Cerrar histórico"
   },
   {
     "objectID": "cuentas.html",
@@ -130,7 +130,7 @@
     "href": "metas.html",
     "title": "Metas",
     "section": "",
-    "text": "Metas financieras\n    Objetivos con prioridad, fecha y aporte mensual recomendado.\n  \n  Cerrar sesión\n\n\n\n  ProtecciónFondo de emergencia\n  →\n\n\n\n  Nueva meta\n  Archivadas\n\n\n  Nueva meta\n  \n    \n    Meta\n    Objetivo ($)\n    Fecha objetivo\n    PrioridadAltaMediaBaja\n    Cuenta vinculada\n    Acumulado manual ($)\n    \n      Guardar meta\n      Cancelar edición\n    \n  \n\n\n\n\n\n\nMeta\nObjetivo\nAcumulado\nPendiente\nFecha objetivo\nProgreso\nInformación\n\n\n\n\n\n\nMeta financieraDetalleCerrar"
+    "text": "Metas financieras\n    Objetivos con prioridad, fecha y aporte mensual recomendado.\n  \n  Cerrar sesión\n\n\n\n  ProtecciónFondo de emergencia\n  →\n\n\n\n  Nueva meta\n  Archivadas\n\n\n  Meta financieraNueva metaCerrar\n  \n    \n    Meta\n    Objetivo ($)\n    Fecha objetivo\n    PrioridadAltaMediaBaja\n    Cuenta vinculada\n    Acumulado manual ($)\n    \n      Guardar meta\n      Cancelar\n    \n  \n\n\n\n\n\n\nMeta\nObjetivo\nAcumulado\nPendiente\nFecha objetivo\nProgreso\nInformación\n\n\n\n\n\n\nMeta financieraDetalleCerrar"
   },
   {
     "objectID": "seguros.html",
