@@ -293,10 +293,13 @@ export function sanitizeFinancingPlanWrite(raw={}){
 }
 
 export function normalizeContract(raw={}){
-  return {...raw,schemaVersion:integer(raw.schemaVersion,0),name:text(raw.name),startDate:text(raw.startDate),endDate:text(raw.endDate),active:raw.active!==false,status:text(raw.status)||(raw.active===false?"completed":"active")};
+  const billingCycleMode=text(raw.billingCycleMode)==="anniversary"?"anniversary":"calendar_month";
+  return {...raw,schemaVersion:integer(raw.schemaVersion,0),name:text(raw.name),startDate:text(raw.startDate),endDate:text(raw.endDate),billingCycleMode,active:raw.active!==false,status:text(raw.status)||(raw.active===false?"completed":"active")};
 }
 export function sanitizeContractWrite(raw={}){
-  return {...raw,schemaVersion:SCHEMA_VERSION,name:text(raw.name),startDate:text(raw.startDate),endDate:text(raw.endDate),active:raw.active!==false};
+  const {id:_redundantId,...source}=raw||{};
+  const billingCycleMode=text(source.billingCycleMode)==="anniversary"?"anniversary":"calendar_month";
+  return {...source,schemaVersion:SCHEMA_VERSION,name:text(source.name),startDate:text(source.startDate),endDate:text(source.endDate),billingCycleMode,active:source.active!==false};
 }
 export function normalizeReceivable(raw={}){
   return {...raw,schemaVersion:integer(raw.schemaVersion,0),contractId:text(raw.contractId),workPeriod:text(raw.workPeriod),amount:nonNegative(raw.amount,0),paidAmount:nonNegative(raw.paidAmount,0),dueDate:text(raw.dueDate),status:text(raw.status)||"pending",active:raw.active!==false};

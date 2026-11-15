@@ -1207,88 +1207,41 @@ function render(){
 
 function showDebtSchedule(debt){
   if(!debt) return;
-
-  selectedDebtId=debt.id;
-  selectedCardPlanId=null;
-  debtPaymentInstallment=null;
+  selectedDebtId=debt.id;selectedCardPlanId=null;debtPaymentInstallment=null;
   if(debtPaymentPanel) debtPaymentPanel.hidden=true;
-
-  document.querySelector("#card-schedule-card").hidden=true;
-  document.querySelector("#debt-schedule-card").hidden=false;
-
-  document.querySelector("#debt-schedule-title").textContent=
-    `${debt.creditor} · ${debt.concept}`;
+  const cardDlg=document.querySelector("#card-schedule-card");if(cardDlg?.open)cardDlg.close();
+  const debtDlg=document.querySelector("#debt-schedule-card");
+  document.querySelector("#debt-schedule-title").textContent=`${debt.creditor} · ${debt.concept}`;
 
   const base=effectiveDebtSchedule(debt);
   const paidThrough=paidThroughInstallment(debt);
   const effectiveSchedule=markPaidThrough(base,paidThrough,{historical:true});
-  const nextPending=effectiveSchedule.find(x=>x.status!=="paid")||null;
-  const theoretical=theoreticalLoanPending(debt);
-  const reported=loanPending(debt);
+  const ordered=[...effectiveSchedule].sort((a,b)=>{
+    const ap=a.status==="paid"?1:0,bp=b.status==="paid"?1:0;
+    if(ap!==bp)return ap-bp;
+    return ap?Number(b.n||0)-Number(a.n||0):Number(a.n||0)-Number(b.n||0);
+  });
+  const nextPending=ordered.find(x=>x.status!=="paid")||null;
+  const paidRows=effectiveSchedule.filter(x=>x.status==="paid");
+  const paidAmount=paidRows.reduce((sum,row)=>sum+(paymentTotal(row)>0?paymentTotal(row):Number(row.payment||0)),0);
+  const pendingAmount=effectiveSchedule.filter(x=>x.status!=="paid").reduce((sum,row)=>sum+Math.max(0,Number(row.payment||0)-Number(paymentTotal(row)||Number(row.paidAmount||0))),0);
+  const totalCredit=effectiveSchedule.reduce((sum,row)=>sum+Number(row.payment||0),0)||Number(debt.originalPrincipal||0);
+  document.querySelector("#debt-schedule-meta").innerHTML=`
+    <div class="tf-metric"><span class="tf-metric-label">Acreedor</span><strong>${escapeHtml(debt.creditor||"—")}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Cuotas pagadas</span><strong>${paidRows.length}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Cuotas totales</span><strong>${effectiveSchedule.length||debt.termMonths||0}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Monto por pagar</span><strong>${money(pendingAmount||loanPending(debt))}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Pagado</span><strong>${money(paidAmount)}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Crédito total</span><strong>${money(totalCredit)}</strong></div>`;
 
-  document.querySelector("#debt-schedule-meta").textContent=
-    `${debtModeLabel(debt.mode)} · `+
-    `inicio ${debt.firstPaymentDate||"—"} · `+
-    `pagado hasta ${paidThrough}/${debt.termMonths||effectiveSchedule.length||"—"} · `+
-    `${nextPending ? `cuota actual ${nextPending.n}` : "sin cuotas futuras"} · `+
-    `saldo referencia ${money(reported)}`+
-    `${theoretical!==null ? ` · teórico ${money(theoretical)}` : ""}`;
-
-  debtScheduleBody.innerHTML=effectiveSchedule.length
-    ? effectiveSchedule.map(s=>{
-        const isPaid=s.status==="paid";
-        const isPartial=s.status==="partial";
-        const isHistorical=!!s.historicalPayment;
-        const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
-        const actual=paymentTotal(s)>0?paymentTotal(s):Number(s.paidAmount||0);
-        const expected=Number(s.payment||0);
-        const remaining=expected>0?Math.max(0,expected-actual):null;
-        const statusLabel=isPaid
-          ? (isHistorical ? "Pagada (hist.)" : "Pagada")
-          : isPartial ? "Pago parcial"
-          : isNext ? "Por pagar" : "Pendiente";
-        const payment=expected>0 ? money(expected) : "—";
-        const history=(s.payments||[]).length
-          ? `<div class="tf-muted" style="margin-top:.25rem">${(s.payments||[]).map(p=>
-              `${escapeHtml(p.date||"")} · ${money(p.amount)}${p.transactionId?" · movimiento vinculado":""}`
-            ).join("<br>")}</div>`
-          : "";
-
-        return `
-          <tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}">
-            <td>${s.n}</td>
-            <td>${escapeHtml(s.dueDate||"")}</td>
-            <td>${fmt(s.principal)}</td>
-            <td>${fmt(s.interest)}</td>
-            <td>${payment}</td>
-            <td>
-              ${actual>0?money(actual):"—"}
-              ${remaining!==null&&remaining>0.009?`<div class="tf-muted">resta ${money(remaining)}</div>`:""}
-              ${history}
-            </td>
-            <td>${fmt(s.closingBalance)}</td>
-            <td>
-              <span class="tf-pill ${isPaid?"tf-pill-ok":isPartial?"tf-pill-warn":"tf-pill-warn"}">
-                ${statusLabel}
-              </span>
-            </td>
-            <td>
-              ${isPaid
-                ? `<span class="tf-installment-paid-mark">✓ ${isHistorical?"Histórica":"Pagada"}</span>`
-                : isNext
-                  ? `<button class="tf-btn tf-btn-primary" data-pay-debt="${s.n}">
-                       Registrar pago
-                     </button>`
-                  : `<span class="tf-muted tf-installment-waiting">Después de cuota ${nextPending?.n||"—"}</span>`
-              }
-            </td>
-          </tr>
-        `;
-      }).join("")
-    : `<tr><td colspan="9" class="tf-empty">Completa plazo y primera cuota para construir el seguimiento histórico.</td></tr>`;
-
-  document.querySelector("#debt-schedule-card")
-    .scrollIntoView({behavior:"smooth",block:"start"});
+  debtScheduleBody.innerHTML=ordered.length?ordered.map(s=>{
+    const isPaid=s.status==="paid",isPartial=s.status==="partial",isHistorical=!!s.historicalPayment,isNext=!isPaid&&Number(s.n)===Number(nextPending?.n);
+    const actual=paymentTotal(s)>0?paymentTotal(s):Number(s.paidAmount||0),expected=Number(s.payment||0),remaining=expected>0?Math.max(0,expected-actual):null;
+    const statusLabel=isPaid?(isHistorical?"Pagada (hist.)":"Pagada"):isPartial?"Pago parcial":isNext?"Por pagar":"Pendiente";
+    const history=(s.payments||[]).length?`<div class="tf-muted" style="margin-top:.25rem">${(s.payments||[]).map(p=>`${escapeHtml(p.date||"")} · ${money(p.amount)}${p.transactionId?" · movimiento vinculado":""}`).join("<br>")}</div>`:"";
+    return `<tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}"><td>${s.n}</td><td>${escapeHtml(s.dueDate||"")}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${expected>0?money(expected):"—"}</td><td>${actual>0?money(actual):"—"}${remaining!==null&&remaining>.009?`<div class="tf-muted">resta ${money(remaining)}</div>`:""}${history}</td><td>${fmt(s.closingBalance)}</td><td><span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">${statusLabel}</span></td><td>${isPaid?`<span class="tf-installment-paid-mark">✓ ${isHistorical?"Histórica":"Pagada"}</span>`:isNext?`<button class="tf-btn tf-btn-primary" data-pay-debt="${s.n}">Registrar pago</button>`:`<span class="tf-muted">Después de cuota ${nextPending?.n||"—"}</span>`}</td></tr>`;
+  }).join(""):`<tr><td colspan="9" class="tf-empty">Completa plazo y primera cuota para construir el cronograma.</td></tr>`;
+  if(debtDlg&&!debtDlg.open)debtDlg.showModal();
 }
 
 function renderDebtPaymentTransactions(){
@@ -1620,70 +1573,33 @@ async function registerDebtPayment(){
 
 function showCardSchedule(plan){
   if(!plan) return;
-
-  selectedCardPlanId=plan.id;
-  selectedDebtId=null;
-
-  document.querySelector("#debt-schedule-card").hidden=true;
-  document.querySelector("#card-schedule-card").hidden=false;
-
-  document.querySelector("#card-schedule-title").textContent=
-    plan.description||"Plan de tarjeta";
-
-  const effectiveSchedule=markPaidThrough(
-    plan.schedule||[],
-    planPaidThrough(plan),
-    {historical:true}
-  );
-  const nextPending=effectiveSchedule.find(x=>x.status!=="paid")||null;
-
-  document.querySelector("#card-schedule-meta").textContent=
-    `${accountLabel(plan.parentId)} · `+
-    `${plan.planType==="cash_advance"?"Avance de efectivo":"Compra financiada"} · `+
-    `${nextPending
-      ? `pagado hasta ${planPaidThrough(plan)}/${plan.installmentCount||effectiveSchedule.length} · próxima ${nextPending.n}`
-      : "plan liquidado"
-    }`;
-
-  cardScheduleBody.innerHTML=effectiveSchedule.length
-    ? effectiveSchedule.map(s=>{
-        const isPaid=s.status==="paid";
-        const isHistorical=!!s.historicalPayment;
-        const isNext=!isPaid && Number(s.n)===Number(nextPending?.n);
-        const statusLabel=isPaid
-          ? (isHistorical ? "Pagada (hist.)" : "Pagada")
-          : isNext ? "Por pagar" : "Pendiente";
-
-        return `
-          <tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}">
-            <td>${s.n}</td>
-            <td>${s.dueDate}</td>
-            <td>${fmt(s.principal)}</td>
-            <td>${fmt(s.interest)}</td>
-            <td>${money(s.payment)}</td>
-            <td>${fmt(s.closingBalance)}</td>
-            <td>
-              <span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">
-                ${statusLabel}
-              </span>
-            </td>
-            <td>
-              ${isPaid
-                ? `<span class="tf-installment-paid-mark">✓ Pagada</span>`
-                : isNext
-                  ? `<button class="tf-btn tf-btn-primary" data-pay-card="${s.n}">
-                       Pagar cuota
-                     </button>`
-                  : `<span class="tf-muted tf-installment-waiting">Después de cuota ${nextPending?.n||"—"}</span>`
-              }
-            </td>
-          </tr>
-        `;
-      }).join("")
-    : `<tr><td colspan="8" class="tf-empty">Sin cuotas.</td></tr>`;
-
-  document.querySelector("#card-schedule-card")
-    .scrollIntoView({behavior:"smooth",block:"start"});
+  selectedCardPlanId=plan.id;selectedDebtId=null;
+  const debtDlg=document.querySelector("#debt-schedule-card");if(debtDlg?.open)debtDlg.close();
+  const cardDlg=document.querySelector("#card-schedule-card");
+  document.querySelector("#card-schedule-title").textContent=plan.description||"Plan de tarjeta";
+  const effectiveSchedule=markPaidThrough(plan.schedule||[],planPaidThrough(plan),{historical:true});
+  const ordered=[...effectiveSchedule].sort((a,b)=>{
+    const ap=a.status==="paid"?1:0,bp=b.status==="paid"?1:0;if(ap!==bp)return ap-bp;
+    return ap?Number(b.n||0)-Number(a.n||0):Number(a.n||0)-Number(b.n||0);
+  });
+  const nextPending=ordered.find(x=>x.status!=="paid")||null;
+  const paidRows=effectiveSchedule.filter(x=>x.status==="paid");
+  const paidAmount=paidRows.reduce((sum,row)=>sum+Number(row.payment||0),0);
+  const pendingAmount=effectiveSchedule.filter(x=>x.status!=="paid").reduce((sum,row)=>sum+Number(row.payment||0),0);
+  const totalFinanced=effectiveSchedule.reduce((sum,row)=>sum+Number(row.payment||0),0)||Number(plan.originalAmount||0);
+  document.querySelector("#card-schedule-meta").innerHTML=`
+    <div class="tf-metric"><span class="tf-metric-label">Plan / tarjeta</span><strong>${escapeHtml(plan.description||"Plan")}</strong><span>${escapeHtml(accountLabel(plan.parentId))}</span></div>
+    <div class="tf-metric"><span class="tf-metric-label">Cuotas pagadas</span><strong>${paidRows.length}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Cuotas totales</span><strong>${effectiveSchedule.length||plan.installmentCount||0}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Monto por pagar</span><strong>${money(pendingAmount)}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Pagado</span><strong>${money(paidAmount)}</strong></div>
+    <div class="tf-metric"><span class="tf-metric-label">Total financiado</span><strong>${money(totalFinanced)}</strong></div>`;
+  cardScheduleBody.innerHTML=ordered.length?ordered.map(s=>{
+    const isPaid=s.status==="paid",isHistorical=!!s.historicalPayment,isNext=!isPaid&&Number(s.n)===Number(nextPending?.n);
+    const statusLabel=isPaid?(isHistorical?"Pagada (hist.)":"Pagada"):isNext?"Por pagar":"Pendiente";
+    return `<tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}"><td>${s.n}</td><td>${escapeHtml(s.dueDate||"")}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${money(s.payment)}</td><td>${fmt(s.closingBalance)}</td><td><span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">${statusLabel}</span></td><td>${isPaid?`<span class="tf-installment-paid-mark">✓ Pagada</span>`:isNext?`<button class="tf-btn tf-btn-primary" data-pay-card="${s.n}">Pagar cuota</button>`:`<span class="tf-muted">Después de cuota ${nextPending?.n||"—"}</span>`}</td></tr>`;
+  }).join(""):`<tr><td colspan="8" class="tf-empty">Sin cuotas.</td></tr>`;
+  if(cardDlg&&!cardDlg.open)cardDlg.showModal();
 }
 
 async function payCardInstallment(n){
@@ -1931,7 +1847,7 @@ document.querySelector("#debt-schedule-close").addEventListener("click",()=>{
   selectedDebtId=null;
   debtPaymentInstallment=null;
   if(debtPaymentPanel) debtPaymentPanel.hidden=true;
-  document.querySelector("#debt-schedule-card").hidden=true;
+  document.querySelector("#debt-schedule-card")?.close();
 });
 document.querySelector("#debt-payment-cancel")?.addEventListener("click",()=>{
   debtPaymentInstallment=null;
@@ -1959,7 +1875,7 @@ debtPaymentForm?.addEventListener("submit",async e=>{
 
 document.querySelector("#card-schedule-close").addEventListener("click",()=>{
   selectedCardPlanId=null;
-  document.querySelector("#card-schedule-card").hidden=true;
+  document.querySelector("#card-schedule-card")?.close();
 });
 
 document.querySelector("#debt-cancel-edit").addEventListener("click",()=>{
@@ -2430,7 +2346,7 @@ document.addEventListener("click",async e=>{
     confirmText:"Archivar"
   })){
     await archiveFinancingPlan(pa.dataset.planArchive);
-    document.querySelector("#card-schedule-card").hidden=true;
+    document.querySelector("#card-schedule-card")?.close();
     selectedCardPlanId=null;
     await refresh();
   }
@@ -2461,7 +2377,7 @@ document.addEventListener("click",async e=>{
     confirmText:"Archivar"
   })){
     await archiveLiability(da.dataset.debtArchive);
-    document.querySelector("#debt-schedule-card").hidden=true;
+    document.querySelector("#debt-schedule-card")?.close();
     selectedDebtId=null;
     await refresh();
   }

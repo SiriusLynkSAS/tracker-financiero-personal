@@ -1,3 +1,12 @@
+# Web V1.0.87 · AUD-POST-014
+
+- Contratos: modalidad de período seleccionable entre mes calendario y ciclo aniversario; el activo es opcional; Nueva tarifa solo desde contrato activo.
+- Viáticos: alta modal, tabla, factura obligatoria en gastos, categoría/subcategoría económica, IVA opcional y reembolso solo para fondos propios.
+- IVA / Impuestos pasa a Facturación y consolida IVA generado, IVA a favor, estimado, saldo a favor y pago real.
+- Movimientos admite factura/IVA en ingresos y egresos.
+- Cronogramas de Deudas y planes de tarjeta pasan a modal con resumen, pendientes primero, pagadas después y cierre fijo.
+- Sin cambios en configuración, reglas o índices Firebase.
+
 # Web V1.0.86 · AUD-POST-013
 
 Rediseño de Fondo de emergencia, Metas, Deudas/Tarjetas y Seguros; Plan mensual fuerza Plan/Ejecución lado a lado en escritorio. Seguros vincula cobertura y Movimiento con IDs distintos y escritura atómica.

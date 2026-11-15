@@ -36,7 +36,7 @@ website:
   title: "Tracker Financiero Personal"
 
   page-footer:
-    center: "Tracker Financiero Personal V1.0.86"
+    center: "Tracker Financiero Personal V1.0.87"
 
 format:
   html:
@@ -62,4 +62,4 @@ format:
           })();
         </script>
         <script type="module" src="js/theme.js"></script>
-        <script type="module" src="js/app-shell.js?v=1.0.83"></script>
+        <script type="module" src="js/app-shell.js?v=1.0.87"></script>

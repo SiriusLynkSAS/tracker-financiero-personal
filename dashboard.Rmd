@@ -77,7 +77,7 @@ title: "Resumen"
     <a href="movimientos.html"><span>Egresos registrados</span><strong id="dash-proj-registered">$0,00</strong></a>
     <a href="calendario.html"><span>Egresos pendientes</span><strong id="dash-proj-pending">$0,00</strong></a>
     <a href="plan_mensual.html"><span>Ahorro recomendado · 10%</span><strong id="dash-proj-saving">$0,00</strong></a>
-    <a href="impuestos.html"><span>IVA reservado</span><strong id="dash-proj-vat">$0,00</strong></a>
+    <a href="facturacion.html#iva"><span>IVA reservado</span><strong id="dash-proj-vat">$0,00</strong></a>
   </div>
   <div class="tf-dashboard-available">
     <div><strong>Disponible proyectado</strong><span>Después de gastos, compromisos, ahorro e IVA reservado.</span></div>

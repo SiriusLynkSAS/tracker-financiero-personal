@@ -9,7 +9,7 @@ import { requireUser } from "./guard.js";
 import { downloadText } from "./utils.js";
 import { toast } from "./ui.js";
 
-const SOURCE_APP_VERSION = "V1.0.86";
+const SOURCE_APP_VERSION = "V1.0.87";
 const EXPORTER_VERSION = "1.1.0";
 
 const COLLECTIONS = [

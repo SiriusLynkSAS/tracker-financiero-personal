@@ -101,13 +101,13 @@ title: "Movimientos"
 
             <div id="invoice-toggle-wrap" class="tf-check" hidden>
               <input id="tx-has-invoice" type="checkbox">
-              <label>Ingreso con factura e IVA</label>
+              <label>Movimiento con factura / IVA</label>
             </div>
 
             <div id="invoice-panel" class="tf-subtle" hidden>
               <div class="tf-form-grid">
                 <div class="tf-field"><label>Número de factura</label><input id="tx-invoice-number" autocomplete="off"></div>
-                <div class="tf-field"><label>IVA incluido en el total ($)</label><input id="tx-vat" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+                <div class="tf-field"><label>IVA incluido en el total ($)</label><input id="tx-vat" type="text" inputmode="decimal" placeholder="0,00" autocomplete="off"></div><div class="tf-span-2 tf-muted">En ingresos se registra como IVA generado; en egresos como IVA a favor.</div>
               </div>
               <div id="tx-invoice-summary" class="tf-muted" style="margin-top:.55rem">Base sin IVA: $0,00</div>
               <div id="tx-invoice-lock" class="tf-alert tf-alert-info" style="margin-top:.55rem"></div>
@@ -231,5 +231,5 @@ title: "Movimientos"
   </div>
 </div>
 
-<script type="module" src="js/transactions-v1.js?v=1.0.86"></script>
+<script type="module" src="js/transactions-v1.js?v=1.0.87"></script>
 ```
