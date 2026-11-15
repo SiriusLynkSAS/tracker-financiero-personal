@@ -74,7 +74,7 @@
     "href": "pendientes.html",
     "title": "Pendientes",
     "section": "",
-    "text": "PendientesPagos, cuotas e ingresos que requieren una acción.\n\nTodosVencidosHoyPróximos\n\n\n  PendienteDetalleCerrar\n  \n  \n    Abrir acción\n    Ya pagado / histórico\n  \n  Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.\n\n\n\n  Pendiente recurrenteRegistrar movimientoCerrar\n  \n    Fecha\n    Hora\n    Descripción\n    Monto ($)\n    Cuenta\n    Categoría\n    Subcategoría\n    Registrar\n  \n\n\n\n  Pendiente vencidoCerrar como históricoCerrar\n  \n  Fecha real del pago\n  No crea un movimiento y no reduce ninguna cuenta.\n  Cerrar histórico"
+    "text": "PendientesPagos, cuotas e ingresos que requieren una acción.\n\nTodosVencidosHoyPróximos\n\n\n  PendienteDetalleCerrar\n  \n  \n    Abrir acción\n    Ya pagado / histórico\n  \n  Histórico cierra este pendiente sin crear movimiento ni modificar el saldo de una cuenta.\n\n\n\n  Pendiente recurrenteRegistrar movimientoCerrar\n  \n    Fecha\n    Hora\n    Descripción\n    Monto ($)\n    Cuenta\n    Categoría\n    Subcategoría\n    Registrar\n  \n\n\n\n  Pendiente vencidoCerrar como históricoCerrar\n  \n  Fecha real del pago\n  No crea un movimiento ni modifica saldos.\n  Cerrar histórico"
   },
   {
     "objectID": "cuentas.html",
