@@ -158,9 +158,26 @@ ul.task-list li input[type="checkbox"] {
   </form>
 </section>
 
-<div id="goal-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+<div class="tf-table-wrap" style="margin-top:1rem">
+<table class="tf-table tf-goal-table caption-top">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">Meta</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Objetivo</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Acumulado</th>
+<th class="tf-num" data-quarto-table-cell-role="th">Pendiente</th>
+<th data-quarto-table-cell-role="th">Fecha objetivo</th>
+<th data-quarto-table-cell-role="th">Progreso</th>
+<th data-quarto-table-cell-role="th">Información</th>
+</tr>
+</thead>
+<tbody id="goal-list">
+</tbody>
+</table>
+</div>
+<dialog id="goal-detail-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Meta financiera</div><h2 id="goal-detail-title" class="anchored">Detalle</h2></div><button id="goal-detail-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div><div id="goal-detail-body"></div></dialog>
 
-<script type="module" src="js/goals.js"></script>
+<script type="module" src="js/goals.js?v=1.0.86"></script>
 
 
 
@@ -572,7 +589,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.85</p>
+<p>Tracker Financiero Personal V1.0.86</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

@@ -4,7 +4,7 @@ import {
   listLiabilities,saveLiability,archiveLiability,reactivateLiability,
   listFinancingPlans,archiveFinancingPlan,reactivateFinancingPlan,
   listAccounts,listTransactions,calculateBalances,atomicWrite
-} from "./data-service.js";
+} from "./data-service.js?v=1.0.86";
 import {
   germanSchedule,frenchSchedule,fixedInstallmentSchedule,
   scheduleTotals,balanceAfterInstallment
@@ -1060,7 +1060,7 @@ function startDebtEdit(debt){
   status.hidden=false;
   status.innerHTML=
     `<strong>Editando el registro existente:</strong> ${escapeHtml(debt.creditor)} · `+
-    `${escapeHtml(debt.concept)}. ID ${escapeHtml(debt.id)}. `+
+    `${escapeHtml(debt.concept)}. `+
     `Guardar actualizará este mismo registro; no creará una deuda nueva.`;
 
   previewSchedule=markPaidThrough(
@@ -1163,7 +1163,7 @@ function debtCardHTML(d,{archived=false}={}){
       ${next}
       <div class="tf-debt-hero tf-debt-hero-loan"><span class="tf-debt-hero-label">Saldo pendiente de referencia</span><div class="tf-debt-hero-amount">${money(pending)}</div></div>
       ${theoretical!==null&&reported!==null?`<div class="tf-subtle" style="margin-top:.7rem">Saldo teórico: <strong>${money(theoretical)}</strong> · Saldo informado: <strong>${money(reported)}</strong> · Diferencia: <strong>${money(reported-theoretical)}</strong></div>`:""}
-      <div class="tf-debt-inline-meta"><span>${debtModeLabel(d.mode)}</span><span>${Number(d.annualRate||0)}%</span><span>pagado ${paid}/${term||'—'}</span><span>ID ${escapeHtml(d.id||'—')}</span></div>
+      <div class="tf-debt-inline-meta"><span>${debtModeLabel(d.mode)}</span><span>${Number(d.annualRate||0)}%</span><span>pagado ${paid}/${term||'—'}</span></div>
       <div class="tf-actions tf-debt-card-actions" style="margin-top:.9rem">
         ${archived
           ? `<button class="tf-btn tf-btn-primary" data-debt-reactivate="${escapeHtml(d.id)}">Reactivar</button><button class="tf-btn tf-btn-secondary" data-debt-schedule="${escapeHtml(d.id)}">Ver cronograma</button>`
@@ -1172,143 +1172,34 @@ function debtCardHTML(d,{archived=false}={}){
     </div>`;
   }catch(error){
     console.error("Error al mostrar deuda",d?.id,error);
-    return `<div class="tf-card"><div class="tf-card-context tf-card-context-loan">Registro legado</div><strong>${escapeHtml(d?.creditor||'Deuda existente')}</strong><div class="tf-muted">${escapeHtml(d?.concept||'')}</div><div class="tf-debt-hero tf-debt-hero-loan" style="margin-top:.8rem"><span class="tf-debt-hero-label">Saldo disponible</span><div class="tf-debt-hero-amount">${money(d?.bankReportedBalance??d?.currentManualBalance??d?.calculatedBalance??d?.originalPrincipal??0)}</div></div><div class="tf-subtle">Este registro existe en Firebase pero usa un formato anterior. ID ${escapeHtml(d?.id||'—')}.</div><div class="tf-actions" style="margin-top:.8rem">${d?.active===false?`<button class="tf-btn tf-btn-primary" data-debt-reactivate="${escapeHtml(d?.id||'')}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-debt-edit="${escapeHtml(d?.id||'')}">Editar y actualizar formato</button>`}</div></div>`;
+    return `<div class="tf-card"><div class="tf-card-context tf-card-context-loan">Registro legado</div><strong>${escapeHtml(d?.creditor||'Deuda existente')}</strong><div class="tf-muted">${escapeHtml(d?.concept||'')}</div><div class="tf-debt-hero tf-debt-hero-loan" style="margin-top:.8rem"><span class="tf-debt-hero-label">Saldo disponible</span><div class="tf-debt-hero-amount">${money(d?.bankReportedBalance??d?.currentManualBalance??d?.calculatedBalance??d?.originalPrincipal??0)}</div></div><div class="tf-subtle">Este registro existe en Firebase pero usa un formato anterior..</div><div class="tf-actions" style="margin-top:.8rem">${d?.active===false?`<button class="tf-btn tf-btn-primary" data-debt-reactivate="${escapeHtml(d?.id||'')}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-debt-edit="${escapeHtml(d?.id||'')}">Editar y actualizar formato</button>`}</div></div>`;
   }
 }
 
+function debtTableRow(d,{archived=false}={}){
+  const pending=loanPending(d),original=Number(d.originalPrincipal||0),paid=Math.max(0,original-pending);
+  const schedule=markPaidThrough(effectiveDebtSchedule(d),paidThroughInstallment(d),{historical:true});
+  const next=schedule.find(x=>x.status!=="paid")||null;
+  const term=Number(d.termMonths||schedule.length||0), current=next?.n||Math.min(term,paidThroughInstallment(d)+1)||0;
+  if(archived) return `<tr><td><strong>${escapeHtml(d.concept||"Deuda")}</strong></td><td>${escapeHtml(d.creditor||"—")}</td><td class="tf-num">${money(pending)}</td><td><button class="tf-btn tf-btn-secondary tf-btn-compact" data-debt-schedule="${d.id}">Cronograma</button></td><td><button class="tf-icon-btn" data-debt-info="${d.id}" title="Información">ⓘ</button></td></tr>`;
+  return `<tr><td><strong>${escapeHtml(d.concept||"Deuda")}</strong></td><td>${escapeHtml(d.creditor||"—")}</td><td class="tf-num">${money(original)}</td><td class="tf-num">${money(paid)}</td><td class="tf-num"><strong>${money(pending)}</strong></td><td>${current?`${current}/${term||"—"}${next?.payment?` · ${money(next.payment)}`:""}`:"—"}</td><td>${escapeHtml(next?.dueDate||"—")}</td><td><span class="tf-pill ${d.status==="paid_off"?"tf-pill-ok":""}">${d.status==="paid_off"?"Liquidada":"Activa"}</span></td><td><button class="tf-btn tf-btn-secondary tf-btn-compact" data-debt-schedule="${d.id}">Cronograma</button></td><td><button class="tf-icon-btn" data-debt-info="${d.id}" title="Información">ⓘ</button></td></tr>`;
+}
+function planTableRow(p,{archived=false}={}){
+  const totals=planTotals(p),schedule=p.schedule||[],next=schedule.find(x=>x.status!=="paid")||null,count=schedule.length||Number(p.installmentCount||0),current=next?.n||Math.min(count,planPaidThrough(p)+1)||0;
+  if(archived)return `<tr><td><strong>${escapeHtml(p.description||"Plan")}</strong></td><td>${escapeHtml(accountLabel(p.parentId))}</td><td class="tf-num">${money(totals.pending)}</td><td><button class="tf-btn tf-btn-secondary tf-btn-compact" data-plan-schedule="${p.id}">Cronograma</button></td><td><button class="tf-icon-btn" data-plan-detail="${p.id}" title="Información">ⓘ</button></td></tr>`;
+  return `<tr data-card-parent="${escapeHtml(p.parentId)}"><td><strong>${escapeHtml(p.description||"Plan")}</strong></td><td>${escapeHtml(accountLabel(p.parentId))}</td><td>${current?`${current}/${count||"—"}`:"—"}</td><td class="tf-num">${money(next?.payment||p.bankInstallment||0)}</td><td class="tf-num"><strong>${money(totals.pending)}</strong></td><td>${escapeHtml(next?.dueDate||"—")}</td><td><span class="tf-pill">${p.active===false?"Archivado":totals.pending<=.009?"Pagado":"Activo"}</span></td><td><button class="tf-btn tf-btn-secondary tf-btn-compact" data-plan-schedule="${p.id}">Cronograma</button></td><td><button class="tf-icon-btn" data-plan-detail="${p.id}" title="Información">ⓘ</button></td></tr>`;
+}
 function render(){
-  const activeDebts=debts.filter(x=>x.active!==false);
-  const archivedDebts=debts.filter(x=>x.active===false);
-  debtList.innerHTML=
-    activeDebts.map(d=>debtCardHTML(d)).join("") ||
-    `<div class="tf-card tf-empty">Sin préstamos activos.${archivedDebts.length?` Hay ${archivedDebts.length} registro(s) archivado(s) debajo.`:""}</div>`;
-
-  const archivedPlans=plans.filter(x=>x.active===false);
-  const archivedWrap=document.querySelector("#archived-debt-section");
-  const archivedList=document.querySelector("#archived-debt-list");
-  const archivedPlanList=document.querySelector("#archived-plan-list");
-  const archivedCount=archivedDebts.length+archivedPlans.length;
-  debtArchivedToggle.hidden=!archivedCount;
-  debtArchivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archivedCount})`;
-  debtNewButton.hidden=showArchived;
-  planNewButton.hidden=showArchived;
-  document.querySelector("#active-debt-section").hidden=showArchived;
-  document.querySelector("#active-card-section").hidden=showArchived;
-  if(archivedWrap&&archivedList&&archivedPlanList){
-    archivedWrap.hidden=!showArchived;
-    archivedList.innerHTML=archivedDebts.map(d=>debtCardHTML(d,{archived:true})).join("")||`<div class="tf-card tf-empty">Sin préstamos archivados.</div>`;
-    archivedPlanList.innerHTML=archivedPlans.map(p=>{
-      const totals=planTotals(p);
-      return `<div class="tf-card tf-card-muted">
-        <div class="tf-card-context tf-card-context-card">Plan de tarjeta archivado</div>
-        <strong>${escapeHtml(p.description||"Plan")}</strong>
-        <div class="tf-muted">${escapeHtml(accountLabel(p.parentId))}</div>
-        <div class="tf-debt-hero tf-debt-hero-card" style="margin-top:.75rem"><span class="tf-debt-hero-label">Saldo pendiente histórico</span><div class="tf-debt-hero-amount">${money(totals.pending)}</div></div>
-        <div class="tf-actions" style="margin-top:.8rem"><button class="tf-btn tf-btn-primary" data-plan-reactivate="${escapeHtml(p.id)}">Reactivar</button><button class="tf-btn tf-btn-secondary" data-plan-schedule="${escapeHtml(p.id)}">Ver cronograma</button></div>
-      </div>`;
-    }).join("")||`<div class="tf-card tf-empty">Sin planes de tarjeta archivados.</div>`;
-  }
-  const loadStatus=document.querySelector("#debt-load-status");
-  if(loadStatus){
-    loadStatus.textContent=`Firebase: ${debts.length} registro(s) de deuda leídos · ${activeDebts.length} activo(s) · ${archivedDebts.length} archivado(s)`;
-  }
-
+  const activeDebts=debts.filter(x=>x.active!==false),archivedDebts=debts.filter(x=>x.active===false),archivedPlans=plans.filter(x=>x.active===false);
+  debtList.innerHTML=activeDebts.map(d=>debtTableRow(d)).join("")||`<tr><td colspan="10" class="tf-empty">Sin préstamos o deudas activas.</td></tr>`;
+  const archivedWrap=document.querySelector("#archived-debt-section"),archivedList=document.querySelector("#archived-debt-list"),archivedPlanList=document.querySelector("#archived-plan-list"),archivedCount=archivedDebts.length+archivedPlans.length;
+  debtArchivedToggle.hidden=!archivedCount;debtArchivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archivedCount})`;debtNewButton.hidden=showArchived;planNewButton.hidden=showArchived;document.querySelector("#active-debt-section").hidden=showArchived;document.querySelector("#active-card-section").hidden=showArchived;
+  if(archivedWrap){archivedWrap.hidden=!showArchived;archivedList.innerHTML=archivedDebts.map(d=>debtTableRow(d,{archived:true})).join("")||`<tr><td colspan="5" class="tf-empty">Sin préstamos archivados.</td></tr>`;archivedPlanList.innerHTML=archivedPlans.map(p=>planTableRow(p,{archived:true})).join("")||`<tr><td colspan="5" class="tf-empty">Sin planes archivados.</td></tr>`;}
+  const loadStatus=document.querySelector("#debt-load-status");if(loadStatus)loadStatus.textContent=`Firebase: ${debts.length} registro(s) de deuda leídos · ${activeDebts.length} activo(s) · ${archivedDebts.length} archivado(s)`;
   renderDebtOverview();
-
-  const cardAccountCards=creditCardDebtRows().map(a=>{
-    const linkedPlans=plans.filter(p=>p.active!==false && p.parentId===a.id);
-    const plannedPending=linkedPlans.reduce((s,p)=>s+planTotals(p).pending,0);
-    return `
-      <div class="tf-card tf-credit-plan-card tf-debt-card-shell" data-card-account="${escapeHtml(a.id)}">
-        <div class="tf-card-context tf-card-context-card">Tarjeta · saldo real</div>
-        <div class="tf-debt-card-header">
-          <div class="tf-debt-card-title-group">
-            <strong class="tf-debt-card-title">${escapeHtml(a.bank)}</strong>
-            <div class="tf-debt-card-subtitle">${escapeHtml(a.alias||"Tarjeta de crédito")}</div>
-          </div>
-        </div>
-        <div class="tf-debt-hero tf-debt-hero-card" style="margin-top:.95rem">
-          <span class="tf-debt-hero-label">Deuda real de la tarjeta</span>
-          <div class="tf-debt-hero-amount">${money(a.debt)}</div>
-        </div>
-        <div class="tf-subtle" style="margin-top:.7rem">
-          ${linkedPlans.length
-            ? `${linkedPlans.length} plan(es) registrado(s) · saldo pendiente de planes ${money(plannedPending)}`
-            : `No hay planes de financiamiento registrados. El saldo proviene directamente de los movimientos de esta cuenta.`
-          }
-        </div>
-        <div class="tf-debt-inline-meta">
-          <span>Saldo de cuenta</span>
-          <span>${linkedPlans.length ? "Con planes" : "Sin plan asociado"}</span>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  const financingPlanCards=plans
-    .filter(x=>x.active!==false)
-    .map(p=>{
-      const totals=planTotals(p);
-      const paidCount=(p.schedule||[]).filter(x=>x.status==="paid").length;
-      const count=(p.schedule||[]).length;
-
-      return `
-        <div class="tf-card tf-credit-plan-card tf-debt-card-shell" data-card-parent="${escapeHtml(p.parentId)}">
-          <div class="tf-card-context tf-card-context-card">Tarjeta</div>
-
-          <div class="tf-debt-card-header">
-            <div class="tf-debt-card-title-group">
-              <strong class="tf-debt-card-title">${escapeHtml(p.description)}</strong>
-              <div class="tf-debt-card-subtitle">
-                ${escapeHtml(accountLabel(p.parentId))} ·
-                ${p.planType==="cash_advance"?"Avance de efectivo":"Compra a plazos"}
-              </div>
-            </div>
-          </div>
-
-          <div class="tf-detail-grid tf-card-plan-summary-grid tf-debt-metrics tf-debt-metrics-dual" style="margin-top:.95rem">
-            <div class="tf-metric tf-debt-metric-card tf-debt-metric-loan">
-              <span class="tf-metric-label">Plan</span>
-              <strong class="tf-metric-amount">${money(totals.total || p.originalPrincipal)}</strong>
-            </div>
-            <div class="tf-metric tf-debt-metric-card tf-debt-metric-paid">
-              <span class="tf-metric-label">Pagado</span>
-              <strong class="tf-metric-amount">${money(totals.paid)}</strong>
-            </div>
-          </div>
-
-          ${nextInstallmentCardHTML(p)}
-
-          <div class="tf-debt-hero tf-debt-hero-card">
-            <span class="tf-debt-hero-label">Saldo pendiente</span>
-            <div class="tf-debt-hero-amount">${money(totals.pending)}</div>
-          </div>
-
-          <div class="tf-debt-inline-meta">
-            <span>pagado ${planPaidThrough(p)}/${count}</span>
-            <span>${p.amortizationMethod==="fixed_installment" ? "Cuota informada" : "Cronograma calculado"}</span>
-          </div>
-
-          <div class="tf-actions tf-debt-card-actions" style="margin-top:.9rem">
-            <button class="tf-btn tf-btn-secondary" data-plan-detail="${p.id}">Ver detalle</button>
-            <button class="tf-btn tf-btn-primary" data-plan-edit="${p.id}">
-              Editar
-            </button>
-            <button class="tf-btn tf-btn-secondary" data-plan-schedule="${p.id}">
-              Ver / pagar cuotas
-            </button>
-            <button class="tf-btn tf-btn-secondary tf-btn-archive" data-plan-archive="${p.id}">
-              Archivar
-            </button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-  planList.innerHTML=
-    cardAccountCards +
-    financingPlanCards ||
-    `<div class="tf-card tf-empty">Sin deuda real en tarjetas ni planes de financiamiento activos.</div>`;
+  const cards=creditCardDebtRows();
+  document.querySelector("#card-debt-list").innerHTML=cards.map(a=>{const available=Math.max(0,Number(a.creditLimit||0)-Number(a.debt||0));return `<tr data-card-account="${a.id}"><td><strong>${escapeHtml(a.bank)}</strong><div class="tf-muted">${escapeHtml(a.alias||"Tarjeta")}${a.last4?` · •••• ${escapeHtml(a.last4)}`:""}</div></td><td class="tf-num"><strong>${money(a.debt)}</strong></td><td class="tf-num">${money(a.creditLimit||0)}</td><td class="tf-num">${money(available)}</td><td>${a.closingDay||"—"}</td><td>${a.paymentDay||"—"}</td><td><button class="tf-icon-btn" data-card-info="${a.id}" title="Información">ⓘ</button></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin deuda activa en tarjetas.</td></tr>`;
+  planList.innerHTML=plans.filter(x=>x.active!==false).map(p=>planTableRow(p)).join("")||`<tr><td colspan="9" class="tf-empty">Sin planes financiados activos.</td></tr>`;
 }
 
 /* ---------------- PRÉSTAMOS ---------------- */
@@ -2472,6 +2363,8 @@ document.querySelector("#plan-form").addEventListener("submit",async e=>{
 });
 
 document.addEventListener("click",async e=>{
+  const di=e.target.closest("[data-debt-info]");
+  const ci=e.target.closest("[data-card-info]");
   const pe=e.target.closest("[data-debt-edit]");
   const ce=e.target.closest("[data-plan-edit]");
   const cd=e.target.closest("[data-plan-detail]");
@@ -2482,6 +2375,20 @@ document.addEventListener("click",async e=>{
   const dr=e.target.closest("[data-debt-reactivate]");
   const pr=e.target.closest("[data-plan-reactivate]");
 
+  if(di){
+    const d=debts.find(x=>x.id===di.dataset.debtInfo);if(!d)return;
+    const pending=loanPending(d),schedule=markPaidThrough(effectiveDebtSchedule(d),paidThroughInstallment(d),{historical:true}),next=schedule.find(x=>x.status!=="paid")||null;
+    document.querySelector("#debt-detail-title").textContent=`${d.creditor||"Deuda"} · ${d.concept||""}`;
+    document.querySelector("#debt-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Capital original</span><strong>${money(d.originalPrincipal||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Saldo pendiente</span><strong>${money(pending)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Tasa anual</span><strong>${Number(d.annualRate||0)}%</strong></div><div class="tf-metric"><span class="tf-metric-label">Siguiente cuota</span><strong>${next?`${next.n} · ${money(next.payment||0)}`:"—"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Próxima fecha</span><strong>${escapeHtml(next?.dueDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Seguimiento</span><strong>${escapeHtml(debtModeLabel(d.mode))}</strong></div></div><div class="tf-actions" style="margin-top:1rem">${d.active===false?`<button class="tf-btn tf-btn-primary" data-debt-reactivate="${d.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-debt-edit="${d.id}">Editar</button><button class="tf-btn tf-btn-secondary tf-btn-archive" data-debt-archive="${d.id}">Archivar</button>`}</div>`;
+    document.querySelector("#debt-detail-dialog").showModal();return;
+  }
+  if(ci){
+    const a=creditCardDebtRows().find(x=>x.id===ci.dataset.cardInfo);if(!a)return;
+    const linkedPlans=plans.filter(p=>p.active!==false&&p.parentId===a.id),available=Math.max(0,Number(a.creditLimit||0)-Number(a.debt||0));
+    document.querySelector("#card-detail-title").textContent=`${a.bank} · ${a.alias||"Tarjeta"}`;
+    document.querySelector("#card-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Deuda actual</span><strong>${money(a.debt)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Límite</span><strong>${money(a.creditLimit||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Disponible</span><strong>${money(available)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Día de corte</span><strong>${a.closingDay||"—"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Día de pago</span><strong>${a.paymentDay||"—"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Planes financiados</span><strong>${linkedPlans.length}</strong></div></div>`;
+    document.querySelector("#card-detail-dialog").showModal();return;
+  }
   if(pe){
     const debt=debts.find(x=>x.id===pe.dataset.debtEdit);
     if(debt) startDebtEdit(debt);
@@ -2579,3 +2486,5 @@ debtArchivedToggle.addEventListener("click",()=>{showArchived=!showArchived;clos
 document.querySelector("#card-detail-close")?.addEventListener("click",()=>document.querySelector("#card-detail-dialog")?.close());
 
 requireUser(()=>refresh().catch(console.error));
+
+document.querySelector("#debt-detail-close").addEventListener("click",()=>document.querySelector("#debt-detail-dialog").close());

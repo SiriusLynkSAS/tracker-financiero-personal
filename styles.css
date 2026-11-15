@@ -3761,3 +3761,9 @@ tr.is-muted{opacity:.66}
 .tf-plan-table-card{margin-top:1rem}.tf-plan-table{min-width:760px;width:100%;border-collapse:separate;border-spacing:0}.tf-plan-table th{white-space:nowrap;text-align:left;background:var(--tf-surface-2);font-size:.78rem;color:var(--tf-muted);padding:.7rem .75rem;border-bottom:1px solid var(--tf-border)}.tf-plan-table td{padding:.72rem .75rem;border-bottom:1px solid var(--tf-border);vertical-align:middle}.tf-plan-table tbody tr:hover{background:var(--tf-surface-2)}.tf-plan-table .tf-num{text-align:right;white-space:nowrap}
 .tf-recurring-table{min-width:900px;width:100%;border-collapse:separate;border-spacing:0}.tf-recurring-table th{white-space:nowrap;text-align:left;background:var(--tf-surface-2);font-size:.78rem;color:var(--tf-muted);padding:.7rem .75rem;border-bottom:1px solid var(--tf-border)}.tf-recurring-table td{padding:.72rem .75rem;border-bottom:1px solid var(--tf-border);vertical-align:middle}.tf-recurring-table tbody tr:hover{background:var(--tf-surface-2)}.tf-recurring-table .tf-num{text-align:right;white-space:nowrap}.tf-recurring-table .tf-center{text-align:center}
 @media(max-width:900px){.tf-plan-dual-summary{grid-template-columns:1fr}}
+
+/* V1.0.86 · tablas y selectores post-auditoría */
+.tf-plan-dual-summary{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:start}
+.tf-info-button{white-space:nowrap}
+.tf-field.is-disabled{opacity:.55}
+@media(max-width:900px){.tf-plan-dual-summary{grid-template-columns:1fr!important}}

@@ -3,7 +3,7 @@ import {
   getEmergencyFund,saveEmergencyFund,listAccounts,listTransactions,listRecurring,
   listInsurance,listLiabilities,listFinancingPlans,calculateBalances,saveTransaction,
   listContracts,syncReceivablesClosed
-} from "./data-service.js";
+} from "./data-service.js?v=1.0.86";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 import {
@@ -87,6 +87,8 @@ function render(){
   document.querySelector("#ef-recommended").textContent=money(summary.recommendedSavings);
   document.querySelector("#ef-suggested").textContent=money(summary.suggestedContribution);
   document.querySelector("#ef-essential-total").textContent=money(summary.essentialMonthly);
+  document.querySelector("#ef-essential-dialog-total").textContent=money(summary.essentialMonthly);
+  document.querySelector("#ef-account-count").textContent=`${config.linkedAccountIds.length} seleccionada(s)`;
   document.querySelector("#ef-food").value=Number(config.foodDailyMinimum||0);
   document.querySelector("#ef-transport").value=Number(config.transportDailyMinimum||0);
 
@@ -144,6 +146,14 @@ async function refresh(){
   if(!config.essentialOverrides||typeof config.essentialOverrides!=="object")config.essentialOverrides={};
   render();
 }
+
+
+const efAccountsDialog=document.querySelector("#ef-accounts-dialog");
+const efEssentialDialog=document.querySelector("#ef-essential-dialog");
+document.querySelector("#ef-accounts-open").addEventListener("click",()=>efAccountsDialog.showModal());
+document.querySelector("#ef-accounts-close").addEventListener("click",()=>efAccountsDialog.close());
+document.querySelector("#ef-essential-open").addEventListener("click",()=>efEssentialDialog.showModal());
+document.querySelector("#ef-essential-close").addEventListener("click",()=>efEssentialDialog.close());
 
 document.querySelector("#ef-month-options").addEventListener("click",async e=>{
   const b=e.target.closest("[data-ef-months]");if(!b)return;

@@ -193,26 +193,34 @@ ul.task-list li input[type="checkbox"] {
   </section>
 </div>
 
-<section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Cuentas que forman el fondo</h2>
-      <div class="tf-muted">El saldo se calcula únicamente desde cuentas reales seleccionadas. No se crea dinero virtual.</div>
+<div class="tf-grid tf-grid-2" style="margin-top:1rem">
+  <section class="tf-card">
+    <div class="tf-section-heading">
+      <div><h2 class="anchored">Cuentas del fondo</h2><div class="tf-muted">El fondo usa únicamente saldos reales de las cuentas seleccionadas.</div></div>
+      <strong id="ef-account-count" class="tf-plan-section-total">0</strong>
     </div>
-  </div>
-  <div id="ef-account-list" class="tf-plan-source-list"></div>
-</section>
+    <button id="ef-accounts-open" class="tf-btn tf-btn-secondary" type="button">Seleccionar cuentas</button>
+  </section>
+  <section class="tf-card">
+    <div class="tf-section-heading">
+      <div><h2 class="anchored">Gasto esencial mensual</h2><div id="ef-history-note" class="tf-muted"></div></div>
+      <strong id="ef-essential-total" class="tf-plan-section-total">$0,00</strong>
+    </div>
+    <button id="ef-essential-open" class="tf-btn tf-btn-secondary" type="button">Información y selección</button>
+  </section>
+</div>
 
-<section class="tf-card" style="margin-top:1rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2 class="anchored">Gasto esencial mensual</h2>
-      <div id="ef-history-note" class="tf-muted"></div>
-    </div>
-    <strong id="ef-essential-total" class="tf-plan-section-total">$0,00</strong>
-  </div>
+<dialog id="ef-accounts-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Fondo de emergencia</div><h2 class="anchored">Cuentas incluidas</h2></div><button id="ef-accounts-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
+  <div class="tf-muted" style="margin-bottom:.8rem">Selecciona las cuentas cuyos saldos forman parte del fondo.</div>
+  <div id="ef-account-list" class="tf-plan-source-list"></div>
+</dialog>
+
+<dialog id="ef-essential-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Base del objetivo</div><h2 class="anchored">Gasto esencial mensual</h2></div><button id="ef-essential-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
+  <div class="tf-section-heading"><div class="tf-muted">Selecciona qué componentes forman parte del gasto esencial.</div><strong id="ef-essential-dialog-total" class="tf-plan-section-total">$0,00</strong></div>
   <div id="ef-components" class="tf-plan-source-list"></div>
-</section>
+</dialog>
 
 <section class="tf-card" style="margin-top:1rem">
   <h2 class="anchored">Movimientos del fondo</h2>
@@ -239,7 +247,7 @@ ul.task-list li input[type="checkbox"] {
   </div>
 </div>
 
-<script type="module" src="js/emergency-fund.js"></script>
+<script type="module" src="js/emergency-fund.js?v=1.0.86"></script>
 
 
 
@@ -651,7 +659,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.85</p>
+<p>Tracker Financiero Personal V1.0.86</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
