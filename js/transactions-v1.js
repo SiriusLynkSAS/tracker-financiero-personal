@@ -9,7 +9,7 @@ import {
   listRecurring,
   saveRecurringTransaction,
   transactionInAccountLedger
-} from "./data-service.js?v=1.0.82";
+} from "./data-service.js?v=1.0.90";
 import {
   todayISO,
   money,
@@ -216,7 +216,7 @@ function openTransactionDetail(tx){
     </section>`:"";
 
   detailDialogBody.innerHTML=balanceHtml+chargeHtml+
-    (tx.recurringId?`<div class="tf-muted" style="margin-top:.75rem">Vinculado a recurrente.</div>`:"")+
+    ((tx.insurancePolicyId&&tx.recurringId)?`<div class="tf-muted" style="margin-top:.75rem">Prima de seguro vinculada. Corrige este pago desde Seguros.</div>`:(tx.recurringId?`<div class="tf-muted" style="margin-top:.75rem">Vinculado a recurrente.</div>`:""))+
     ((tx.debtPaymentId||tx.liabilityId)?`<div class="tf-muted" style="margin-top:.75rem">Vinculado a pago de deuda.</div>`:"");
 
   detailDialog.showModal();
@@ -716,7 +716,7 @@ function render() {
       <td class="tf-tx-final-balance">${finalBalanceCell(tx)}</td>
       <td><div class="tf-actions tf-actions-compact">
         <button class="tf-icon-btn" data-detail="${tx.id}" title="Ver detalle" aria-label="Ver detalle">ⓘ</button>
-        ${tx.reconciliationAdjustment?`<a class="tf-icon-btn" href="conciliacion.html" title="Abrir conciliación" aria-label="Abrir conciliación">↗</a>`:(tx.debtPaymentId||tx.liabilityId||tx.financingPlanId)?`<a class="tf-icon-btn" href="deudas.html" title="Abrir deuda o plan de cuotas" aria-label="Abrir deuda o plan de cuotas">↗</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-icon-btn" href="comisiones.html" title="Abrir comisión" aria-label="Abrir comisión">↗</a>`:(tx.recurringId?`<a class="tf-icon-btn" href="recurrentes.html" title="Abrir recurrente" aria-label="Abrir recurrente">↗</a>`:(tx.invoicePaymentId?`<a class="tf-icon-btn" href="facturacion.html?invoice=${encodeURIComponent(tx.invoiceId||"")}" title="Abrir factura" aria-label="Abrir factura">↗</a>`:(tx.contractPaymentId?`<a class="tf-icon-btn" href="contratos.html" title="Abrir contrato" aria-label="Abrir contrato">↗</a>`:(tx.insuranceUsageId?`<a class="tf-icon-btn" href="seguros.html" title="Abrir seguro" aria-label="Abrir seguro">↗</a>`:(tx.investmentId?`<a class="tf-icon-btn" href="inversiones.html" title="Abrir inversión" aria-label="Abrir inversión">↗</a>`:(tx.assetId?`<a class="tf-icon-btn" href="activos.html" title="Abrir activo" aria-label="Abrir activo">↗</a>`:`<button class="tf-icon-btn" data-edit="${tx.id}" title="Editar" aria-label="Editar">✎</button>`))))))}
+        ${tx.reconciliationAdjustment?`<a class="tf-icon-btn" href="conciliacion.html" title="Abrir conciliación" aria-label="Abrir conciliación">↗</a>`:(tx.debtPaymentId||tx.liabilityId||tx.financingPlanId)?`<a class="tf-icon-btn" href="deudas.html" title="Abrir deuda o plan de cuotas" aria-label="Abrir deuda o plan de cuotas">↗</a>`:(tx.tripExpenseId||tx.tripSettlementId)?`<a class="tf-icon-btn" href="comisiones.html" title="Abrir comisión" aria-label="Abrir comisión">↗</a>`:((tx.insurancePolicyId&&tx.recurringId)?`<a class="tf-icon-btn" href="seguros.html" title="Abrir seguro" aria-label="Abrir seguro">↗</a>`:(tx.recurringId?`<a class="tf-icon-btn" href="recurrentes.html" title="Abrir recurrente" aria-label="Abrir recurrente">↗</a>`:(tx.invoicePaymentId?`<a class="tf-icon-btn" href="facturacion.html?invoice=${encodeURIComponent(tx.invoiceId||"")}" title="Abrir factura" aria-label="Abrir factura">↗</a>`:(tx.contractPaymentId?`<a class="tf-icon-btn" href="contratos.html" title="Abrir contrato" aria-label="Abrir contrato">↗</a>`:(tx.insuranceUsageId?`<a class="tf-icon-btn" href="seguros.html" title="Abrir seguro" aria-label="Abrir seguro">↗</a>`:(tx.investmentId?`<a class="tf-icon-btn" href="inversiones.html" title="Abrir inversión" aria-label="Abrir inversión">↗</a>`:(tx.assetId?`<a class="tf-icon-btn" href="activos.html" title="Abrir activo" aria-label="Abrir activo">↗</a>`:`<button class="tf-icon-btn" data-edit="${tx.id}" title="Editar" aria-label="Editar">✎</button>`)))))))}
         ${(tx.taxPaymentId||tx.tripExpenseId||tx.tripSettlementId||tx.reconciliationAdjustment||tx.debtPaymentId||tx.liabilityId||tx.financingPlanId||tx.recurringId||tx.insuranceUsageId||tx.investmentId||tx.assetId)?`<span class="tf-pill">Vinculado</span>`:`<button class="tf-icon-btn tf-icon-btn-danger" data-delete="${tx.id}" title="Eliminar" aria-label="Eliminar">×</button>`}
       </div></td>
     </tr>`;
