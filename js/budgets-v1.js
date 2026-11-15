@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listBudgets,listTransactions,listCategories,saveBudget,removeBudget} from "./data-service.js?v=1.0.84";
+import {listBudgets,listTransactions,listCategories,saveBudget,removeBudget} from "./data-service.js?v=1.0.85";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {sortCategoryRows,categoriesForType,subcategoriesFor} from "./category-catalog.js";
 import {confirmAction,toast} from "./ui.js";
