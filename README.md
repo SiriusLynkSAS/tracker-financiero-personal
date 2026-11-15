@@ -1,3 +1,10 @@
+# V1.0.85 · AUD-POST-012
+
+- Presupuestos Android: tabla compacta Nombre / Usado / Disponible / Información.
+- Recurrentes: tablas en lugar de tarjetas; registro de pago/ingreso sin salir del módulo.
+- Plan mensual: consolidado automático sin pestañas, ajustes, notas ni restablecimiento.
+- Reservas del mes incorpora IVA pendiente de liquidación sin doble conteo.
+
 # Tracker Financiero Personal Web V1.0.84 · AUD-POST-011 Presupuestos + Plan mensual
 
 # Tracker Financiero Personal Web V1.0.83 · AUD-POST-010 Presupuestos y alertas

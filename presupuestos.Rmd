@@ -143,5 +143,5 @@ title: "Presupuestos"
   <div id="budget-detail-body" class="tf-budget-detail-body"></div>
 </dialog>
 
-<script type="module" src="js/budgets-v1.js?v=1.0.84"></script>
+<script type="module" src="js/budgets-v1.js?v=1.0.85"></script>
 ```

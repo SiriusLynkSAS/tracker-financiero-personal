@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const rmd=fs.readFileSync(new URL('../plan_mensual.Rmd',import.meta.url),'utf8');
+const js=fs.readFileSync(new URL('../js/monthly-plan.js',import.meta.url),'utf8');
+assert.doesNotMatch(rmd,/data-mp-tab=|Ajustes manuales|Notas y restablecimiento|Guardar plan/,'Plan mensual no debe conservar pestañas ni ajustes manuales');
+assert.match(rmd,/class="tf-plan-dual-summary"/,'debe mostrar plan y ejecución en la cabecera');
+assert.match(rmd,/Plan del mes[\s\S]*Ejecución real/);
+assert.match(rmd,/Ingresos previstos[\s\S]*Compromisos[\s\S]*Objetivos[\s\S]*Reservas del mes/);
+assert.match(rmd,/id="mp-income-list"[\s\S]*id="mp-fixed-list"[\s\S]*id="mp-goal-list"[\s\S]*id="mp-variable-list"/);
+assert.match(rmd,/Presupuestos y reserva de IVA/);
+assert.match(js,/listInvoicesOptional/);
+assert.match(js,/key:`vat:\$\{invoice\.id\}`/,'IVA debe convertirse en reserva');
+assert.match(js,/amount:totalPending/,'factura prevista debe entrar como ingreso bruto para no descontar IVA dos veces');
+assert.doesNotMatch(js,/adjustments|manualSavings|mp-note|mp-reset-auto/);
+console.log('monthly-plan-consolidated-v1085: OK');

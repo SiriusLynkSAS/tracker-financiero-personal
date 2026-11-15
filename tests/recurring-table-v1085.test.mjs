@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const rmd=fs.readFileSync(new URL('../recurrentes.Rmd',import.meta.url),'utf8');
+const js=fs.readFileSync(new URL('../js/recurring.js',import.meta.url),'utf8');
+assert.match(rmd,/<table class="tf-table tf-recurring-table">/,'Recurrentes debe mostrarse como tabla');
+assert.doesNotMatch(rmd,/id="rec-list" class="tf-grid|tf-grid-3/,'no debe usar tarjetas como listado principal');
+assert.match(rmd,/Registrar[\s\S]*Información/,'debe tener acciones Registrar e Información');
+assert.match(rmd,/<dialog id="rec-register-dialog"/,'registrar debe abrir un movimiento sin salir de Recurrentes');
+assert.match(rmd,/id="rec-register-category-picker"/,'el movimiento precargado debe conservar selector categoría/subcategoría');
+assert.match(js,/saveRecurringTransaction/,'debe usar registro recurrente seguro');
+assert.doesNotMatch(js,/href="movimientos\.html\?recurring=/,'no debe navegar a Movimientos para registrar');
+assert.match(js,/openRegister\(row\)/);
+console.log('recurring-table-v1085: OK');
