@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.82";
+} from "./schema.js?v=1.0.86";
 import {AUD_POST_007_TARGET,inspectAudPost007Raw,sanitizeContractPaymentWrite} from "./post-audit-logic.js?v=1.0.82";
 
 function uid(){
@@ -277,6 +277,7 @@ export async function saveTransaction(d,id=null){
     if(old.investmentId) throw new Error("Este movimiento está vinculado a una inversión. Modifícalo desde Inversiones.");
     if(old.financingPlanId) throw new Error("Este movimiento está vinculado a un plan de cuotas de tarjeta. Revísalo desde Deudas y tarjetas; no puede editarse directamente.");
     if(old.contractPaymentId) throw new Error("Este movimiento está vinculado a un cobro contractual. Modifícalo desde Contratos.");
+    if(old.insuranceUsageId) throw new Error("Este movimiento está vinculado a una cobertura de seguro. Revísalo desde Seguros.");
     if(old.invoicePaymentId || old.invoiceId) throw new Error("Este movimiento está vinculado a una factura. Modifícalo desde Facturación.");
     if(old.settlementId) throw new Error("Este movimiento forma parte de una liquidación estructurada y no puede editarse directamente.");
   }
@@ -321,6 +322,9 @@ export async function removeTransaction(id){
   }
   if(row?.financingPlanId){
     throw new Error("Este movimiento está vinculado a un plan de cuotas de tarjeta. Revísalo desde Deudas y tarjetas; no puede eliminarse directamente.");
+  }
+  if(row?.insuranceUsageId){
+    throw new Error("Este movimiento está vinculado a una cobertura de seguro. Revísalo desde Seguros; no puede eliminarse directamente.");
   }
   if(row?.invoicePaymentId && row?.invoiceId){
     const invoice=normalizeInvoice(await getEntity("invoices",row.invoiceId)||{});
@@ -618,6 +622,42 @@ export const listInsurance=()=>listEntities("insurance");
 export const saveInsurance=(d,id=null)=>saveEntity("insurance",d,id,{auditType:"insurance"});
 export const archiveInsurance=id=>archiveEntity("insurance",id,{auditType:"insurance"});
 export const reactivateInsurance=id=>reactivateEntity("insurance",id,{auditType:"insurance"});
+
+export async function registerInsuranceCoverage(policyId,usage,transactionData=null){
+  const policy=await getEntity("insurance",policyId);
+  if(!policy) throw new Error("Seguro no encontrado.");
+  const payment=Math.max(0,Number(usage?.paidAmount||0));
+  const covered=Math.max(0,Number(usage?.coveredAmount||0));
+  if(payment<=0 && covered<=0) throw new Error("Ingresa pago personal o cobertura.");
+  const usageId=String(usage?.id||globalThis.crypto?.randomUUID?.()||`insurance-${Date.now()}`);
+  const txRef=payment>0?doc(col("transactions")):null;
+  const transactionId=txRef?.id||null;
+  const event={
+    id:usageId,date:String(usage?.date||""),description:String(usage?.description||"").trim(),
+    paidAmount:payment,copayAmount:payment,coveredAmount:covered,serviceCost:payment+covered,
+    transactionId,hasInvoice:usage?.hasInvoice===true,invoiceNumber:String(usage?.invoiceNumber||""),
+    vat:Math.max(0,Number(usage?.vat||0))
+  };
+  const nextPolicy={...policy,usageEvents:[...(policy.usageEvents||[]),event]};
+  delete nextPolicy.id;
+  const batch=writeBatch(db);
+  batch.set(ref("insurance",policyId),{...nextPolicy,updatedAt:serverTimestamp()},{merge:true});
+  batch.set(doc(col("auditLog")),auditPayload("insurance",policyId,"UPDATE",policy,nextPolicy,"Registro de cobertura de seguro"));
+  if(txRef){
+    const tx=sanitizeTransactionWrite({
+      ...(transactionData||{}),type:"expense",date:event.date,amount:payment,
+      description:String(transactionData?.description||`Seguro · ${event.description||policy.name||policy.provider}`).trim(),
+      category:String(transactionData?.category||"Salud"),subcategory:String(transactionData?.subcategory||"Seguro"),
+      insuranceUsageId:usageId,insurancePolicyId:policyId
+    });
+    batch.set(txRef,{...canonicalStamp(tx),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+    batch.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"CREATE",null,tx,"Cobertura de seguro"));
+  }
+  await batch.commit();
+  invalidateCollection("insurance");invalidateCollection("transactions");
+  return {usageId,transactionId};
+}
+
 export const listAssets=()=>listEntities("assets");
 export const saveAsset=(d,id=null)=>saveEntity("assets",d,id,{auditType:"asset"});
 export const archiveAsset=id=>archiveEntity("assets",id,{auditType:"asset"});

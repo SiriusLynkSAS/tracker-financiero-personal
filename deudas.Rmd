@@ -105,15 +105,15 @@ title: "Deudas y tarjetas"
       <div class="tf-muted">Obligaciones con acreedores. Las deudas históricas pueden conservar saldo reportado y cronograma de seguimiento sin inventar movimientos bancarios pasados.</div>
     </div>
   </div>
-  <div id="debt-list" class="tf-grid tf-grid-3"></div>
+  <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Deuda</th><th>Acreedor</th><th class="tf-num">Original</th><th class="tf-num">Pagado</th><th class="tf-num">Saldo pendiente</th><th>Cuota actual</th><th>Próxima fecha</th><th>Estado</th><th>Cronograma</th><th>Información</th></tr></thead><tbody id="debt-list"></tbody></table></div>
 </section>
 
 <section id="archived-debt-section" class="tf-module-section" style="margin-top:1.2rem" hidden>
   <div class="tf-section-heading"><div><h2>Archivados</h2><div class="tf-muted">Histórico fuera del flujo operativo. Puedes reactivar préstamos o planes sin crear registros nuevos.</div></div></div>
   <h3>Préstamos y otras deudas</h3>
-  <div id="archived-debt-list" class="tf-grid tf-grid-3"></div>
+  <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Deuda</th><th>Acreedor</th><th>Saldo histórico</th><th>Cronograma</th><th>Información</th></tr></thead><tbody id="archived-debt-list"></tbody></table></div>
   <h3 style="margin-top:1rem">Planes de tarjeta</h3>
-  <div id="archived-plan-list" class="tf-grid tf-grid-3"></div>
+  <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Plan</th><th>Tarjeta</th><th>Saldo histórico</th><th>Cronograma</th><th>Información</th></tr></thead><tbody id="archived-plan-list"></tbody></table></div>
 </section>
 
 <div id="debt-schedule-card" class="tf-card tf-schedule-card tf-loan-schedule" style="margin-top:1rem" hidden>
@@ -167,13 +167,11 @@ title: "Deudas y tarjetas"
 </div>
 
 <section id="active-card-section" class="tf-module-section tf-module-cards" style="margin-top:1.8rem">
-  <div class="tf-section-heading">
-    <div>
-      <h2>Planes de tarjetas</h2>
-      <div class="tf-muted">Compras financiadas y avances asociados exclusivamente a tarjetas de crédito.</div>
-    </div>
-  </div>
-  <div id="plan-list" class="tf-grid tf-grid-3"></div>
+  <div class="tf-section-heading"><div><h2>Tarjetas de crédito</h2><div class="tf-muted">La deuda total de la tarjeta y los planes financiados se muestran por separado para evitar doble conteo.</div></div></div>
+  <h3>Deuda total</h3>
+  <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Tarjeta</th><th class="tf-num">Deuda actual</th><th class="tf-num">Límite</th><th class="tf-num">Disponible</th><th>Corte</th><th>Pago</th><th>Información</th></tr></thead><tbody id="card-debt-list"></tbody></table></div>
+  <h3 style="margin-top:1rem">Planes financiados</h3>
+  <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Plan</th><th>Tarjeta</th><th>Cuota</th><th class="tf-num">Valor cuota</th><th class="tf-num">Saldo pendiente</th><th>Próxima fecha</th><th>Estado</th><th>Cronograma</th><th>Información</th></tr></thead><tbody id="plan-list"></tbody></table></div>
 </section>
 
 <div id="card-schedule-card" class="tf-card tf-schedule-card tf-card-schedule" style="margin-top:1rem" hidden>
@@ -204,8 +202,10 @@ title: "Deudas y tarjetas"
   </div>
 </div>
 
+<dialog id="debt-detail-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Deuda</div><h2 id="debt-detail-title">Detalle</h2></div><button type="button" class="tf-btn tf-btn-secondary" id="debt-detail-close">Cerrar</button></div><div id="debt-detail-body"></div></dialog>
+
 <dialog id="card-detail-dialog" class="tf-modal-dialog tf-card-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Tarjeta de crédito</div><h2 id="card-detail-title">Detalle del plan</h2></div><button type="button" class="tf-btn tf-btn-secondary" id="card-detail-close">Cerrar</button></div><div id="card-detail-body"></div></dialog>
 
 
-<script type="module" src="js/debts.js?v=1.0.82"></script>
+<script type="module" src="js/debts.js?v=1.0.86"></script>
 ```

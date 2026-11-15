@@ -3,7 +3,7 @@ import {
   listGoals,saveGoal,archiveGoal,reactivateGoal,listAccounts,listTransactions,calculateBalances,
   getEmergencyFund,listRecurring,listInsurance,listLiabilities,listFinancingPlans,
   listContracts,syncReceivablesClosed
-} from "./data-service.js";
+} from "./data-service.js?v=1.0.86";
 import {money,escapeHtml,clamp,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 import {defaultEmergencyFundConfig,emergencyFundSummary,monthlyProjection} from "./planning.js";
@@ -35,25 +35,11 @@ function render(){
   const visible=goals.filter(g=>showArchived?g.active===false:g.active!==false);
   list.innerHTML=visible.map(g=>{
     const saved=g.accountId?Math.max(0,Number(balances[g.accountId]||0)):Number(g.savedManual||0);
-    const p=clamp(saved/Math.max(1,Number(g.target))*100,0,100);
-    const monthly=monthlyNeeded(g,saved);
-    return `<div class="tf-card tf-goal-card tf-priority-${escapeHtml(g.priority||"medium")}">
-      <div class="tf-section-heading">
-        <div><strong>${escapeHtml(g.name)}</strong><div class="tf-muted">${escapeHtml(priorityLabel(g.priority||"medium"))}</div></div>
-        <strong>${p.toFixed(0)}%</strong>
-      </div>
-      <div class="tf-progress" style="margin:.8rem 0"><span style="width:${p}%"></span></div>
-      <div class="tf-detail-grid">
-        <div class="tf-metric"><span class="tf-metric-label">Acumulado</span><strong>${money(saved)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Objetivo</span><strong>${money(g.target)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Aporte/mes</span><strong>${monthly>0?money(monthly):"—"}</strong></div>
-      </div>
-      <div class="tf-muted" style="margin-top:.55rem">${g.targetDate?`Objetivo ${escapeHtml(g.targetDate)}`:"Sin fecha objetivo"}${g.accountId?` · ${escapeHtml(accountName(g.accountId))}`:""}</div>
-      <div class="tf-actions" style="margin-top:.7rem">
-        ${showArchived?`<button class="tf-btn tf-btn-primary" data-reactivate="${g.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-secondary" data-edit="${g.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-archive="${g.id}">Archivar</button>`}
-      </div>
-    </div>`;
-  }).join("")||`<div class="tf-card tf-empty">${showArchived?"Sin metas archivadas.":"Sin metas activas."}</div>`;
+    const target=Math.max(0,Number(g.target||0));
+    const pending=Math.max(0,target-saved);
+    const p=clamp(saved/Math.max(1,target)*100,0,100);
+    return `<tr><td><strong>${escapeHtml(g.name)}</strong><div class="tf-muted">${escapeHtml(priorityLabel(g.priority||"medium"))}</div></td><td class="tf-num">${money(target)}</td><td class="tf-num">${money(saved)}</td><td class="tf-num">${money(pending)}</td><td>${g.targetDate?escapeHtml(g.targetDate):"—"}</td><td><div class="tf-progress" style="min-width:110px"><span style="width:${p}%"></span></div><small>${p.toFixed(0)}%</small></td><td><button class="tf-icon-btn" data-goal-info="${g.id}" title="Información" aria-label="Información">ⓘ</button></td></tr>`;
+  }).join("")||`<tr><td colspan="7" class="tf-empty">${showArchived?"Sin metas archivadas.":"Sin metas activas."}</td></tr>`;
 }
 function resetForm(){
   document.querySelector("#goal-form").reset();
@@ -127,9 +113,18 @@ document.querySelector("#goal-form").addEventListener("submit",async e=>{
 });
 
 list.addEventListener("click",async e=>{
+  const info=e.target.closest("[data-goal-info]");
   const edit=e.target.closest("[data-edit]");
   const archive=e.target.closest("[data-archive]");
   const reactivate=e.target.closest("[data-reactivate]");
+  if(info){
+    const g=goals.find(x=>x.id===info.dataset.goalInfo);if(!g)return;
+    const saved=g.accountId?Math.max(0,Number(balances[g.accountId]||0)):Number(g.savedManual||0);
+    const monthly=monthlyNeeded(g,saved);
+    document.querySelector("#goal-detail-title").textContent=g.name||"Meta";
+    document.querySelector("#goal-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Objetivo</span><strong>${money(g.target)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Acumulado</span><strong>${money(saved)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(Math.max(0,Number(g.target||0)-saved))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Aporte recomendado/mes</span><strong>${monthly>0?money(monthly):"—"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fecha objetivo</span><strong>${escapeHtml(g.targetDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cuenta vinculada</span><strong>${escapeHtml(accountName(g.accountId)||"Sin cuenta")}</strong></div></div><div class="tf-actions" style="margin-top:1rem">${g.active===false?`<button class="tf-btn tf-btn-primary" data-reactivate="${g.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-edit="${g.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-archive="${g.id}">Archivar</button>`}</div>`;
+    document.querySelector("#goal-detail-dialog").showModal();return;
+  }
   if(edit){
     const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;
     editor.hidden=false;
@@ -152,3 +147,12 @@ list.addEventListener("click",async e=>{
 });
 
 requireUser(()=>refresh().catch(console.error));
+
+document.querySelector("#goal-detail-close").addEventListener("click",()=>document.querySelector("#goal-detail-dialog").close());
+
+document.querySelector("#goal-detail-body").addEventListener("click",async e=>{
+  const edit=e.target.closest("[data-edit]"), archive=e.target.closest("[data-archive]"), reactivate=e.target.closest("[data-reactivate]");
+  if(edit){document.querySelector("#goal-detail-dialog").close();const g=goals.find(x=>x.id===edit.dataset.edit);if(!g)return;editor.hidden=false;document.querySelector("#goal-editor-title").textContent="Editar meta";document.querySelector("#goal-id").value=g.id;document.querySelector("#goal-name").value=g.name||"";document.querySelector("#goal-target").value=Number(g.target||0);document.querySelector("#goal-date").value=g.targetDate||"";document.querySelector("#goal-priority").value=g.priority||"medium";document.querySelector("#goal-account").value=g.accountId||"";document.querySelector("#goal-saved").value=Number(g.savedManual||0);document.querySelector("#goal-submit").textContent="Actualizar meta";document.querySelector("#goal-cancel").hidden=false;toggleManual();scrollTo({top:0,behavior:"smooth"});}
+  if(reactivate){await reactivateGoal(reactivate.dataset.reactivate);document.querySelector("#goal-detail-dialog").close();await refresh();}
+  if(archive&&await confirmAction({title:"Archivar meta",message:"Se conserva su historial.",confirmText:"Archivar"})){await archiveGoal(archive.dataset.archive);document.querySelector("#goal-detail-dialog").close();await refresh();}
+});

@@ -1,3 +1,7 @@
+# Web V1.0.86 · AUD-POST-013
+
+Rediseño de Fondo de emergencia, Metas, Deudas/Tarjetas y Seguros; Plan mensual fuerza Plan/Ejecución lado a lado en escritorio. Seguros vincula cobertura y Movimiento con IDs distintos y escritura atómica.
+
 # V1.0.85 · AUD-POST-012
 
 - Presupuestos Android: tabla compacta Nombre / Usado / Disponible / Información.

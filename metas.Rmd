@@ -37,7 +37,8 @@ title: "Metas"
   </form>
 </section>
 
-<div id="goal-list" class="tf-grid tf-grid-3" style="margin-top:1rem"></div>
+<div class="tf-table-wrap" style="margin-top:1rem"><table class="tf-table tf-goal-table"><thead><tr><th>Meta</th><th class="tf-num">Objetivo</th><th class="tf-num">Acumulado</th><th class="tf-num">Pendiente</th><th>Fecha objetivo</th><th>Progreso</th><th>Información</th></tr></thead><tbody id="goal-list"></tbody></table></div>
+<dialog id="goal-detail-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Meta financiera</div><h2 id="goal-detail-title">Detalle</h2></div><button id="goal-detail-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div><div id="goal-detail-body"></div></dialog>
 
-<script type="module" src="js/goals.js"></script>
+<script type="module" src="js/goals.js?v=1.0.86"></script>
 ```

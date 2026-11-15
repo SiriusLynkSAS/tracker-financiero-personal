@@ -1,81 +1,31 @@
 import {requireUser} from "./guard.js";
-import {listInsurance,saveInsurance,archiveInsurance,reactivateInsurance} from "./data-service.js";
-import {money,escapeHtml,todayISO,sum} from "./utils.js";
+import {listInsurance,saveInsurance,archiveInsurance,reactivateInsurance,listAccounts,listTransactions,registerInsuranceCoverage} from "./data-service.js?v=1.0.86";
+import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
-let rows=[],showArchived=false;
-const list=document.querySelector("#ins-list");
-const editor=document.querySelector("#ins-editor"),useEditor=document.querySelector("#use-editor");
-const newButton=document.querySelector("#ins-new"),archivedToggle=document.querySelector("#ins-archived-toggle");
-
+let rows=[],accounts=[],transactions=[],showArchived=false;
+const list=document.querySelector("#ins-list"),coverageList=document.querySelector("#coverage-list");
+const editor=document.querySelector("#ins-editor"),coverageEditor=document.querySelector("#coverage-editor");
+const newButton=document.querySelector("#ins-new"),coverageButton=document.querySelector("#coverage-new"),archivedToggle=document.querySelector("#ins-archived-toggle");
+function typeLabel(v){return ({health:"Salud",vehicle:"Vehículo",equipment:"Equipo",other:"Otro"})[v]||v||"—"}
+function accountLabel(a){return [a.bank,a.alias].filter(Boolean).join(" · ")||"Cuenta"}
+function allUsages(){return rows.flatMap(p=>(p.usageEvents||[]).map(u=>({...u,policyId:p.id,policyName:p.name,policyProvider:p.provider}))).sort((a,b)=>String(b.date).localeCompare(String(a.date)))}
 function render(){
-  const active=rows.filter(x=>x.active!==false), archived=rows.filter(x=>x.active===false);
-  archivedToggle.hidden=!archived.length;
-  archivedToggle.textContent=showArchived?"Ver activas":`Archivadas (${archived.length})`;
-  newButton.hidden=showArchived;
-  document.querySelector("#use-policy").innerHTML=active.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");
-  const visible=showArchived?archived:active;
-  list.innerHTML=visible.map(x=>{
-    const uses=x.usageEvents||[],covered=sum(uses,u=>u.coveredAmount),copay=sum(uses,u=>u.copay);
-    return`<div class="tf-card">
-      <strong>${escapeHtml(x.name)}</strong>
-      <div class="tf-muted">${escapeHtml(x.provider)} · prima ${money(x.monthlyPremium)}/mes</div>
-      <div class="tf-detail-grid" style="margin-top:.7rem"><div class="tf-metric"><span class="tf-metric-label">Cubierto</span><strong>${money(covered)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Copagos</span><strong>${money(copay)}</strong></div></div>
-      <div class="tf-actions" style="margin-top:.7rem">
-        ${showArchived
-          ? `<button class="tf-btn tf-btn-primary" data-reactivate="${x.id}">Reactivar</button>`
-          : `<button class="tf-btn tf-btn-secondary" data-use="${x.id}">Registrar uso</button><button class="tf-btn tf-btn-secondary" data-archive="${x.id}">Archivar</button>`}
-      </div>
-    </div>`;
-  }).join("")||`<div class="tf-card tf-empty">${showArchived?"Sin seguros archivados.":"Sin seguros activos."}</div>`;
+  const active=rows.filter(x=>x.active!==false),archived=rows.filter(x=>x.active===false),visible=showArchived?archived:active;
+  archivedToggle.hidden=!archived.length;archivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archived.length})`;newButton.hidden=showArchived;coverageButton.hidden=showArchived||!active.length;
+  document.querySelector("#coverage-policy").innerHTML=active.map(x=>`<option value="${x.id}">${escapeHtml(x.provider)} · ${escapeHtml(x.name)}</option>`).join("");
+  document.querySelector("#coverage-account").innerHTML=`<option value="">Selecciona una cuenta</option>`+accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join("");
+  list.innerHTML=visible.map(p=>`<tr><td><strong>${escapeHtml(p.name)}</strong></td><td>${escapeHtml(p.provider)}</td><td>${escapeHtml(typeLabel(p.type))}</td><td>${escapeHtml(p.startDate||"—")}</td><td>${escapeHtml(p.endDate||"—")}</td><td><span class="tf-pill ${p.active===false?"":"tf-pill-ok"}">${p.active===false?"Archivado":"Activo"}</span></td><td><button class="tf-icon-btn" data-ins-info="${p.id}" title="Información">ⓘ</button></td></tr>`).join("")||`<tr><td colspan="7" class="tf-empty">${showArchived?"Sin seguros archivados.":"Sin seguros activos."}</td></tr>`;
+  const usages=allUsages();
+  coverageList.innerHTML=usages.map(u=>`<tr><td>${escapeHtml(u.date||"—")}</td><td>${escapeHtml(u.policyProvider)} · ${escapeHtml(u.policyName)}</td><td>${escapeHtml(u.description||"Uso")}</td><td class="tf-num">${money(Number(u.serviceCost||Number(u.paidAmount||u.copayAmount||0)+Number(u.coveredAmount||0)))}</td><td class="tf-num">${money(u.coveredAmount||0)}</td><td class="tf-num">${money(u.paidAmount??u.copayAmount??0)}</td><td>${u.transactionId?`<a class="tf-icon-btn" href="movimientos.html?transaction=${encodeURIComponent(u.transactionId)}" title="Abrir movimiento">↗</a>`:`<span class="tf-muted">Sin movimiento</span>`}</td><td><button class="tf-icon-btn" data-coverage-info="${escapeHtml(u.id||"")}" data-policy-id="${escapeHtml(u.policyId)}" title="Información">ⓘ</button></td></tr>`).join("")||`<tr><td colspan="8" class="tf-empty">Sin coberturas registradas.</td></tr>`;
 }
-
-async function refresh(){rows=await listInsurance();render()}
-
-document.querySelector("#ins-start").value=todayISO();
-document.querySelector("#use-date").value=todayISO();
-
-newButton.addEventListener("click",()=>{document.querySelector("#ins-form").reset();document.querySelector("#ins-start").value=todayISO();editor.hidden=false;useEditor.hidden=true});
-archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;editor.hidden=true;useEditor.hidden=true;render()});
-document.querySelector("#ins-cancel").addEventListener("click",()=>{editor.hidden=true});
-document.querySelector("#use-cancel").addEventListener("click",()=>{useEditor.hidden=true});
-
-document.querySelector("#ins-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  await saveInsurance({
-    type:document.querySelector("#ins-type").value,
-    provider:document.querySelector("#ins-provider").value.trim(),
-    name:document.querySelector("#ins-name").value.trim(),
-    monthlyPremium:Number(document.querySelector("#ins-premium").value||0),
-    paymentDay:Number(document.querySelector("#ins-payment-day").value||1),
-    reminderDaysBefore:Number(document.querySelector("#ins-reminder").value||0),
-    startDate:document.querySelector("#ins-start").value,
-    endDate:document.querySelector("#ins-end").value||null,
-    usageEvents:[],active:true
-  });
-  e.target.reset();editor.hidden=true;toast("Póliza guardada.");await refresh();
-});
-
-document.querySelector("#use-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const p=rows.find(x=>x.id===document.querySelector("#use-policy").value);if(!p)return;
-  const ev={
-    date:document.querySelector("#use-date").value,
-    provider:document.querySelector("#use-provider").value.trim(),
-    serviceCost:Number(document.querySelector("#use-cost").value||0),
-    coveredAmount:Number(document.querySelector("#use-covered").value||0),
-    copay:Number(document.querySelector("#use-copay").value||0),
-    reimbursementPending:Number(document.querySelector("#use-reimbursement").value||0)
-  };
-  if(!await confirmAction({title:"Registrar uso del seguro",message:`Costo ${money(ev.serviceCost)} · cubierto ${money(ev.coveredAmount)}`,impact:["Solo se almacena información económica."]}))return;
-  await saveInsurance({...p,usageEvents:[...(p.usageEvents||[]),ev]},p.id);
-  e.target.reset();document.querySelector("#use-date").value=todayISO();useEditor.hidden=true;toast("Uso registrado.");await refresh();
-});
-
-list.addEventListener("click",async e=>{
-  const ar=e.target.closest("[data-archive]"),re=e.target.closest("[data-reactivate]"),use=e.target.closest("[data-use]");
-  if(use){document.querySelector("#use-policy").value=use.dataset.use;useEditor.hidden=false;editor.hidden=true;return}
-  if(re){await reactivateInsurance(re.dataset.reactivate);await refresh();return}
-  if(ar&&await confirmAction({title:"Archivar póliza",message:"Se conserva historial.",confirmText:"Archivar"})){await archiveInsurance(ar.dataset.archive);await refresh()}
-});
-requireUser(()=>refresh().catch(console.error));
+async function refresh(){[rows,accounts,transactions]=await Promise.all([listInsurance(),listAccounts(),listTransactions()]);render()}
+function openPolicy(p=null){document.querySelector("#ins-form").reset();document.querySelector("#ins-id").value=p?.id||"";document.querySelector("#ins-editor-title").textContent=p?"Editar seguro":"Nuevo seguro";document.querySelector("#ins-type").value=p?.type||"health";document.querySelector("#ins-provider").value=p?.provider||"";document.querySelector("#ins-name").value=p?.name||"";document.querySelector("#ins-premium").value=Number(p?.monthlyPremium||0);document.querySelector("#ins-payment-day").value=Number(p?.paymentDay||1);document.querySelector("#ins-reminder").value=Number(p?.reminderDaysBefore||3);document.querySelector("#ins-start").value=p?.startDate||todayISO();document.querySelector("#ins-end").value=p?.endDate||"";editor.showModal()}
+function syncCoverage(){const paid=Math.max(0,Number(document.querySelector("#coverage-paid").value||0)),covered=Math.max(0,Number(document.querySelector("#coverage-covered").value||0));document.querySelector("#coverage-total").value=money(paid+covered);const wrap=document.querySelector("#coverage-account-wrap"),select=document.querySelector("#coverage-account");wrap.classList.toggle("is-disabled",paid<=0);select.disabled=paid<=0;if(paid<=0)select.value="";document.querySelector("#coverage-invoice-fields").hidden=!document.querySelector("#coverage-has-invoice").checked;}
+function openCoverage(policyId=""){document.querySelector("#coverage-form").reset();document.querySelector("#coverage-date").value=todayISO();document.querySelector("#coverage-policy").value=policyId||rows.find(x=>x.active!==false)?.id||"";syncCoverage();coverageEditor.showModal()}
+newButton.addEventListener("click",()=>openPolicy());coverageButton.addEventListener("click",()=>openCoverage());archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;render()});document.querySelector("#ins-editor-close").addEventListener("click",()=>editor.close());document.querySelector("#ins-cancel").addEventListener("click",()=>editor.close());document.querySelector("#coverage-close").addEventListener("click",()=>coverageEditor.close());document.querySelector("#coverage-cancel").addEventListener("click",()=>coverageEditor.close());document.querySelector("#coverage-paid").addEventListener("input",syncCoverage);document.querySelector("#coverage-covered").addEventListener("input",syncCoverage);document.querySelector("#coverage-has-invoice").addEventListener("change",syncCoverage);
+document.querySelector("#ins-form").addEventListener("submit",async e=>{e.preventDefault();const id=document.querySelector("#ins-id").value||null;const old=id?rows.find(x=>x.id===id):null;await saveInsurance({type:document.querySelector("#ins-type").value,provider:document.querySelector("#ins-provider").value.trim(),name:document.querySelector("#ins-name").value.trim(),monthlyPremium:Number(document.querySelector("#ins-premium").value||0),paymentDay:Number(document.querySelector("#ins-payment-day").value||1),reminderDaysBefore:Number(document.querySelector("#ins-reminder").value||0),startDate:document.querySelector("#ins-start").value,endDate:document.querySelector("#ins-end").value||null,usageEvents:old?.usageEvents||[],active:old?.active!==false},id);editor.close();toast(id?"Seguro actualizado.":"Seguro guardado.");await refresh()});
+document.querySelector("#coverage-form").addEventListener("submit",async e=>{e.preventDefault();const policyId=document.querySelector("#coverage-policy").value,paid=Math.max(0,Number(document.querySelector("#coverage-paid").value||0)),covered=Math.max(0,Number(document.querySelector("#coverage-covered").value||0)),hasInvoice=document.querySelector("#coverage-has-invoice").checked,vat=hasInvoice?Math.max(0,Number(document.querySelector("#coverage-vat").value||0)):0,accountId=document.querySelector("#coverage-account").value; if(!policyId||paid+covered<=0){toast("Ingresa seguro, pago o cobertura.");return} if(paid>0&&!accountId){toast("Selecciona la cuenta usada para el pago.");return} if(vat>paid){toast("El IVA no puede superar el pago personal.");return} const description=document.querySelector("#coverage-description").value.trim(); if(!description){toast("Ingresa el servicio o referencia.");return} if(!await confirmAction({title:"Registrar cobertura",message:`Total ${money(paid+covered)} · pagado ${money(paid)} · cobertura ${money(covered)}`,impact:[paid>0?"Se creará un egreso vinculado en Movimientos.":"No se creará movimiento porque el pago personal es $0."]}))return; await registerInsuranceCoverage(policyId,{date:document.querySelector("#coverage-date").value,description,paidAmount:paid,coveredAmount:covered,hasInvoice,invoiceNumber:hasInvoice?document.querySelector("#coverage-invoice-number").value.trim():"",vat},{accountId,hasInvoice,invoiceNumber:document.querySelector("#coverage-invoice-number").value.trim(),vat,invoiceBase:Math.max(0,paid-vat),taxPeriod:document.querySelector("#coverage-date").value.slice(0,7),vatStatus:hasInvoice&&vat>0?"pending":"none",category:"Salud",subcategory:"Seguro",receipt:"",splits:[]});coverageEditor.close();toast(paid>0?"Cobertura y movimiento registrados.":"Cobertura registrada sin movimiento.");await refresh()});
+document.addEventListener("click",async e=>{const info=e.target.closest("[data-ins-info]"),cov=e.target.closest("[data-coverage-info]"),edit=e.target.closest("[data-ins-edit]"),archive=e.target.closest("[data-ins-archive]"),react=e.target.closest("[data-ins-reactivate]"),reg=e.target.closest("[data-ins-register]");if(info){const p=rows.find(x=>x.id===info.dataset.insInfo);if(!p)return;document.querySelector("#ins-detail-title").textContent=p.name||"Seguro";document.querySelector("#ins-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Aseguradora</span><strong>${escapeHtml(p.provider)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Tipo</span><strong>${escapeHtml(typeLabel(p.type))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Prima mensual</span><strong>${money(p.monthlyPremium)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(p.startDate||"—")}</strong></div></div><div class="tf-actions" style="margin-top:1rem">${p.active===false?`<button class="tf-btn tf-btn-primary" data-ins-reactivate="${p.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-ins-register="${p.id}">Registrar cobertura</button><button class="tf-btn tf-btn-secondary" data-ins-edit="${p.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-ins-archive="${p.id}">Archivar</button>`}</div>`;document.querySelector("#ins-detail-dialog").showModal();return}if(cov){const p=rows.find(x=>x.id===cov.dataset.policyId),u=(p?.usageEvents||[]).find(x=>String(x.id||"")===cov.dataset.coverageInfo);if(!u)return;document.querySelector("#coverage-detail-title").textContent=u.description||"Cobertura";document.querySelector("#coverage-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Fecha</span><strong>${escapeHtml(u.date||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Costo total</span><strong>${money(u.serviceCost||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobertura</span><strong>${money(u.coveredAmount||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pagado por mí</span><strong>${money(u.paidAmount??u.copayAmount??0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">IVA</span><strong>${money(u.vat||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Movimiento</span><strong>${u.transactionId?"Vinculado":"No aplica"}</strong></div></div>`;document.querySelector("#coverage-detail-dialog").showModal();return}if(reg){document.querySelector("#ins-detail-dialog").close();openCoverage(reg.dataset.insRegister);return}if(edit){const p=rows.find(x=>x.id===edit.dataset.insEdit);document.querySelector("#ins-detail-dialog").close();if(p)openPolicy(p);return}if(react){await reactivateInsurance(react.dataset.insReactivate);document.querySelector("#ins-detail-dialog").close();await refresh();return}if(archive&&await confirmAction({title:"Archivar seguro",message:"Se conserva el historial de coberturas.",confirmText:"Archivar"})){await archiveInsurance(archive.dataset.insArchive);document.querySelector("#ins-detail-dialog").close();await refresh()}});
+document.querySelector("#ins-detail-close").addEventListener("click",()=>document.querySelector("#ins-detail-dialog").close());document.querySelector("#coverage-detail-close").addEventListener("click",()=>document.querySelector("#coverage-detail-dialog").close());
+requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudieron cargar los seguros.")}));
