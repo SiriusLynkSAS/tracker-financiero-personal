@@ -3,7 +3,7 @@ import {
   setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, writeBatch, runTransaction, deleteField
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 import { auth, db } from "./firebase.js";
-import {contractPeriodCalculation,contractDesiredStopMonth} from "./contract-math.js";
+import {contractPeriodCalculation,contractDesiredPeriodKeys,contractBillingCycleMode} from "./contract-math.js";
 import {
   SCHEMA_VERSION,canonicalStamp,
   normalizeAccount,sanitizeAccountWrite,
@@ -16,7 +16,7 @@ import {
   normalizeReceivable,sanitizeReceivableWrite,
   normalizeInvestment,sanitizeInvestmentWrite,
   normalizeInvoice,sanitizeInvoiceWrite
-} from "./schema.js?v=1.0.86";
+} from "./schema.js?v=1.0.87";
 import {AUD_POST_007_TARGET,inspectAudPost007Raw,sanitizeContractPaymentWrite} from "./post-audit-logic.js?v=1.0.82";
 
 function uid(){
@@ -720,22 +720,22 @@ export const listTripExpenses=()=>listEntities("tripExpenses","date")
 export const listTripSettlements=()=>listEntities("tripSettlements","date")
   .then(r=>r.sort((a,b)=>String(b.date).localeCompare(String(a.date))));
 
-function tripTxBase({type,date,amount,description,accountId,tripId,tripExpenseId="",tripSettlementId=""}){
+function tripTxBase({type,date,amount,description,accountId,tripId,tripExpenseId="",tripSettlementId="",category="Trabajo",subcategory="Comisión / viáticos",hasInvoice=false,invoiceNumber="",invoiceBase=0,vat=0,taxPeriod="",vatStatus="none"}){
   return {
-    type,date,amount:Number(amount||0),vat:0,receipt:"",
+    type,date,amount:Number(amount||0),vat:Number(vat||0),receipt:"",
     description,
-    category:"Trabajo",
-    subcategory:"Comisión / viáticos",
+    category,
+    subcategory,
     accountId,
     fromAccountId:null,
     toAccountId:null,
     splits:[],
-    hasInvoice:false,
-    invoiceNumber:"",
-    invoiceBase:0,
-    taxPeriod:"",
+    hasInvoice:!!hasInvoice,
+    invoiceNumber:hasInvoice?String(invoiceNumber||"").trim():"",
+    invoiceBase:hasInvoice?Number(invoiceBase||0):0,
+    taxPeriod:hasInvoice&&Number(vat||0)>0?String(taxPeriod||String(date||"").slice(0,7)):"",
     taxPaymentId:"",
-    vatStatus:"none",
+    vatStatus:hasInvoice&&Number(vat||0)>0?String(vatStatus||"pending"):"none",
     businessTripId:tripId,
     tripExpenseId,
     tripSettlementId
@@ -744,24 +744,38 @@ function tripTxBase({type,date,amount,description,accountId,tripId,tripExpenseId
 
 export async function createTripExpense(data){
   const amountPaid=Math.max(0,Number(data.amountPaid||0));
-  const invoiceAmount=Math.max(0,Number(data.invoiceAmount||0));
+  const invoiceAmount=Math.max(0,Number(data.invoiceAmount||amountPaid));
   const recognizedAmount=Math.max(0,Number(data.recognizedAmount||0));
+  const vat=Math.max(0,Number(data.vat||0));
+  const invoiceBase=Math.max(0,Number(data.invoiceBase ?? (amountPaid-vat)));
+  const invoiceNumber=String(data.invoiceNumber||"").trim();
+  const category=String(data.category||"").trim();
+  const subcategory=String(data.subcategory||"").trim();
   if(!data.tripId) throw new Error("Selecciona una comisión.");
   if(!data.date) throw new Error("Indica la fecha.");
   if(!(amountPaid>0)) throw new Error("El gasto real debe ser mayor que cero.");
   if(!data.accountId) throw new Error("Selecciona la cuenta desde la que pagaste.");
+  if(!invoiceNumber) throw new Error("El número de factura/comprobante es obligatorio para un gasto de viático.");
+  if(!category) throw new Error("Selecciona una categoría.");
+  if(vat>=amountPaid&&vat>0) throw new Error("El IVA debe ser menor que el total pagado.");
+  if(invoiceBase<0||invoiceBase>amountPaid) throw new Error("La base imponible no es válida.");
 
   const expenseRef=doc(col("tripExpenses"));
   const txRef=doc(col("transactions"));
   const expense={
     tripId:data.tripId,
     date:data.date,
-    category:String(data.category||"other"),
+    category,
+    subcategory,
     description:String(data.description||"").trim(),
     amountPaid,
-    hasInvoice:!!data.hasInvoice,
-    invoiceNumber:data.hasInvoice?String(data.invoiceNumber||"").trim():"",
-    invoiceAmount:data.hasInvoice?invoiceAmount:0,
+    hasInvoice:true,
+    invoiceNumber,
+    invoiceAmount:invoiceAmount||amountPaid,
+    invoiceBase,
+    vat,
+    taxPeriod:vat>0?String(data.taxPeriod||String(data.date).slice(0,7)):"",
+    vatStatus:vat>0?"pending":"none",
     recognizedAmount,
     accountId:data.accountId,
     transactionId:txRef.id,
@@ -772,18 +786,27 @@ export async function createTripExpense(data){
     type:"work_expense",
     date:data.date,
     amount:amountPaid,
-    description:`Comisión · ${expense.description||expense.category}`,
+    description:expense.description||`Viático · ${category}${subcategory?` · ${subcategory}`:""}`,
     accountId:data.accountId,
     tripId:data.tripId,
-    tripExpenseId:expenseRef.id
+    tripExpenseId:expenseRef.id,
+    category,
+    subcategory,
+    hasInvoice:true,
+    invoiceNumber,
+    invoiceBase,
+    vat,
+    taxPeriod:expense.taxPeriod,
+    vatStatus:expense.vatStatus
   });
 
   const batch=writeBatch(db);
   batch.set(expenseRef,{...expense,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   batch.set(txRef,{...tx,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   batch.set(doc(col("auditLog")),auditPayload("tripExpense",expenseRef.id,"CREATE",null,expense));
-  batch.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"CREATE",null,tx,"Gasto temporal por comisión de trabajo"));
+  batch.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"CREATE",null,tx,"Gasto de viático vinculado"));
   await batch.commit();
+  invalidateCollection("tripExpenses");invalidateCollection("transactions");
   return expenseRef.id;
 }
 
@@ -800,6 +823,7 @@ export async function updateTripExpenseRecognition(id,recognizedAmount,invoiceAm
     auditPayload("tripExpense",id,"UPDATE",old,{...old,...changes},"Actualización de valor reconocido/facturado")
   );
   await batch.commit();
+  invalidateCollection("tripExpenses");
 }
 
 export async function voidTripExpense(id){
@@ -814,6 +838,7 @@ export async function voidTripExpense(id){
   }
   batch.set(doc(col("auditLog")),auditPayload("tripExpense",id,"VOID",old,{...old,active:false},"Anulación de gasto"));
   await batch.commit();
+  invalidateCollection("tripExpenses");invalidateCollection("transactions");
 }
 
 export async function createTripSettlement(data){
@@ -824,6 +849,11 @@ export async function createTripSettlement(data){
   if(!data.date) throw new Error("Indica la fecha.");
   if(!(amount>0)) throw new Error("El monto debe ser mayor que cero.");
   if(!data.accountId) throw new Error("Selecciona una cuenta.");
+  const trip=await getEntity("businessTrips",data.tripId);
+  if(!trip) throw new Error("Viático no encontrado.");
+  if(kind==="reimbursement"&&String(trip.fundingMode||"")!=="own_funds"){
+    throw new Error("Registrar reembolso solo aplica a viáticos pagados con fondos propios.");
+  }
 
   const settlementRef=doc(col("tripSettlements"));
   const txRef=doc(col("transactions"));
@@ -833,7 +863,7 @@ export async function createTripSettlement(data){
     advance_return:"work_advance_return"
   }[kind];
   const label={
-    reimbursement:"Reembolso comisión",
+    reimbursement:"Reembolso de viático",
     advance:"Anticipo de viáticos",
     advance_return:"Devolución de anticipo"
   }[kind];
@@ -853,7 +883,9 @@ export async function createTripSettlement(data){
     description:`${label}${settlement.notes?` · ${settlement.notes}`:""}`,
     accountId:data.accountId,
     tripId:data.tripId,
-    tripSettlementId:settlementRef.id
+    tripSettlementId:settlementRef.id,
+    category:"Viáticos",
+    subcategory:kind==="reimbursement"?"Reembolso":kind==="advance"?"Anticipo":"Devolución de anticipo"
   });
 
   const batch=writeBatch(db);
@@ -862,6 +894,7 @@ export async function createTripSettlement(data){
   batch.set(doc(col("auditLog")),auditPayload("tripSettlement",settlementRef.id,"CREATE",null,settlement));
   batch.set(doc(col("auditLog")),auditPayload("transaction",txRef.id,"CREATE",null,tx,label));
   await batch.commit();
+  invalidateCollection("tripSettlements");invalidateCollection("transactions");
   return settlementRef.id;
 }
 
@@ -1718,20 +1751,22 @@ export async function saveTaxPayment(payment,transactionInvoiceIds=[],invoiceEnt
   const txIds=[...new Set(transactionInvoiceIds)].filter(Boolean);
   const entityIds=[...new Set(invoiceEntityIds)].filter(Boolean);
   if(!payment.period) throw new Error("Selecciona el período tributario.");
-  if(!txIds.length&&!entityIds.length) throw new Error("Selecciona al menos una factura.");
+  if(!txIds.length&&!entityIds.length) throw new Error("Selecciona al menos un comprobante.");
   if(Number(payment.paidVat||0)<0) throw new Error("El valor pagado no puede ser negativo.");
   if(Number(payment.paidVat||0)>0 && !payment.accountId) throw new Error("Selecciona la cuenta desde la que se pagó el IVA.");
 
   const txInvoices=[];
   for(const id of txIds){
     const row=await getEntity("transactions",id);
-    if(!row) throw new Error("Una de las facturas legacy ya no existe.");
-    if(row.type!=="income" || Number(row.vat||0)<=0 || row.taxPaymentId || row.vatStatus==="paid" || row.invoiceId){
-      throw new Error("Solo pueden liquidarse comprobantes de ingreso con IVA pendientes.");
+    if(!row) throw new Error("Uno de los movimientos con IVA ya no existe.");
+    const isGenerated=row.type==="income"&&Number(row.vat||0)>0&&!row.invoiceId;
+    const isCredit=["expense","work_expense"].includes(row.type)&&Number(row.vat||0)>0&&row.hasInvoice===true;
+    if((!isGenerated&&!isCredit)||row.taxPaymentId||row.vatStatus==="paid"){
+      throw new Error("Solo pueden liquidarse movimientos pendientes con IVA generado o IVA a favor.");
     }
     const period=String(row.taxPeriod||row.date||"").slice(0,7);
-    if(period!==payment.period) throw new Error("Todas las facturas deben pertenecer al mismo período.");
-    txInvoices.push(row);
+    if(period!==payment.period) throw new Error("Todos los comprobantes deben pertenecer al mismo período.");
+    txInvoices.push({...row,_taxRole:isCredit?"credit":"generated"});
   }
   const entityInvoices=[];
   for(const id of entityIds){
@@ -1740,30 +1775,37 @@ export async function saveTaxPayment(payment,transactionInvoiceIds=[],invoiceEnt
     if(row.active===false||row.status==="void"||Number(row.vatAmount||0)<=0||row.taxPaymentId||row.vatStatus==="paid"){
       throw new Error("Solo pueden liquidarse facturas emitidas con IVA pendientes.");
     }
-    if(String(row.taxPeriod||row.issueDate||"").slice(0,7)!==payment.period) throw new Error("Todas las facturas deben pertenecer al mismo período.");
+    if(String(row.taxPeriod||row.issueDate||"").slice(0,7)!==payment.period) throw new Error("Todos los comprobantes deben pertenecer al mismo período.");
     entityInvoices.push(row);
   }
 
-  const expectedVat=txInvoices.reduce((s,x)=>s+Number(x.vat||0),0)+entityInvoices.reduce((s,x)=>s+Number(x.vatAmount||0),0);
+  const generatedVat=moneyRound(
+    txInvoices.filter(x=>x._taxRole==="generated").reduce((s,x)=>s+Number(x.vat||0),0)+
+    entityInvoices.reduce((s,x)=>s+Number(x.vatAmount||0),0)
+  );
+  const creditVat=moneyRound(txInvoices.filter(x=>x._taxRole==="credit").reduce((s,x)=>s+Number(x.vat||0),0));
+  const expectedVat=moneyRound(Math.max(0,generatedVat-creditVat));
+  const creditBalance=moneyRound(Math.max(0,creditVat-generatedVat));
   const paymentRef=doc(col("taxPayments"));
   const paymentId=paymentRef.id;
   const batch=writeBatch(db);
   const data={
     period:payment.period,invoiceIds:txIds,invoiceEntityIds:entityIds,
-    expectedVat,paidVat:Number(payment.paidVat||0),accountId:payment.accountId||"",
+    generatedVat,creditVat,expectedVat,creditBalance,paidVat:Number(payment.paidVat||0),accountId:payment.accountId||"",
     paymentDate:payment.paymentDate,notes:String(payment.notes||""),status:"paid"
   };
   batch.set(paymentRef,{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   batch.set(doc(col("auditLog")),auditPayload("taxPayment",paymentId,"CREATE",null,data,`Liquidación de IVA ${payment.period}`));
   for(const invoice of txInvoices){
+    const before={...invoice}; delete before._taxRole;
     const changes={taxPaymentId:paymentId,vatStatus:"paid",updatedAt:serverTimestamp()};
     batch.update(ref("transactions",invoice.id),changes);
-    batch.set(doc(col("auditLog")),auditPayload("transaction",invoice.id,"UPDATE",invoice,{...invoice,taxPaymentId:paymentId,vatStatus:"paid"},`Comprobante incluido en pago IVA ${payment.period}`));
+    batch.set(doc(col("auditLog")),auditPayload("transaction",invoice.id,"UPDATE",before,{...before,taxPaymentId:paymentId,vatStatus:"paid"},`Comprobante incluido en liquidación IVA ${payment.period}`));
   }
   for(const invoice of entityInvoices){
     const changes={taxPaymentId:paymentId,vatStatus:"paid",updatedAt:serverTimestamp()};
     batch.update(ref("invoices",invoice.id),changes);
-    batch.set(doc(col("auditLog")),auditPayload("invoice",invoice.id,"UPDATE",invoice,{...invoice,taxPaymentId:paymentId,vatStatus:"paid"},`Factura incluida en pago IVA ${payment.period}`));
+    batch.set(doc(col("auditLog")),auditPayload("invoice",invoice.id,"UPDATE",invoice,{...invoice,taxPaymentId:paymentId,vatStatus:"paid"},`Factura incluida en liquidación IVA ${payment.period}`));
   }
   if(Number(payment.paidVat||0)>0){
     const txRef=doc(col("transactions"));
@@ -1817,92 +1859,44 @@ export async function syncReceivablesClosed(today=new Date()){
   const scheduledToClose=[];
 
   for(const c of contracts){
-    const startMonth=String(c.startDate||"").slice(0,7);
-    if(!/^\d{4}-\d{2}$/.test(startMonth)) continue;
-
-    const stop=contractDesiredStopMonth(c,todayIso);
-    if(!stop) continue;
-
+    const periodKeys=contractDesiredPeriodKeys(c,todayIso);
+    if(!periodKeys.length && c.active===false && !c.endDate) continue;
     const desired=new Set();
-
-    if(startMonth<=stop){
-      let cursor=startMonth;
-      let guard=0;
-
-      while(cursor<=stop && guard<600){
-        const calc=contractPeriodCalculation(c,cursor);
-        if(calc){
-          const key=`${c.id}|${cursor}`;
-          desired.add(key);
-
-          const expected={
-            contractId:c.id,
-            workPeriod:cursor,
-            amount:calc.amount,
-            paidAmount:0,
-            dueDate:dueDateForContractPeriod(cursor,c.paymentLagMonths,c.paymentDay),
-            status:"pending",
-            active:true,
-            serviceStart:calc.serviceStart,
-            serviceEnd:calc.serviceEnd,
-            workedDays:calc.workedDays,
-            monthDays:calc.monthDays,
-            prorated:calc.prorated,
-            earnedAt:calc.earnedAt,
-            voidReason:""
-          };
-
-          const old=byKey.get(key);
-
-          if(!old){
-            const id=await saveReceivable(expected);
-            byKey.set(key,{id,...expected});
-          }else if(Number(old.paidAmount||0)<=.009 && receivableNeedsSync(old,expected)){
-            const updated={
-              ...old,
-              ...expected,
-              paidAmount:Number(old.paidAmount||0)
-            };
-            await saveReceivable(
-              updated,
-              old.id
-            );
-            byKey.set(key,updated);
-          }
-        }
-
-        cursor=ymShift(cursor,1);
-        guard++;
+    for(const period of periodKeys){
+      const calc=contractPeriodCalculation(c,period);
+      if(!calc) continue;
+      const key=`${c.id}|${period}`;
+      desired.add(key);
+      const dueBase=contractBillingCycleMode(c)==="anniversary"?String(calc.earnedAt).slice(0,7):period;
+      const expected={
+        contractId:c.id,workPeriod:period,amount:calc.amount,paidAmount:0,
+        dueDate:dueDateForContractPeriod(dueBase,c.paymentLagMonths,c.paymentDay),
+        status:"pending",active:true,serviceStart:calc.serviceStart,serviceEnd:calc.serviceEnd,
+        workedDays:calc.workedDays,monthDays:calc.monthDays,prorated:calc.prorated,earnedAt:calc.earnedAt,
+        billingCycleMode:contractBillingCycleMode(c),voidReason:""
+      };
+      const old=byKey.get(key);
+      if(!old){
+        const id=await saveReceivable(expected);
+        byKey.set(key,{id,...expected});
+      }else if(Number(old.paidAmount||0)<=.009 && receivableNeedsSync(old,expected)){
+        const updated={...old,...expected,paidAmount:Number(old.paidAmount||0)};
+        await saveReceivable(updated,old.id);
+        byKey.set(key,updated);
       }
     }
-
-    if(c.active!==false && c.endDate && String(c.endDate)<=todayIso){
-      scheduledToClose.push(c);
-    }
-
-    // Repara períodos abiertos/futuros generados por versiones anteriores.
+    if(c.active!==false && c.endDate && String(c.endDate)<=todayIso) scheduledToClose.push(c);
     for(const old of [...byKey.values()].filter(r=>r.contractId===c.id)){
       const key=`${old.contractId}|${old.workPeriod}`;
-      if(
-        old.active!==false &&
-        Number(old.paidAmount||0)<=.009 &&
-        !desired.has(key)
-      ){
-        const archived={
-          ...old,
-          active:false,
-          status:"void",
-          voidReason:"unearned_period"
-        };
+      if(old.active!==false && Number(old.paidAmount||0)<=.009 && !desired.has(key)){
+        const archived={...old,active:false,status:"void",voidReason:"unearned_period"};
         await saveReceivable(archived,old.id);
         byKey.set(key,archived);
       }
     }
   }
 
-  for(const c of scheduledToClose){
-    await saveContract({...c,active:false},c.id);
-  }
+  for(const c of scheduledToClose) await saveContract({...c,active:false},c.id);
   return listReceivables();
 }
 

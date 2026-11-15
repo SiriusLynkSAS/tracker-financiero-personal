@@ -417,9 +417,9 @@ function toggleType() {
   document.querySelector("#category-fields").hidden = isTransfer;
   document.querySelector("#split-toggle-wrap").hidden = isTransfer;
   document.querySelector("#transfer-charge-panel").hidden = !isTransfer;
-  const isIncome=type.value==="income";
-  document.querySelector("#invoice-toggle-wrap").hidden=!isIncome;
-  if(!isIncome){
+  const supportsInvoice=type.value==="income"||type.value==="expense";
+  document.querySelector("#invoice-toggle-wrap").hidden=!supportsInvoice;
+  if(!supportsInvoice){
     document.querySelector("#tx-has-invoice").checked=false;
   }
   toggleInvoice();
@@ -963,11 +963,11 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
 
   const amount = parseDecimalInput(document.querySelector("#tx-amount").value);
-  const hasInvoice=type.value==="income"&&document.querySelector("#tx-has-invoice").checked;
+  const hasInvoice=(type.value==="income"||type.value==="expense")&&document.querySelector("#tx-has-invoice").checked;
   const vat = hasInvoice ? parseDecimalInput(document.querySelector("#tx-vat").value) : 0;
 
   if (!(amount > 0)) return alert("El monto debe ser mayor que cero.");
-  if (vat < 0 || (hasInvoice && vat >= amount)) return alert("El IVA debe ser menor que el total recibido.");
+  if (vat < 0 || (hasInvoice && vat >= amount)) return alert("El IVA debe ser menor que el total del movimiento.");
 
   const previous=currentEditingTransaction();
   const data = {
@@ -1101,7 +1101,7 @@ tbody.addEventListener("click", async e => {
     document.querySelector("#tx-tax").value = Number(tx.taxAmount||0)||"";
     document.querySelector("#tx-other-charge").value = Number(tx.otherChargeAmount||0)||"";
     document.querySelector("#tx-vat").value = tx.vat || 0;
-    document.querySelector("#tx-has-invoice").checked = tx.type==="income" && (tx.hasInvoice===true || Number(tx.vat||0)>0);
+    document.querySelector("#tx-has-invoice").checked = (tx.type==="income"||tx.type==="expense") && (tx.hasInvoice===true || Number(tx.vat||0)>0);
     document.querySelector("#tx-invoice-number").value = tx.invoiceNumber || tx.receipt || "";
     document.querySelector("#tx-receipt").value = tx.receipt || "";
     document.querySelector("#tx-description").value = tx.description || "";

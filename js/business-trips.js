@@ -1,225 +1,45 @@
 import {requireUser} from "./guard.js";
-import {
-  listBusinessTrips,saveBusinessTrip,listTripExpenses,listTripSettlements,
-  createTripExpense,updateTripExpenseRecognition,voidTripExpense,createTripSettlement,
-  listAccounts
-} from "./data-service.js";
+import {listBusinessTrips,saveBusinessTrip,listTripExpenses,listTripSettlements,createTripExpense,updateTripExpenseRecognition,voidTripExpense,createTripSettlement,listAccounts,listCategories} from "./data-service.js?v=1.0.87";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 
-let trips=[],expenses=[],settlements=[],accounts=[],selectedTripId="";
-
-const categoryLabel={
-  food:"Alimentación",lodging:"Hospedaje",transport:"Transporte",
-  fuel:"Combustible",tolls:"Peajes",other:"Otros"
-};
-const settlementLabel={
-  reimbursement:"Reembolso",advance:"Anticipo",advance_return:"Devolución de anticipo"
-};
-
-function expenseAccounts(){return accounts.filter(a=>a.active!==false)}
-function settlementAccounts(){return accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card")}
-function accountLabel(id){
-  const a=accounts.find(x=>x.id===id);
-  return a?[a.bank,a.alias].filter(Boolean).join(" · "):"—";
-}
-function selectedTrip(){return trips.find(x=>x.id===selectedTripId)||null}
-
-function metrics(){
-  const es=expenses.filter(x=>x.tripId===selectedTripId&&x.active!==false);
-  const ss=settlements.filter(x=>x.tripId===selectedTripId&&x.active!==false);
-  const spent=sum(es,x=>x.amountPaid);
-  const invoiced=sum(es,x=>x.invoiceAmount);
-  const recognized=sum(es,x=>x.recognizedAmount);
-  const advances=sum(ss.filter(x=>x.kind==="advance"),x=>x.amount);
-  const reimbursements=sum(ss.filter(x=>x.kind==="reimbursement"),x=>x.amount);
-  const returns=sum(ss.filter(x=>x.kind==="advance_return"),x=>x.amount);
-  const netEmployerFunds=advances+reimbursements-returns;
-  return {
-    spent,invoiced,recognized,advances,reimbursements,returns,netEmployerFunds,
-    pending:Math.max(0,recognized-netEmployerFunds),
-    personalExpected:Math.max(0,spent-recognized),
-    outOfPocket:spent+returns-advances-reimbursements,
-    advanceToReturn:Math.max(0,advances-returns-recognized)
-  };
-}
-
-function renderTripOptions(){
-  const current=selectedTripId;
-  document.querySelector("#trip-select").innerHTML=trips
-    .filter(x=>x.active!==false)
-    .map(t=>`<option value="${t.id}">${escapeHtml(t.name)} · ${escapeHtml(t.startDate||"")}</option>`)
-    .join("")||`<option value="">Sin comisiones</option>`;
-  if(current&&trips.some(x=>x.id===current&&x.active!==false))document.querySelector("#trip-select").value=current;
-  selectedTripId=document.querySelector("#trip-select").value||"";
-}
-
+let trips=[],expenses=[],settlements=[],accounts=[],categories=[],detailTripId="",expenseTripId="",settlementTripId="";
+const tripList=document.querySelector("#trip-list-body");
+const tripDialog=document.querySelector("#trip-editor-dialog"),detailDialog=document.querySelector("#trip-detail-dialog"),expenseDialog=document.querySelector("#trip-expense-dialog"),reimbursementDialog=document.querySelector("#trip-reimbursement-dialog");
+function accountLabel(id){const a=accounts.find(x=>x.id===id);return a?[a.bank,a.alias].filter(Boolean).join(" · "):"—";}
+function tripExpenses(id){return expenses.filter(x=>x.tripId===id&&x.active!==false);}
+function tripSettlements(id){return settlements.filter(x=>x.tripId===id&&x.active!==false);}
+function justified(id){return sum(tripExpenses(id),x=>Number(x.invoiceAmount||0));}
+function spent(id){return sum(tripExpenses(id),x=>Number(x.amountPaid||0));}
+function received(id){return sum(tripSettlements(id).filter(x=>x.kind==="reimbursement"),x=>Number(x.amount||0));}
+function statusLabel(v){return ({planned:"Planificado",in_progress:"En curso",submitted:"Presentado",partial:"Parcial",closed:"Cerrado"})[v]||v||"En curso";}
+function fundingLabel(v){return v==="advance"?"Anticipo":"Fondos propios";}
 function render(){
-  renderTripOptions();
-  const trip=selectedTrip();
-  const m=metrics();
-
-  document.querySelector("#trip-selected-meta").innerHTML=trip
-    ? `${escapeHtml(trip.destination||"Sin destino")} · ${escapeHtml(trip.reimburser||"Sin entidad")} · ${trip.fundingMode==="advance"?"Anticipo":"Fondos propios"} · <strong>${escapeHtml(trip.status||"in_progress")}</strong>`
-    :"Crea una comisión para comenzar.";
-
-  for(const [id,v] of [
-    ["trip-spent",m.spent],["trip-invoiced",m.invoiced],["trip-recognized",m.recognized],
-    ["trip-received",m.netEmployerFunds],["trip-pending",m.pending],["trip-personal",m.personalExpected]
-  ]) document.querySelector(`#${id}`).textContent=money(v);
-
-  document.querySelector("#trip-mark-submitted").disabled=!trip;
-  document.querySelector("#trip-close").disabled=!trip;
-
-  const es=expenses.filter(x=>x.tripId===selectedTripId&&x.active!==false);
-  document.querySelector("#trip-expense-body").innerHTML=es.map(x=>`
-    <tr>
-      <td>${escapeHtml(x.date)}</td>
-      <td>${escapeHtml(categoryLabel[x.category]||x.category)}</td>
-      <td>${escapeHtml(x.description||"—")}${x.hasInvoice?`<div class="tf-muted">Factura ${escapeHtml(x.invoiceNumber||"—")}</div>`:""}</td>
-      <td>${money(x.amountPaid)}</td>
-      <td>${money(x.invoiceAmount)}</td>
-      <td>${money(x.recognizedAmount)}</td>
-      <td><div class="tf-actions">
-        <button class="tf-btn tf-btn-secondary" data-recognize="${x.id}">Editar reconocido</button>
-        <button class="tf-btn tf-btn-danger" data-void-expense="${x.id}">Anular</button>
-      </div></td>
-    </tr>
-  `).join("")||`<tr><td colspan="7" class="tf-empty">Sin gastos en esta comisión.</td></tr>`;
-
-  const ss=settlements.filter(x=>x.tripId===selectedTripId&&x.active!==false);
-  document.querySelector("#trip-settlement-list").innerHTML=ss.map(x=>`
-    <div class="tf-summary-row"><span><strong>${escapeHtml(settlementLabel[x.kind]||x.kind)}</strong><br><small class="tf-muted">${escapeHtml(x.date)} · ${escapeHtml(accountLabel(x.accountId))}${x.notes?` · ${escapeHtml(x.notes)}`:""}</small></span><strong>${money(x.amount)}</strong></div>
-  `).join("")||`<div class="tf-empty">Sin reembolsos o anticipos.</div>`;
+  const visible=[...trips].sort((a,b)=>String(b.startDate).localeCompare(String(a.startDate)));
+  document.querySelector("#trip-count").textContent=String(visible.length);
+  tripList.innerHTML=visible.map(t=>`<tr><td><strong>${escapeHtml(t.name)}</strong><div class="tf-muted">${escapeHtml(t.destination||"—")}</div></td><td>${escapeHtml(t.startDate||"—")}</td><td>${escapeHtml(t.endDate||"—")}</td><td>${escapeHtml(fundingLabel(t.fundingMode))}</td><td class="tf-num">${money(t.totalAmount||0)}</td><td class="tf-num">${money(justified(t.id))}</td><td><span class="tf-pill ${t.active!==false?"tf-pill-ok":""}">${escapeHtml(statusLabel(t.status))}</span></td><td><button class="tf-icon-btn" data-trip-info="${t.id}" title="Información">ⓘ</button></td></tr>`).join("")||`<tr><td colspan="8" class="tf-empty">Sin viáticos registrados.</td></tr>`;
 }
-
-async function refresh(){
-  [trips,expenses,settlements,accounts]=await Promise.all([
-    listBusinessTrips(),listTripExpenses(),listTripSettlements(),listAccounts()
-  ]);
-  if(!selectedTripId)selectedTripId=trips.find(x=>x.active!==false)?.id||"";
-  document.querySelector("#trip-expense-account").innerHTML=expenseAccounts()
-    .map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`).join("");
-  document.querySelector("#trip-settlement-account").innerHTML=settlementAccounts()
-    .map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`).join("");
-  render();
+function categoryOptions(){
+  const rows=categories.filter(c=>String(c.type||"expense")==="expense"&&c.active!==false).sort((a,b)=>`${a.category}|${a.subcategory}`.localeCompare(`${b.category}|${b.subcategory}`));
+  return rows.map(c=>`<option value="${encodeURIComponent(c.category)}|${encodeURIComponent(c.subcategory)}">${escapeHtml(c.category)} · ${escapeHtml(c.subcategory)}</option>`).join("");
 }
+function openDetail(id){
+  const t=trips.find(x=>x.id===id);if(!t)return;detailTripId=id;
+  const es=tripExpenses(id),ss=tripSettlements(id),just=justified(id),spentValue=spent(id),receivedValue=received(id);
+  document.querySelector("#trip-detail-title").textContent=t.name;
+  document.querySelector("#trip-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Destino</span><strong>${escapeHtml(t.destination||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Financiamiento</span><strong>${escapeHtml(fundingLabel(t.fundingMode))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Monto total</span><strong>${money(t.totalAmount||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Justificado</span><strong>${money(just)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Gastado</span><strong>${money(spentValue)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Reembolsado</span><strong>${money(receivedValue)}</strong></div></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-primary" data-trip-expense="${t.id}">Registrar gasto</button>${t.fundingMode==="own_funds"?`<button class="tf-btn tf-btn-secondary" data-trip-reimburse="${t.id}">Registrar reembolso</button>`:""}<button class="tf-btn tf-btn-secondary" data-trip-submitted="${t.id}">Marcar presentado</button><button class="tf-btn tf-btn-secondary" data-trip-close-action="${t.id}">Cerrar viático</button></div><h3 style="margin-top:1rem">Gastos</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Fecha</th><th>Categoría</th><th>Factura</th><th class="tf-num">Total</th><th class="tf-num">Justificado</th><th class="tf-num">Reconocido</th><th></th></tr></thead><tbody>${es.map(e=>`<tr><td>${escapeHtml(e.date)}</td><td>${escapeHtml([e.category,e.subcategory].filter(Boolean).join(" · "))}</td><td>${escapeHtml(e.invoiceNumber||"—")}</td><td class="tf-num">${money(e.amountPaid)}</td><td class="tf-num">${money(e.invoiceAmount)}</td><td class="tf-num">${money(e.recognizedAmount)}</td><td><button class="tf-icon-btn" data-trip-expense-void="${e.id}" title="Anular">×</button></td></tr>`).join("")||`<tr><td colspan="7" class="tf-empty">Sin gastos.</td></tr>`}</tbody></table></div>${t.fundingMode==="own_funds"?`<h3 style="margin-top:1rem">Reembolsos</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Fecha</th><th class="tf-num">Monto</th><th>Cuenta</th><th>Nota</th></tr></thead><tbody>${ss.filter(x=>x.kind==="reimbursement").map(x=>`<tr><td>${escapeHtml(x.date)}</td><td class="tf-num">${money(x.amount)}</td><td>${escapeHtml(accountLabel(x.accountId))}</td><td>${escapeHtml(x.notes||"—")}</td></tr>`).join("")||`<tr><td colspan="4" class="tf-empty">Sin reembolsos.</td></tr>`}</tbody></table></div>`:""}`;
+  detailDialog.showModal();
+}
+async function refresh(){[trips,expenses,settlements,accounts,categories]=await Promise.all([listBusinessTrips(),listTripExpenses(),listTripSettlements(),listAccounts(),listCategories()]);document.querySelector("#trip-expense-account").innerHTML=accounts.filter(a=>a.active!==false).map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`).join("");document.querySelector("#trip-settlement-account").innerHTML=accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a.id))}</option>`).join("");document.querySelector("#trip-expense-category-subcategory").innerHTML=categoryOptions();render();if(detailTripId&&detailDialog.open)openDetail(detailTripId);}
 
-document.querySelector("#trip-start").value=todayISO();
-document.querySelector("#trip-expense-date").value=todayISO();
-document.querySelector("#trip-settlement-date").value=todayISO();
-
-document.querySelector("#trip-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const start=document.querySelector("#trip-start").value;
-  const end=document.querySelector("#trip-end").value||null;
-  if(end&&end<start){toast("La fecha final no puede ser anterior al inicio.");return}
-  const id=await saveBusinessTrip({
-    name:document.querySelector("#trip-name").value.trim(),
-    destination:document.querySelector("#trip-destination").value.trim(),
-    startDate:start,endDate:end,
-    reimburser:document.querySelector("#trip-reimburser").value.trim(),
-    fundingMode:document.querySelector("#trip-funding").value,
-    status:"in_progress",
-    notes:document.querySelector("#trip-notes").value.trim(),
-    active:true
-  });
-  selectedTripId=id;
-  e.target.reset();
-  document.querySelector("#trip-start").value=todayISO();
-  toast("Comisión creada.");await refresh();
-});
-
-document.querySelector("#trip-select").addEventListener("change",e=>{selectedTripId=e.target.value;render()});
-
-document.querySelector("#trip-expense-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(!selectedTripId){toast("Primero crea o selecciona una comisión.");return}
-  const hasInvoice=document.querySelector("#trip-expense-invoice").checked;
-  const paid=Number(document.querySelector("#trip-expense-paid").value||0);
-  const invoiceAmount=hasInvoice?Number(document.querySelector("#trip-expense-invoiced").value||0):0;
-  const recognized=Number(document.querySelector("#trip-expense-recognized").value||0);
-  await createTripExpense({
-    tripId:selectedTripId,
-    date:document.querySelector("#trip-expense-date").value,
-    category:document.querySelector("#trip-expense-category").value,
-    description:document.querySelector("#trip-expense-description").value.trim(),
-    amountPaid:paid,
-    hasInvoice,
-    invoiceNumber:document.querySelector("#trip-expense-invoice-number").value.trim(),
-    invoiceAmount,
-    recognizedAmount:recognized,
-    accountId:document.querySelector("#trip-expense-account").value,
-    notes:document.querySelector("#trip-expense-notes").value.trim()
-  });
-  e.target.reset();
-  document.querySelector("#trip-expense-date").value=todayISO();
-  toast("Gasto de comisión registrado.");await refresh();
-});
-
-document.querySelector("#trip-expense-invoice").addEventListener("change",e=>{
-  document.querySelector("#trip-expense-invoice-number").disabled=!e.target.checked;
-  document.querySelector("#trip-expense-invoiced").disabled=!e.target.checked;
-  if(!e.target.checked)document.querySelector("#trip-expense-invoiced").value=0;
-});
-document.querySelector("#trip-expense-paid").addEventListener("change",e=>{
-  const v=Number(e.target.value||0);
-  if(document.querySelector("#trip-expense-invoice").checked&&Number(document.querySelector("#trip-expense-invoiced").value||0)===0){
-    document.querySelector("#trip-expense-invoiced").value=v.toFixed(2);
-  }
-});
-
-document.querySelector("#trip-settlement-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  if(!selectedTripId){toast("Primero selecciona una comisión.");return}
-  await createTripSettlement({
-    tripId:selectedTripId,
-    kind:document.querySelector("#trip-settlement-kind").value,
-    date:document.querySelector("#trip-settlement-date").value,
-    amount:Number(document.querySelector("#trip-settlement-amount").value||0),
-    accountId:document.querySelector("#trip-settlement-account").value,
-    notes:document.querySelector("#trip-settlement-notes").value.trim()
-  });
-  e.target.reset();
-  document.querySelector("#trip-settlement-date").value=todayISO();
-  toast("Movimiento de comisión registrado.");await refresh();
-});
-
-document.querySelector("#trip-expense-body").addEventListener("click",async e=>{
-  const recognize=e.target.closest("[data-recognize]");
-  const voidBtn=e.target.closest("[data-void-expense]");
-  if(recognize){
-    const row=expenses.find(x=>x.id===recognize.dataset.recognize);if(!row)return;
-    const value=prompt("Valor reconocido por la entidad ($):",Number(row.recognizedAmount||0).toFixed(2));
-    if(value===null)return;
-    const amount=Number(value);
-    if(!Number.isFinite(amount)||amount<0){toast("Monto inválido.");return}
-    await updateTripExpenseRecognition(row.id,amount);
-    toast("Valor reconocido actualizado.");await refresh();
-  }
-  if(voidBtn){
-    const row=expenses.find(x=>x.id===voidBtn.dataset.voidExpense);if(!row)return;
-    if(!await confirmAction({title:"Anular gasto de comisión",message:money(row.amountPaid),impact:["Se eliminará también la salida vinculada de la cuenta.","La auditoría conservará trazabilidad."],confirmText:"Anular"}))return;
-    await voidTripExpense(row.id);toast("Gasto anulado.");await refresh();
-  }
-});
-
-document.querySelector("#trip-mark-submitted").addEventListener("click",async()=>{
-  const trip=selectedTrip();if(!trip)return;
-  await saveBusinessTrip({...trip,status:"submitted"},trip.id);
-  toast("Comisión marcada como presentada.");await refresh();
-});
-document.querySelector("#trip-close").addEventListener("click",async()=>{
-  const trip=selectedTrip();if(!trip)return;
-  const m=metrics();
-  if(!await confirmAction({
-    title:"Cerrar comisión",
-    message:`Por recuperar ${money(m.pending)} · costo personal esperado ${money(m.personalExpected)}`,
-    impact:[m.pending>0.009?"Todavía existe un valor reconocido pendiente de reembolso.":"No quedan valores reconocidos pendientes."],
-    confirmText:"Cerrar"
-  }))return;
-  await saveBusinessTrip({...trip,status:m.pending>0.009?"partial":"closed"},trip.id);
-  toast("Estado de comisión actualizado.");await refresh();
-});
-
+document.querySelector("#trip-new").addEventListener("click",()=>{document.querySelector("#trip-form").reset();document.querySelector("#trip-start").value=todayISO();tripDialog.showModal();});
+document.querySelector("#trip-editor-close").addEventListener("click",()=>tripDialog.close());document.querySelector("#trip-cancel").addEventListener("click",()=>tripDialog.close());
+document.querySelector("#trip-form").addEventListener("submit",async e=>{e.preventDefault();const start=document.querySelector("#trip-start").value,end=document.querySelector("#trip-end").value||null,totalAmount=Number(document.querySelector("#trip-total").value||0);if(end&&end<start){toast("La fecha final no puede ser anterior al inicio.");return;}if(!(totalAmount>=0)){toast("Revisa el monto total.");return;}await saveBusinessTrip({name:document.querySelector("#trip-name").value.trim(),destination:document.querySelector("#trip-destination").value.trim(),totalAmount,startDate:start,endDate:end,reimburser:document.querySelector("#trip-reimburser").value.trim(),fundingMode:document.querySelector("#trip-funding").value,status:"in_progress",notes:document.querySelector("#trip-notes").value.trim(),active:true});tripDialog.close();toast("Viático creado.");await refresh();});
+tripList.addEventListener("click",e=>{const b=e.target.closest("[data-trip-info]");if(b)openDetail(b.dataset.tripInfo);});
+document.querySelector("#trip-detail-close").addEventListener("click",()=>detailDialog.close());
+document.querySelector("#trip-detail-body").addEventListener("click",async e=>{const exp=e.target.closest("[data-trip-expense]");if(exp){expenseTripId=exp.dataset.tripExpense;const t=trips.find(x=>x.id===expenseTripId);document.querySelector("#trip-expense-meta").textContent=t?.name||"Viático";document.querySelector("#trip-expense-form").reset();document.querySelector("#trip-expense-date").value=todayISO();document.querySelector("#trip-expense-vat").disabled=true;expenseDialog.showModal();return;}const reimb=e.target.closest("[data-trip-reimburse]");if(reimb){settlementTripId=reimb.dataset.tripReimburse;const t=trips.find(x=>x.id===settlementTripId);if(t?.fundingMode!=="own_funds")return;document.querySelector("#trip-reimbursement-meta").textContent=t.name;document.querySelector("#trip-settlement-form").reset();document.querySelector("#trip-settlement-date").value=todayISO();reimbursementDialog.showModal();return;}const submitted=e.target.closest("[data-trip-submitted]");if(submitted){const t=trips.find(x=>x.id===submitted.dataset.tripSubmitted);if(t){await saveBusinessTrip({...t,status:"submitted"},t.id);await refresh();}return;}const close=e.target.closest("[data-trip-close-action]");if(close){const t=trips.find(x=>x.id===close.dataset.tripCloseAction);if(t){await saveBusinessTrip({...t,status:"closed",active:false},t.id);detailDialog.close();detailTripId="";await refresh();}return;}const voidBtn=e.target.closest("[data-trip-expense-void]");if(voidBtn){const row=expenses.find(x=>x.id===voidBtn.dataset.tripExpenseVoid);if(row&&await confirmAction({title:"Anular gasto",message:`${row.date} · ${money(row.amountPaid)}`,impact:["Se elimina el movimiento financiero vinculado.","El gasto queda preservado como anulado en auditoría."],danger:true,confirmText:"Anular"})){await voidTripExpense(row.id);await refresh();}return;}});
+document.querySelector("#trip-expense-close").addEventListener("click",()=>expenseDialog.close());document.querySelector("#trip-expense-has-vat").addEventListener("change",e=>{document.querySelector("#trip-expense-vat").disabled=!e.target.checked;if(!e.target.checked)document.querySelector("#trip-expense-vat").value="0";});
+document.querySelector("#trip-expense-paid").addEventListener("input",e=>{const inv=document.querySelector("#trip-expense-invoiced");if(!inv.dataset.touched)inv.value=Number(e.target.value||0).toFixed(2);});document.querySelector("#trip-expense-invoiced").addEventListener("input",e=>e.target.dataset.touched="1");
+document.querySelector("#trip-expense-form").addEventListener("submit",async e=>{e.preventDefault();if(!expenseTripId)return;const packed=document.querySelector("#trip-expense-category-subcategory").value.split("|"),category=decodeURIComponent(packed[0]||""),subcategory=decodeURIComponent(packed[1]||"");const paid=Number(document.querySelector("#trip-expense-paid").value||0),invoiceAmount=Number(document.querySelector("#trip-expense-invoiced").value||paid),vat=document.querySelector("#trip-expense-has-vat").checked?Number(document.querySelector("#trip-expense-vat").value||0):0,invoiceNumber=document.querySelector("#trip-expense-invoice-number").value.trim();if(!invoiceNumber){toast("El número de factura/comprobante es obligatorio para el informe de viáticos.");return;}if(!(paid>0)||invoiceAmount<0||vat<0||vat>=paid){toast("Revisa total, justificado e IVA.");return;}await createTripExpense({tripId:expenseTripId,date:document.querySelector("#trip-expense-date").value,category,subcategory,description:document.querySelector("#trip-expense-description").value.trim(),amountPaid:paid,hasInvoice:true,invoiceNumber,invoiceAmount,recognizedAmount:Number(document.querySelector("#trip-expense-recognized").value||0),accountId:document.querySelector("#trip-expense-account").value,vat,invoiceBase:Math.max(0,paid-vat),notes:document.querySelector("#trip-expense-notes").value.trim()});expenseDialog.close();toast("Gasto registrado.");await refresh();});
+document.querySelector("#trip-reimbursement-close").addEventListener("click",()=>reimbursementDialog.close());document.querySelector("#trip-settlement-form").addEventListener("submit",async e=>{e.preventDefault();const t=trips.find(x=>x.id===settlementTripId);if(!t||t.fundingMode!=="own_funds"){toast("El reembolso solo aplica a viáticos financiados con fondos propios.");return;}await createTripSettlement({tripId:t.id,kind:"reimbursement",date:document.querySelector("#trip-settlement-date").value,amount:Number(document.querySelector("#trip-settlement-amount").value||0),accountId:document.querySelector("#trip-settlement-account").value,notes:document.querySelector("#trip-settlement-notes").value.trim()});reimbursementDialog.close();toast("Reembolso registrado.");await refresh();});
 requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudo cargar Comisiones / Viáticos.");}));

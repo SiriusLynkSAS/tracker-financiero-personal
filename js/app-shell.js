@@ -10,7 +10,7 @@ const isLogin = currentFile === "index";
 const pageGroup = (() => {
   const operation = ["cuentas","movimientos","categorias"];
   const planning = ["presupuestos","plan_mensual","recurrentes","fondo_emergencia","metas"];
-  const obligations = ["deudas","seguros","contratos","comisiones","impuestos","facturacion"];
+  const obligations = ["deudas","seguros","contratos","comisiones","facturacion"];
   const wealth = ["activos","inversiones"];
   const control = ["conciliacion","importar_exportar","reportes","calendario","auditoria"];
   if (operation.includes(currentFile)) return "operation";
@@ -85,7 +85,6 @@ const groups = [
       ["seguros","Seguros","shield"],
       ["contratos","Contratos y cobros","briefcase"],
       ["comisiones","Comisiones / Viáticos","trip"],
-      ["impuestos","IVA / Impuestos","tax"],
       ["facturacion","Facturación","report"]
     ]
   },

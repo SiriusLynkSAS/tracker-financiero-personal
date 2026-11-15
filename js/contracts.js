@@ -4,8 +4,8 @@ import {escapeHtml,money,todayISO,sum} from "./utils.js";
 import {contractPeriodCalculation,proratedMonthlyEstimate} from "./contract-math.js";
 import {contractAllocations} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
-let contracts=[],receivables=[],assets=[],accounts=[],transactions=[],transactionsLoaded=false,finishId="",paymentContext=null,dateEditId="";
-const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor");
+let contracts=[],receivables=[],assets=[],accounts=[],transactions=[],transactionsLoaded=false,finishId="",paymentContext=null,dateEditId="",tariffTargetId="";
+const contractEditor=document.querySelector("#contract-editor"),tariffEditor=document.querySelector("#tariff-editor"),assetDialog=document.querySelector("#contract-asset-dialog");
 const audPost007Panel=document.querySelector("#aud-post-007-panel");
 const audPost007Status=document.querySelector("#aud-post-007-status");
 const audPost007Apply=document.querySelector("#aud-post-007-apply");
@@ -54,7 +54,7 @@ if(audPost007Apply) audPost007Apply.addEventListener("click",async()=>{
     audPost007Apply.disabled=false;
   }
 });
-const contractNew=document.querySelector("#contract-new"),tariffNew=document.querySelector("#tariff-new");
+const contractNew=document.querySelector("#contract-new");
 const list=document.querySelector("#contract-list"),tbody=document.querySelector("#recv-body");
 
 function assetName(id){return assets.find(x=>x.id===id)?.name||"Activo"}
@@ -87,18 +87,25 @@ function contractPaymentId(){
   return `contract_${Date.now()}_${Math.random().toString(36).slice(2,10)}`;
 }
 function allocationRow(data={}){
-  const div=document.createElement("div");div.className="tf-allocation-row";
-  const options=`<option value="">Seleccionar activo</option>`+assets.filter(a=>a.active!==false).map(a=>`<option value="${a.id}" ${a.id===data.assetId?"selected":""}>${escapeHtml(a.name)}</option>`).join("");
-  div.innerHTML=`<select data-alloc-asset>${options}</select><input data-alloc-percent type="number" min="0" max="100" step="0.1" value="${Number(data.percent??100)}"><span>%</span><button type="button" class="tf-btn tf-btn-secondary" data-remove-allocation>Quitar</button>`;
-  div.querySelector("[data-alloc-percent]").addEventListener("input",updateAllocationTotal);return div;
+  const div=document.createElement("div");div.className="tf-plan-source-row tf-allocation-row";
+  div.dataset.assetId=String(data.assetId||"");div.dataset.percent=String(Number(data.percent||0));
+  div.innerHTML=`<span class="tf-plan-source-main"><strong>${escapeHtml(assetName(data.assetId))}</strong><span>${Number(data.percent||0).toFixed(1)}% del contrato</span></span><button type="button" class="tf-icon-btn" data-remove-allocation title="Quitar activo">×</button>`;
+  return div;
 }
-function updateAllocationTotal(){const total=[...document.querySelectorAll("[data-alloc-percent]")].reduce((s,x)=>s+Number(x.value||0),0);document.querySelector("#allocation-total").textContent=`Asignado ${total.toFixed(1)}%`;}
-function collectAllocations(){return [...document.querySelectorAll(".tf-allocation-row")].map(r=>({assetId:r.querySelector("[data-alloc-asset]").value,percent:Number(r.querySelector("[data-alloc-percent]").value||0)})).filter(x=>x.assetId&&x.percent>0);}
-function ensureAllocationRow(){const host=document.querySelector("#contract-allocations");if(!host.children.length)host.appendChild(allocationRow({percent:100}));updateAllocationTotal();}
+function updateAllocationTotal(){const rows=[...document.querySelectorAll(".tf-allocation-row")],total=rows.reduce((s,x)=>s+Number(x.dataset.percent||0),0);document.querySelector("#allocation-total").textContent=rows.length?`Asignado ${total.toFixed(1)}%`:`Sin activos vinculados`;}
+function collectAllocations(){return [...document.querySelectorAll(".tf-allocation-row")].map(r=>({assetId:r.dataset.assetId,percent:Number(r.dataset.percent||0)})).filter(x=>x.assetId&&x.percent>0);}
+function resetAllocations(){document.querySelector("#contract-allocations").innerHTML="";updateAllocationTotal();}
+function openAssetDialog(){
+  const used=new Set(collectAllocations().map(x=>x.assetId));
+  const available=assets.filter(a=>a.active!==false&&!used.has(a.id));
+  if(!available.length){toast("No hay activos disponibles para vincular.");return;}
+  document.querySelector("#contract-asset-select").innerHTML=available.map(a=>`<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("");
+  document.querySelector("#contract-asset-percent").value=collectAllocations().length?"0":"100";
+  assetDialog.showModal();
+}
 
 async function sync(){receivables=await syncReceivablesClosed();contracts=await listContracts();}
 function render(){
-  document.querySelector("#tariff-contract").innerHTML=contracts.filter(x=>x.active!==false).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   document.querySelector("#payment-account").innerHTML=accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");
   const visibleReceivables=receivables.filter(r=>r.active!==false);
   const visibleContracts=[...contracts].sort((a,b)=>Number(b.active!==false)-Number(a.active!==false)||String(b.startDate||"").localeCompare(String(a.startDate||"")));
@@ -120,8 +127,6 @@ async function refresh(){
   [contracts,receivables,assets,accounts]=await Promise.all([listContracts(),listReceivables(),listAssets(),listAccounts()]);
   await sync();
   render();
-  ensureAllocationRow();
-  refreshAudPost007().catch(err=>console.warn("No se pudo verificar AUD-POST-007.",err));
   try{
     transactions=await listTransactions();
     transactionsLoaded=true;
@@ -132,16 +137,42 @@ async function refresh(){
   }
 }
 document.querySelector("#contract-start").value=todayISO();document.querySelector("#tariff-from").value=todayISO();
-contractNew.addEventListener("click",()=>{contractEditor.hidden=false;tariffEditor.hidden=true;contractEditor.scrollIntoView({behavior:"smooth"})});
-tariffNew.addEventListener("click",()=>{tariffEditor.hidden=false;contractEditor.hidden=true;tariffEditor.scrollIntoView({behavior:"smooth"})});
-document.querySelector("#contract-cancel").addEventListener("click",()=>{contractEditor.hidden=true});
-document.querySelector("#tariff-cancel").addEventListener("click",()=>{tariffEditor.hidden=true});
-document.querySelector("#add-contract-allocation").addEventListener("click",()=>{document.querySelector("#contract-allocations").appendChild(allocationRow({percent:0}));updateAllocationTotal();});
-document.querySelector("#contract-allocations").addEventListener("click",e=>{const b=e.target.closest("[data-remove-allocation]");if(b){b.closest(".tf-allocation-row").remove();ensureAllocationRow();}});
+contractNew.addEventListener("click",()=>{document.querySelector("#contract-form").reset();document.querySelector("#contract-start").value=todayISO();document.querySelector("#contract-cycle-mode").value="calendar_month";document.querySelector("#contract-lag").value="6";document.querySelector("#contract-pay-day").value="1";document.querySelector("#contract-transport").value="0";document.querySelector("#contract-other-cost").value="0";resetAllocations();contractEditor.showModal();});
+document.querySelector("#contract-editor-close").addEventListener("click",()=>contractEditor.close());
+document.querySelector("#contract-cancel").addEventListener("click",()=>contractEditor.close());
+document.querySelector("#tariff-cancel").addEventListener("click",()=>tariffEditor.close());
+document.querySelector("#add-contract-allocation").addEventListener("click",openAssetDialog);
+document.querySelector("#contract-asset-cancel").addEventListener("click",()=>assetDialog.close());
+document.querySelector("#contract-asset-add").addEventListener("click",()=>{const assetId=document.querySelector("#contract-asset-select").value,percent=Number(document.querySelector("#contract-asset-percent").value||0);if(!assetId||!(percent>0)||percent>100){toast("Selecciona un activo y un porcentaje válido.");return;}const total=collectAllocations().reduce((a,x)=>a+x.percent,0)+percent;if(total>100.001){toast("La asignación entre activos no puede superar 100%.");return;}document.querySelector("#contract-allocations").appendChild(allocationRow({assetId,percent}));assetDialog.close();updateAllocationTotal();});
+document.querySelector("#contract-allocations").addEventListener("click",e=>{const b=e.target.closest("[data-remove-allocation]");if(b){b.closest(".tf-allocation-row").remove();updateAllocationTotal();}});
 
-document.querySelector("#contract-form").addEventListener("submit",async e=>{e.preventDefault();const start=document.querySelector("#contract-start").value,end=document.querySelector("#contract-end").value||null,allocations=collectAllocations(),total=sum(allocations,x=>x.percent),rate=Number(document.querySelector("#contract-rate").value),transport=Number(document.querySelector("#contract-transport").value||0),otherCost=Number(document.querySelector("#contract-other-cost").value||0);if(!start){toast("Ingresa la fecha de inicio.");return}if(end&&end<start){toast("La fecha de fin no puede ser anterior al inicio.");return}if([rate,transport,otherCost].some(v=>!Number.isFinite(v)||v<0)){toast("Tarifa y costos directos deben ser valores no negativos.");return}if(total>100.001){toast("La asignación entre activos no puede superar 100%.");return}if(new Set(allocations.map(x=>x.assetId)).size!==allocations.length){toast("No repitas el mismo activo en el contrato.");return}await saveContract({name:document.querySelector("#contract-name").value.trim(),assetId:allocations[0]?.assetId||null,assetAllocations:allocations,startDate:start,endDate:end,paymentLagMonths:Number(document.querySelector("#contract-lag").value||0),paymentDay:Number(document.querySelector("#contract-pay-day").value||1),initialMonthlyRate:rate,monthlyTransportEstimate:transport,monthlyOtherDirectCostEstimate:otherCost,tariffPeriods:[],active:!end||end>todayISO()});e.target.reset();document.querySelector("#contract-start").value=todayISO();document.querySelector("#contract-allocations").innerHTML="";ensureAllocationRow();toast("Contrato guardado.");contractEditor.hidden=true;await refresh();});
+document.querySelector("#contract-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const start=document.querySelector("#contract-start").value,end=document.querySelector("#contract-end").value||null;
+  const allocations=collectAllocations(),total=sum(allocations,x=>x.percent),rate=Number(document.querySelector("#contract-rate").value),transport=Number(document.querySelector("#contract-transport").value||0),otherCost=Number(document.querySelector("#contract-other-cost").value||0);
+  if(!start){toast("Ingresa la fecha de inicio.");return;}
+  if(end&&end<start){toast("La fecha de fin no puede ser anterior al inicio.");return;}
+  if([rate,transport,otherCost].some(v=>!Number.isFinite(v)||v<0)){toast("Tarifa y costos directos deben ser valores no negativos.");return;}
+  if(total>100.001){toast("La asignación entre activos no puede superar 100%.");return;}
+  if(new Set(allocations.map(x=>x.assetId)).size!==allocations.length){toast("No repitas el mismo activo en el contrato.");return;}
+  await saveContract({name:document.querySelector("#contract-name").value.trim(),assetId:allocations[0]?.assetId||null,assetAllocations:allocations,startDate:start,endDate:end,billingCycleMode:document.querySelector("#contract-cycle-mode").value,paymentLagMonths:Number(document.querySelector("#contract-lag").value||0),paymentDay:Number(document.querySelector("#contract-pay-day").value||1),initialMonthlyRate:rate,monthlyTransportEstimate:transport,monthlyOtherDirectCostEstimate:otherCost,tariffPeriods:[],active:!end||end>todayISO()});
+  toast("Contrato guardado.");contractEditor.close();resetAllocations();await refresh();
+});
 
-document.querySelector("#tariff-form").addEventListener("submit",async e=>{e.preventDefault();const c=contracts.find(x=>x.id===document.querySelector("#tariff-contract").value),t={effectiveFrom:document.querySelector("#tariff-from").value,amount:Number(document.querySelector("#tariff-amount").value)};const affected=receivables.filter(r=>r.contractId===c.id&&r.workPeriod>=t.effectiveFrom.slice(0,7)&&Number(r.paidAmount||0)<=.009&&statusOf(r)!=="paid");if(!await confirmAction({title:"Agregar nueva tarifa",message:`Desde ${t.effectiveFrom}: ${money(t.amount)}`,impact:[`Se recalcularán ${affected.length} período(s) todavía no pagados.`,`Los períodos pagados o parciales quedan congelados.`]}))return;const updatedContract={...c,tariffPeriods:[...(c.tariffPeriods||[]),t]};const ops=[{collection:"contracts",id:c.id,action:"update",auditType:"contract",data:updatedContract}];for(const r of affected){const calc=contractPeriodCalculation(updatedContract,r.workPeriod);ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,amount:calc?.amount??r.amount,serviceStart:calc?.serviceStart??r.serviceStart,serviceEnd:calc?.serviceEnd??r.serviceEnd,workedDays:calc?.workedDays??r.workedDays,monthDays:calc?.monthDays??r.monthDays,prorated:calc?.prorated??r.prorated,earnedAt:calc?.earnedAt??r.earnedAt,status:"pending"}})}await atomicWrite(ops);toast("Tarifa y períodos futuros actualizados.");tariffEditor.hidden=true;await refresh();});
+
+document.querySelector("#tariff-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const c=contracts.find(x=>x.id===tariffTargetId);if(!c||c.active===false){toast("La nueva tarifa solo está disponible para contratos en operación.");return;}
+  const t={effectiveFrom:document.querySelector("#tariff-from").value,amount:Number(document.querySelector("#tariff-amount").value)};
+  if(!t.effectiveFrom||!Number.isFinite(t.amount)||t.amount<0){toast("Revisa fecha y tarifa.");return;}
+  const affected=receivables.filter(r=>r.contractId===c.id&&String(r.serviceStart||`${r.workPeriod}-01`)>=t.effectiveFrom&&Number(r.paidAmount||0)<=.009&&statusOf(r)!=="paid");
+  if(!await confirmAction({title:"Agregar nueva tarifa",message:`${c.name} · desde ${t.effectiveFrom}: ${money(t.amount)}`,impact:[`Se recalcularán ${affected.length} período(s) todavía no pagados.`,`Los períodos pagados o parciales quedan congelados.`]}))return;
+  const updatedContract={...c,tariffPeriods:[...(c.tariffPeriods||[]),t].sort((a,b)=>String(a.effectiveFrom).localeCompare(String(b.effectiveFrom)))};
+  const ops=[{collection:"contracts",id:c.id,action:"update",auditType:"contract",data:updatedContract}];
+  for(const r of affected){const calc=contractPeriodCalculation(updatedContract,r.workPeriod);ops.push({collection:"receivables",id:r.id,action:"update",auditType:"receivable",data:{...r,amount:calc?.amount??r.amount,serviceStart:calc?.serviceStart??r.serviceStart,serviceEnd:calc?.serviceEnd??r.serviceEnd,workedDays:calc?.workedDays??r.workedDays,monthDays:calc?.monthDays??r.monthDays,prorated:calc?.prorated??r.prorated,earnedAt:calc?.earnedAt??r.earnedAt,status:"pending"}});}
+  await atomicWrite(ops);toast("Tarifa y períodos futuros actualizados.");tariffEditor.close();tariffTargetId="";await refresh();renderContractDetail(c.id,false);
+});
+
 
 function paymentAccountsOptions(){return accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");}
 let contractDetailDemotedForPayment=false;
@@ -214,7 +245,7 @@ function renderContractDetail(contractId,ensureOpen=true){
   const rr=receivables.filter(r=>r.contractId===c.id&&r.active!==false).sort((a,b)=>a.workPeriod.localeCompare(b.workPeriod));
   const gen=sum(rr,r=>r.amount),paid=sum(rr,r=>Math.min(Number(r.paidAmount||0),Number(r.amount||0)));
   document.querySelector("#contract-detail-title").textContent=c.name||"Contrato";
-  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,orphan=orphanPaidAmount(r),linkedTx=latestLinkedContractTransaction(r.id);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${r.invoiceId?`<a class="tf-icon-btn" href="facturacion.html?invoice=${encodeURIComponent(r.invoiceId)}" title="Abrir factura" aria-label="Abrir factura">F</a>`:`${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${linkedTx?`<button type="button" class="tf-icon-btn" data-detail-revert-tx="${linkedTx.id}" data-receivable-id="${r.id}" title="Revertir último cobro registrado" aria-label="Revertir último cobro registrado">↩</button>`:""}${!linkedTx&&orphan>.009?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}`}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.6rem">Contrato finalizado. Puedes corregir las fechas; los períodos pagados o parciales se preservan y solo se recalculan los pendientes.</div>`:""}`;
+  document.querySelector("#contract-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Estado</span><strong>${c.active!==false?"Activo":"Finalizado"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Inicio</span><strong>${escapeHtml(c.startDate||"—")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fin</span><strong>${escapeHtml(c.endDate||"Indefinido")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Período</span><strong>${c.billingCycleMode==="anniversary"?"Ciclo aniversario":"Mes calendario"}</strong></div><div class="tf-metric"><span class="tf-metric-label">Generado</span><strong>${money(gen)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cobrado</span><strong>${money(paid)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Pendiente</span><strong>${money(gen-paid)}</strong></div></div><h3 style="margin-top:1rem">Cronograma de cobros</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Período</th><th>Generado</th><th>Pagado</th><th>Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead><tbody>${rr.map(r=>{const pending=Math.max(0,Number(r.amount)-Number(r.paidAmount||0)),st=statusOf(r),label={paid:"Pagado",partial:"Parcial",overdue:"Vencido",pending:"Pendiente"}[st]||st,orphan=orphanPaidAmount(r),linkedTx=latestLinkedContractTransaction(r.id);return `<tr><td>${escapeHtml(r.workPeriod)}</td><td>${money(r.amount)}</td><td>${money(r.paidAmount||0)}</td><td>${money(pending)}</td><td>${escapeHtml(r.dueDate||"—")}</td><td>${escapeHtml(label)}</td><td><div class="tf-actions tf-actions-compact">${r.invoiceId?`<a class="tf-icon-btn" href="facturacion.html?invoice=${encodeURIComponent(r.invoiceId)}" title="Abrir factura" aria-label="Abrir factura">F</a>`:`${pending>.009?`<button type="button" class="tf-icon-btn" data-detail-pay="${r.id}" title="Registrar cobro" aria-label="Registrar cobro">$</button>`:""}${linkedTx?`<button type="button" class="tf-icon-btn" data-detail-revert-tx="${linkedTx.id}" data-receivable-id="${r.id}" title="Revertir último cobro registrado" aria-label="Revertir último cobro registrado">↩</button>`:""}${!linkedTx&&orphan>.009?`<button type="button" class="tf-icon-btn" data-detail-repair="${r.id}" title="Revertir cobro sin movimiento (${money(orphan)})" aria-label="Revertir cobro sin movimiento">↩</button>`:""}`}</div></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">Sin períodos devengados.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem"><button class="tf-btn tf-btn-secondary" type="button" data-detail-dates="${c.id}">Editar fechas</button>${c.active!==false?`<button class="tf-btn tf-btn-secondary" type="button" data-detail-tariff="${c.id}">Nueva tarifa</button><button class="tf-btn tf-btn-secondary" type="button" data-detail-finish="${c.id}">${c.endDate?"Cambiar fecha fin":"Finalizar contrato"}</button>`:""}</div>${c.active===false?`<div class="tf-muted" style="margin-top:.6rem">Contrato finalizado. Puedes corregir las fechas; los períodos pagados o parciales se preservan y solo se recalculan los pendientes.</div>`:""}`;
   const dialog=document.querySelector("#contract-detail-dialog");
   if(ensureOpen && !dialog.open) dialog.showModal();
 }
@@ -293,6 +324,11 @@ document.querySelector("#contract-detail-body").addEventListener("click",async e
     document.querySelector("#contract-dates-meta").textContent=c.active!==false?"Contrato activo":"Contrato finalizado";
     document.querySelector("#contract-dates-dialog").showModal();
     return;
+  }
+  const tariff=e.target.closest("[data-detail-tariff]");
+  if(tariff){
+    const c=contracts.find(x=>x.id===tariff.dataset.detailTariff);if(!c||c.active===false)return;
+    tariffTargetId=c.id;document.querySelector("#tariff-title").textContent=`Nueva tarifa · ${c.name}`;document.querySelector("#tariff-from").value=todayISO();document.querySelector("#tariff-amount").value="";tariffEditor.showModal();return;
   }
   const b=e.target.closest("[data-detail-finish]");
   if(!b)return;

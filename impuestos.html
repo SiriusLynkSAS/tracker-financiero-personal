@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.83"></script>
+<script type="module" src="js/app-shell.js?v=1.0.87"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -124,53 +124,8 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<div class="tf-page-header">
-  <div>
-    <h1>IVA / Impuestos</h1>
-    <div class="tf-muted">Reserva el IVA facturado y registra la liquidación real sin mezclarlo con tus ingresos disponibles.</div>
-  </div>
-  <button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button>
-</div>
-
-<div class="tf-alert tf-alert-info is-visible">
-  Las facturas emitidas desde Facturación y los comprobantes legacy con IVA alimentan esta reserva. Al liquidar se conserva el valor esperado y se descuenta de la cuenta únicamente lo realmente pagado.
-</div>
-
-
-<div class="tf-grid tf-grid-3" style="margin-top:1rem">
-  <div class="tf-card"><div class="tf-kpi-label">IVA reservado</div><div id="tax-reserved" class="tf-kpi-value">$0,00</div></div>
-  <div class="tf-card"><div class="tf-kpi-label">IVA pagado</div><div id="tax-paid" class="tf-kpi-value">$0,00</div></div>
-  <div class="tf-card"><div class="tf-kpi-label">Esperado ya liquidado</div><div id="tax-expected" class="tf-kpi-value">$0,00</div></div>
-</div>
-
-<div class="tf-grid tf-grid-2" style="margin-top:1rem">
-  <section class="tf-card">
-    <div class="tf-section-heading"><div><h2 class="anchored">Facturas pendientes</h2><div class="tf-muted">Facturas emitidas y comprobantes legacy con IVA todavía no liquidados.</div></div><strong id="tax-pending-count">0</strong></div>
-    <div id="tax-pending-list" class="tf-plan-source-list"></div>
-  </section>
-
-  <section class="tf-card">
-    <h2 class="anchored">Registrar pago de IVA</h2>
-    <form id="tax-form">
-      <div class="tf-field"><label>Período tributario</label><select id="tax-period"></select></div>
-      <div id="tax-invoices" class="tf-tax-invoice-selector" style="margin-top:.8rem"></div>
-      <div class="tf-field" style="margin-top:.8rem"><label>IVA esperado</label><input id="tax-expected-input" readonly=""></div>
-      <div class="tf-field" style="margin-top:.8rem"><label>IVA realmente pagado ($)</label><input id="tax-paid-input" type="number" min="0" step="0.01"></div>
-      <div class="tf-field" style="margin-top:.8rem"><label>Cuenta de pago</label><select id="tax-account"></select></div>
-      <div class="tf-field" style="margin-top:.8rem"><label>Fecha de pago</label><input id="tax-date" type="date"></div>
-      <div class="tf-field" style="margin-top:.8rem"><label>Notas</label><textarea id="tax-notes"></textarea></div>
-      <div id="tax-difference" class="tf-subtle" style="margin-top:.8rem"></div>
-      <button class="tf-btn tf-btn-primary" style="margin-top:1rem">Registrar liquidación</button>
-    </form>
-  </section>
-</div>
-
-<section class="tf-card" style="margin-top:1rem">
-  <h2 class="anchored">Liquidaciones registradas</h2>
-  <div id="tax-payment-list" class="tf-grid tf-grid-3"></div>
-</section>
-
-<script type="module" src="js/taxes.js?v=1.0.82"></script>
+<div class="tf-page-header"><div><h1>IVA / Impuestos</h1><div class="tf-muted">El seguimiento de IVA ahora forma parte de Facturación.</div></div></div>
+<div class="tf-card"><p>El IVA generado, el IVA a favor, la estimación mensual y el registro del pago real se gestionan desde <strong>Facturación</strong>.</p><a class="tf-btn tf-btn-primary" href="facturacion.html#iva">Abrir Facturación · IVA</a></div>
 
 
 
@@ -582,7 +537,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.86</p>
+<p>Tracker Financiero Personal V1.0.87</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.83"></script>
+<script type="module" src="js/app-shell.js?v=1.0.87"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -124,23 +124,11 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Los cobros se generan al cerrar cada mes. El inicio y fin parciales se prorratean por días calendario.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
-<section id="aud-post-007-panel" class="tf-card" style="margin-bottom:1rem" hidden="">
-  <div class="tf-section-heading"><div><div class="tf-section-kicker">Auditoría post-migración · AUD-POST-007</div><h2 class="anchored">Identidad canónica de cobro contractual</h2><div class="tf-muted">Elimina únicamente el campo <code>id</code> redundante del contractPayment auditado. No cambia contrato, movimiento, monto, cuenta, estado ni asignaciones.</div></div></div>
-  <div id="aud-post-007-status" class="tf-alert"></div>
-  <div class="tf-actions" style="margin-top:.8rem"><button id="aud-post-007-apply" class="tf-btn tf-btn-primary" type="button">Limpiar id redundante</button></div>
-</section>
-<div class="tf-actions" style="margin-bottom:1rem">
-<button id="contract-new" class="tf-btn tf-btn-primary" type="button">Nuevo contrato</button>
-<button id="tariff-new" class="tf-btn tf-btn-secondary" type="button">Nueva tarifa</button>
+<div class="tf-page-header"><div><h1>Contratos y cuentas por cobrar</h1><div class="tf-muted">Cada contrato puede cerrar por mes calendario o por ciclo aniversario. Los períodos pagados se preservan como histórico.</div></div><button class="tf-btn tf-btn-secondary" data-logout="">Cerrar sesión</button></div>
+<div class="tf-actions" style="margin-bottom:1rem"><button id="contract-new" class="tf-btn tf-btn-primary" type="button">Nuevo contrato</button></div>
 
-</div>
-<div class="tf-grid tf-grid-2"><section id="contract-editor" class="tf-card" hidden=""><h2 class="anchored">Nuevo contrato</h2><form id="contract-form" class="tf-form-grid">
-<div class="tf-field"><label>Cliente / proyecto</label><input id="contract-name" required=""></div><div class="tf-field"><label>Inicio trabajo</label><input id="contract-start" type="date"></div><div class="tf-field"><label>Fin previsto (opcional)</label><input id="contract-end" type="date"></div><div class="tf-field"><label>Desfase de pago (meses)</label><input id="contract-lag" type="number" min="0" value="6"></div><div class="tf-field"><label>Día esperado de pago</label><input id="contract-pay-day" type="number" min="1" max="31" value="1"></div><div class="tf-field"><label>Tarifa inicial mensual ($)</label><input id="contract-rate" type="number" min="0" step="0.01" required=""></div><div class="tf-field"><label>Transporte mensual estimado ($)</label><input id="contract-transport" type="number" min="0" step="0.01" value="0"></div><div class="tf-field"><label>Otros costos directos mensuales ($)</label><input id="contract-other-cost" type="number" min="0" step="0.01" value="0"></div>
-<div class="tf-span-2"><label>Asignación a activos</label><div id="contract-allocations"></div><div class="tf-actions" style="margin-top:.5rem"><button id="add-contract-allocation" type="button" class="tf-btn tf-btn-secondary">Añadir activo</button><span id="allocation-total" class="tf-muted"></span></div></div>
-<div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Guardar contrato</button><button id="contract-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section>
-<section id="tariff-editor" class="tf-card" hidden=""><h2 class="anchored">Nueva tarifa</h2><form id="tariff-form" class="tf-form-grid"><div class="tf-field tf-span-2"><label>Contrato</label><select id="tariff-contract"></select></div><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-span-2 tf-actions"><button class="tf-btn tf-btn-primary">Agregar período tarifario</button><button id="tariff-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button></div></form></section></div>
-<section class="tf-card" style="margin-top:1rem"><div class="tf-section-heading"><div><div class="tf-section-kicker">Cartera contractual</div><h2 class="anchored">Todos los contratos</h2><div class="tf-muted">Activos y finalizados permanecen visibles. Haz clic en un contrato para abrir su detalle y cronograma.</div></div></div><div id="contract-list" class="tf-contract-list"></div></section>
+<section class="tf-card" style="margin-top:1rem"><div class="tf-section-heading"><div><div class="tf-section-kicker">Cartera contractual</div><h2 class="anchored">Todos los contratos</h2><div class="tf-muted">Activos y finalizados permanecen visibles. Abre Información para gestionar fechas, tarifa y cronograma.</div></div></div><div id="contract-list" class="tf-contract-list"></div></section>
+
 <div id="receivables-section" class="tf-card" style="margin-top:1rem"><h2 class="anchored">Cuentas por cobrar</h2><div class="tf-toolbar"><div class="tf-field"><label>Cuenta destino</label><select id="payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="payment-amount" type="number" min="0" step="0.01"></div><button id="allocate-payment" class="tf-btn tf-btn-primary">Aplicar a seleccionados</button></div><div class="tf-table-wrap" style="margin-top:.7rem">
 <table class="tf-table caption-top">
 <thead>
@@ -161,33 +149,35 @@ ul.task-list li input[type="checkbox"] {
 </table>
 </div></div>
 
+<dialog id="contract-editor" class="tf-modal-dialog tf-contract-editor-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">Contratos</div><h2 class="anchored">Nuevo contrato</h2></div><button id="contract-editor-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
+  <form id="contract-form" class="tf-form-grid">
+    <div class="tf-field tf-span-2"><label>Cliente / proyecto</label><input id="contract-name" required=""></div>
+    <div class="tf-field"><label>Inicio trabajo</label><input id="contract-start" type="date"></div>
+    <div class="tf-field"><label>Fin previsto (opcional)</label><input id="contract-end" type="date"></div>
+    <div class="tf-field tf-span-2"><label>Forma de cerrar el período</label><select id="contract-cycle-mode"><option value="calendar_month">Mes calendario / mes trabajado</option><option value="anniversary">Ciclo aniversario</option></select><small id="contract-cycle-help">Mes calendario conserva la prorrata actual. Ciclo aniversario cierra el día anterior al aniversario mensual.</small></div>
+    <div class="tf-field"><label>Desfase de pago (meses)</label><input id="contract-lag" type="number" min="0" value="6"></div>
+    <div class="tf-field"><label>Día esperado de pago</label><input id="contract-pay-day" type="number" min="1" max="31" value="1"></div>
+    <div class="tf-field"><label>Tarifa inicial mensual ($)</label><input id="contract-rate" type="number" min="0" step="0.01" required=""></div>
+    <div class="tf-field"><label>Transporte mensual estimado ($)</label><input id="contract-transport" type="number" min="0" step="0.01" value="0"></div>
+    <div class="tf-field"><label>Otros costos directos mensuales ($)</label><input id="contract-other-cost" type="number" min="0" step="0.01" value="0"></div>
+    <div class="tf-span-2"><label>Activos vinculados <span class="tf-muted">(opcional)</span></label><div id="contract-allocations" class="tf-plan-source-list"></div><div class="tf-actions" style="margin-top:.5rem"><button id="add-contract-allocation" type="button" class="tf-btn tf-btn-secondary">Añadir activo</button><span id="allocation-total" class="tf-muted">Sin activos vinculados</span></div></div>
+    <div class="tf-span-2 tf-actions tf-sticky-actions"><button id="contract-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button><button class="tf-btn tf-btn-primary">Guardar contrato</button></div>
+  </form>
+</dialog>
+
+<dialog id="contract-asset-dialog" class="tf-dialog"><form method="dialog" onsubmit="return false" class="tf-dialog-card"><div class="tf-dialog-header"><div><div class="tf-section-kicker">Activo opcional</div><h2 class="anchored">Vincular activo</h2></div></div><div class="tf-dialog-body"><div class="tf-field"><label>Activo</label><select id="contract-asset-select"></select></div><div class="tf-field"><label>Participación (%)</label><input id="contract-asset-percent" type="number" min="0.1" max="100" step="0.1" value="100"></div></div><div class="tf-dialog-actions"><button id="contract-asset-cancel" class="tf-btn tf-btn-secondary" type="button">Cancelar</button><button id="contract-asset-add" class="tf-btn tf-btn-primary" type="button">Añadir</button></div></form></dialog>
+
+<dialog id="tariff-editor" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Contrato en operación</div><h2 id="tariff-title" class="anchored">Nueva tarifa</h2></div><button id="tariff-cancel" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div><form id="tariff-form" class="tf-form-grid"><div class="tf-field"><label>Vigente desde</label><input id="tariff-from" type="date"></div><div class="tf-field"><label>Tarifa mensual ($)</label><input id="tariff-amount" type="number" min="0" step="0.01" required=""></div><div class="tf-span-2 tf-actions tf-sticky-actions"><button class="tf-btn tf-btn-primary">Agregar tarifa</button></div></form></dialog>
+
 <dialog id="contract-detail-dialog" class="tf-modal-dialog tf-contract-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Contrato</div><h2 id="contract-detail-title" class="anchored">Detalle contractual</h2></div><button class="tf-btn tf-btn-secondary" type="button" id="contract-detail-close">Cerrar</button></div><div id="contract-detail-body"></div></dialog>
 
+<dialog id="contract-payment-dialog" class="tf-modal-dialog tf-contract-payment-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Ingreso contractual</div><h2 id="contract-payment-title" class="anchored">Registrar cobro</h2><div id="contract-payment-meta" class="tf-muted"></div></div><button id="contract-payment-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div><div class="tf-form-grid"><div class="tf-field"><label>Cuenta destino</label><select id="contract-payment-account"></select></div><div class="tf-field"><label>Monto recibido ($)</label><input id="contract-payment-amount" type="number" min="0" step="0.01"></div><div class="tf-field"><label>Fecha</label><input id="contract-payment-date" type="date"></div><div class="tf-field tf-span-2"><label>Descripción</label><input id="contract-payment-description"></div><div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-payment-save" type="button" class="tf-btn tf-btn-primary">Registrar</button></div></div></dialog>
 
-<dialog id="contract-payment-dialog" class="tf-modal-dialog tf-contract-payment-dialog">
-  <div class="tf-modal-head">
-    <div><div class="tf-section-kicker">Ingreso contractual</div><h2 id="contract-payment-title" class="anchored">Registrar cobro</h2><div id="contract-payment-meta" class="tf-muted"></div></div>
-    <button id="contract-payment-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button>
-  </div>
-  <div class="tf-form-grid">
-    <div class="tf-field"><label>Cuenta destino</label><select id="contract-payment-account"></select></div>
-    <div class="tf-field"><label>Monto recibido ($)</label><input id="contract-payment-amount" type="number" min="0" step="0.01"></div>
-    <div class="tf-field"><label>Fecha</label><input id="contract-payment-date" type="date"></div>
-    <div class="tf-field tf-span-2"><label>Descripción</label><input id="contract-payment-description"></div>
-    <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-payment-save" type="button" class="tf-btn tf-btn-primary">Registrar</button></div>
-  </div>
-</dialog>
 <dialog id="contract-finish-dialog" class="tf-modal-dialog"><form method="dialog" id="contract-finish-form"><div class="tf-modal-head"><div><div class="tf-section-kicker">Cierre contractual</div><h2 class="anchored">Finalizar / programar fin</h2></div><button class="tf-btn tf-btn-secondary" value="cancel">Cerrar</button></div><div class="tf-form-grid"><div class="tf-field"><label>Fecha efectiva de finalización</label><input id="contract-finish-date" type="date" required=""></div><div class="tf-span-2" id="contract-finish-preview"></div><div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button class="tf-btn tf-btn-secondary" value="cancel">Cancelar</button><button id="contract-finish-confirm" type="button" class="tf-btn tf-btn-primary">Guardar fecha</button></div></div></form></dialog>
-<dialog id="contract-dates-dialog" class="tf-modal-dialog">
-  <div class="tf-modal-head"><div><div class="tf-section-kicker">Fechas contractuales</div><h2 class="anchored">Editar inicio y fin</h2><div id="contract-dates-meta" class="tf-muted"></div></div><button id="contract-dates-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div>
-  <div class="tf-form-grid">
-    <div class="tf-field"><label>Fecha de inicio</label><input id="contract-dates-start" type="date" required=""></div>
-    <div class="tf-field"><label>Fecha de fin</label><input id="contract-dates-end" type="date"></div>
-    <div class="tf-span-2 tf-muted">Al guardar, solo se recalculan períodos sin pagos. Los períodos pagados o parciales se conservan.</div>
-    <div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Guardar fechas</button></div>
-  </div>
-</dialog>
-<script type="module" src="js/contracts.js?v=1.0.82"></script>
+
+<dialog id="contract-dates-dialog" class="tf-modal-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Fechas contractuales</div><h2 class="anchored">Editar inicio y fin</h2><div id="contract-dates-meta" class="tf-muted"></div></div><button id="contract-dates-close" type="button" class="tf-btn tf-btn-secondary tf-btn-compact">Cerrar</button></div><div class="tf-form-grid"><div class="tf-field"><label>Fecha de inicio</label><input id="contract-dates-start" type="date" required=""></div><div class="tf-field"><label>Fecha de fin</label><input id="contract-dates-end" type="date"></div><div class="tf-span-2 tf-muted">Al guardar, solo se recalculan períodos sin pagos. Los períodos pagados o parciales se conservan.</div><div class="tf-span-2 tf-actions" style="justify-content:flex-end"><button id="contract-dates-save" type="button" class="tf-btn tf-btn-primary">Guardar fechas</button></div></div></dialog>
+<script type="module" src="js/contracts.js?v=1.0.87"></script>
 
 
 
@@ -599,7 +589,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.86</p>
+<p>Tracker Financiero Personal V1.0.87</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;

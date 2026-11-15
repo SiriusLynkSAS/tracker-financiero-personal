@@ -88,7 +88,7 @@ ul.task-list li input[type="checkbox"] {
   })();
 </script>
 <script type="module" src="js/theme.js"></script>
-<script type="module" src="js/app-shell.js?v=1.0.83"></script>
+<script type="module" src="js/app-shell.js?v=1.0.87"></script>
 
 
 <link rel="stylesheet" href="styles.css">
@@ -274,7 +274,77 @@ ul.task-list li input[type="checkbox"] {
   </form>
 </dialog>
 
-<script type="module" src="js/invoices.js?v=1.0.82"></script>
+<section id="iva" class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div><div class="tf-section-kicker">Impuestos</div><h2 class="anchored">IVA / Impuestos</h2><div class="tf-muted">Consolidado automático de facturas y movimientos con IVA. Los ingresos generan IVA; los egresos con factura generan IVA a favor.</div></div>
+    <button id="tax-open-payment" class="tf-btn tf-btn-primary" type="button">Registrar pago de IVA</button>
+  </div>
+  <div class="tf-budget-summary-row tf-tax-summary-row" style="margin-top:1rem">
+    <div><span>IVA generado pendiente</span><strong id="tax-generated">$0,00</strong></div>
+    <div><span>IVA a favor pendiente</span><strong id="tax-credit">$0,00</strong></div>
+    <div><span>Estimado a pagar</span><strong id="tax-net-due">$0,00</strong></div>
+    <div><span>Saldo a favor</span><strong id="tax-credit-balance">$0,00</strong></div>
+    <div><span>Pagado registrado</span><strong id="tax-paid">$0,00</strong></div>
+  </div>
+  <div class="tf-table-wrap" style="margin-top:1rem">
+    
+<table class="tf-table caption-top">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">Período</th>
+<th data-quarto-table-cell-role="th">IVA generado</th>
+<th data-quarto-table-cell-role="th">IVA a favor</th>
+<th data-quarto-table-cell-role="th">Estimado a pagar</th>
+<th data-quarto-table-cell-role="th">Saldo a favor</th>
+<th data-quarto-table-cell-role="th">Pendientes</th>
+</tr>
+</thead>
+<tbody id="tax-period-summary">
+</tbody>
+</table>
+
+  </div>
+  <h3 style="margin-top:1rem" class="anchored">Liquidaciones registradas</h3>
+  <div class="tf-table-wrap">
+<table class="tf-table caption-top">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th">Período</th>
+<th data-quarto-table-cell-role="th">Generado</th>
+<th data-quarto-table-cell-role="th">A favor</th>
+<th data-quarto-table-cell-role="th">Estimado</th>
+<th data-quarto-table-cell-role="th">Pagado</th>
+<th data-quarto-table-cell-role="th">Fecha</th>
+<th data-quarto-table-cell-role="th">Cuenta</th>
+</tr>
+</thead>
+<tbody id="tax-payment-list">
+</tbody>
+</table>
+</div>
+</section>
+
+<dialog id="tax-payment-dialog" class="tf-modal-dialog">
+  <div class="tf-modal-head"><div><div class="tf-section-kicker">IVA / Impuestos</div><h2 class="anchored">Registrar liquidación</h2></div><button id="tax-payment-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
+  <form id="tax-form" class="tf-modal-scroll" onsubmit="return false">
+    <div class="tf-field"><label>Período tributario</label><select id="tax-period"></select></div>
+    <div id="tax-invoices" class="tf-tax-invoice-selector" style="margin-top:.8rem"></div>
+    <div class="tf-detail-grid" style="margin-top:.8rem">
+      <div class="tf-metric"><span class="tf-metric-label">IVA generado</span><strong id="tax-selected-generated">$0,00</strong></div>
+      <div class="tf-metric"><span class="tf-metric-label">IVA a favor</span><strong id="tax-selected-credit">$0,00</strong></div>
+      <div class="tf-metric"><span class="tf-metric-label">Estimado a pagar</span><strong id="tax-expected-input">$0,00</strong></div>
+    </div>
+    <div class="tf-field" style="margin-top:.8rem"><label>IVA realmente pagado ($)</label><input id="tax-paid-input" type="number" min="0" step="0.01"></div>
+    <div class="tf-field"><label>Cuenta de pago</label><select id="tax-account"></select></div>
+    <div class="tf-field"><label>Fecha de pago</label><input id="tax-date" type="date"></div>
+    <div class="tf-field"><label>Notas</label><textarea id="tax-notes"></textarea></div>
+    <div id="tax-difference" class="tf-subtle"></div>
+    <div class="tf-actions tf-sticky-actions"><button id="tax-payment-cancel" type="button" class="tf-btn tf-btn-secondary">Cancelar</button><button id="tax-payment-save" type="submit" class="tf-btn tf-btn-primary">Registrar liquidación</button></div>
+  </form>
+</dialog>
+
+<script type="module" src="js/invoices.js?v=1.0.87"></script>
+<script type="module" src="js/taxes.js?v=1.0.87"></script>
 
 
 
@@ -686,7 +756,7 @@ ul.task-list li input[type="checkbox"] {
       &nbsp;
     </div>   
     <div class="nav-footer-center">
-<p>Tracker Financiero Personal V1.0.86</p>
+<p>Tracker Financiero Personal V1.0.87</p>
 </div>
     <div class="nav-footer-right">
       &nbsp;
