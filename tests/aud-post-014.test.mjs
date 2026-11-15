@@ -52,7 +52,7 @@ assert.match(trips,/Número de factura \/ comprobante/);
 assert.match(trips,/trip-expense-category/);
 assert.match(movements,/Movimiento con factura \/ IVA/);
 assert.match(invoicing,/id=["']iva["']/);
-assert.match(invoicing,/taxes\.js\?v=1\.0\.87/);
+assert.match(invoicing,/taxes\.js\?v=1\.0\.89/);
 assert.doesNotMatch(shell,/href:\s*["']impuestos\.html["']/);
 assert.match(debts,/id=["']debt-schedule-card["']/);
 assert.match(debts,/id=["']card-schedule-card["']/);

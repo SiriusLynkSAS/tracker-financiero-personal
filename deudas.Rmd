@@ -170,6 +170,10 @@ title: "Deudas y tarjetas"
         <div class="tf-field"><label>Otros cargos ($)</label><input id="schedule-payment-other" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="tf-field"><label>Referencia / comprobante</label><input id="schedule-payment-reference" type="text" placeholder="Opcional"></div>
       </div>
+      <div id="card-payment-correction-actions" class="tf-card" style="margin-top:.75rem" hidden>
+        <div id="card-payment-correction-label" class="tf-muted"></div>
+        <div class="tf-actions" style="margin-top:.5rem"><button type="button" class="tf-btn tf-btn-primary" id="card-payment-correction-save">Guardar corrección</button><button type="button" class="tf-btn tf-btn-secondary" id="card-payment-correction-cancel">Cancelar</button></div>
+      </div>
     </div>
     <h3 style="margin-top:1rem">Cronograma</h3>
     <div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>#</th><th>Fecha</th><th>Capital</th><th>Interés</th><th>Cuota</th><th>Saldo</th><th>Estado</th><th></th></tr></thead><tbody id="card-schedule-body"></tbody></table></div>
@@ -182,5 +186,5 @@ title: "Deudas y tarjetas"
 <dialog id="card-detail-dialog" class="tf-modal-dialog tf-card-detail-dialog"><div class="tf-modal-head"><div><div class="tf-section-kicker">Tarjeta de crédito</div><h2 id="card-detail-title">Detalle del plan</h2></div><button type="button" class="tf-btn tf-btn-secondary" id="card-detail-close">Cerrar</button></div><div id="card-detail-body"></div></dialog>
 
 
-<script type="module" src="js/debts.js?v=1.0.87"></script>
+<script type="module" src="js/debts.js?v=1.0.89"></script>
 ```

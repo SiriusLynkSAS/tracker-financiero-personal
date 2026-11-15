@@ -1,5 +1,5 @@
 import {requireUser} from "./guard.js";
-import {listTransactions,listTaxPayments,listAccounts,listInvoicesOptional,saveTaxPayment} from "./data-service.js?v=1.0.87";
+import {listTransactions,listTaxPayments,listAccounts,listInvoicesOptional,saveTaxPayment} from "./data-service.js?v=1.0.89";
 import {money,escapeHtml,todayISO,sum} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 

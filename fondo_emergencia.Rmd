@@ -75,7 +75,7 @@ title: "Fondo de emergencia"
 <div class="tf-grid tf-grid-2" style="margin-top:1rem">
   <section class="tf-card">
     <div class="tf-section-heading">
-      <div><h2>Cuentas del fondo</h2><div class="tf-muted">El fondo usa únicamente saldos reales de las cuentas seleccionadas.</div></div>
+      <div><h2>Cuentas del fondo</h2><div class="tf-muted">Las cuentas seleccionadas forman parte de la liquidez inmediata.</div></div>
       <strong id="ef-account-count" class="tf-plan-section-total">0</strong>
     </div>
     <button id="ef-accounts-open" class="tf-btn tf-btn-secondary" type="button">Seleccionar cuentas</button>
@@ -88,6 +88,20 @@ title: "Fondo de emergencia"
     <button id="ef-essential-open" class="tf-btn tf-btn-secondary" type="button">Información y selección</button>
   </section>
 </div>
+
+<section class="tf-card" style="margin-top:1rem">
+  <div class="tf-section-heading">
+    <div><h2>Liquidez y reserva</h2><div class="tf-muted">Las inversiones se clasifican desde Inversiones; no se duplican como cuentas bancarias.</div></div>
+  </div>
+  <div class="tf-emergency-metrics tf-emergency-liquidity-grid">
+    <div><span>Cuentas inmediatas</span><strong id="ef-bank-immediate">$0,00</strong></div>
+    <div><span>Inversiones inmediatas</span><strong id="ef-investment-immediate">$0,00</strong></div>
+    <div><span>Reserva secundaria</span><strong id="ef-secondary">$0,00</strong></div>
+    <div><span>Total destinado</span><strong id="ef-total-emergency">$0,00</strong></div>
+    <div><span>Cobertura incl. reserva secundaria</span><strong id="ef-coverage-secondary">0,0 meses</strong></div>
+  </div>
+  <div id="ef-investment-list" style="margin-top:.8rem"></div>
+</section>
 
 <dialog id="ef-accounts-dialog" class="tf-modal-dialog">
   <div class="tf-modal-head"><div><div class="tf-section-kicker">Fondo de emergencia</div><h2>Cuentas incluidas</h2></div><button id="ef-accounts-close" class="tf-btn tf-btn-secondary" type="button">Cerrar</button></div>
@@ -126,5 +140,5 @@ title: "Fondo de emergencia"
   </div>
 </div>
 
-<script type="module" src="js/emergency-fund.js?v=1.0.86"></script>
+<script type="module" src="js/emergency-fund.js?v=1.0.89"></script>
 ```

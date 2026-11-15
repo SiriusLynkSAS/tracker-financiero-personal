@@ -1,4 +1,12 @@
-# Web V1.0.87 · AUD-POST-014
+# Web V1.0.89 · AUD-POST-015 + AUD-POST-016
+
+- AUD-POST-015: Seguros vincula prima mensual a cuenta/Recurrente/Movimiento; Activos vincula compras/eventos monetarios al ledger; Inversiones separa capital patrimonial de rendimiento y evita doble conteo con cuentas respaldadas; Fondo de emergencia distingue disponibilidad inmediata y reserva secundaria.
+- AUD-POST-016: Facturación y Contratos comparten el mismo flujo de emisión/cobro. Seleccionar un contrato ya no borra datos del formulario. En `Incluye IVA`, el total —no la base— debe coincidir con el pendiente contractual. Contratos permite factura fiscal o comprobante interno como `EXTRA-001` sin salir de la pantalla.
+- Corrección estructurada: cobros de factura, pagos de deuda y cuotas financiadas actualizan el mismo movimiento vinculado; no generan un segundo movimiento ni duplican el efecto sobre cuentas.
+- Cronogramas de Deudas/Tarjetas usan modal ancho, pendientes primero, pagadas después y acciones de corrección desde el módulo de origen.
+- Sin cambios en configuración, reglas o índices Firebase.
+
+# Web V1.0.88 · AUD-POST-015 (base intermedia)
 
 - Contratos: modalidad de período seleccionable entre mes calendario y ciclo aniversario; el activo es opcional; Nueva tarifa solo desde contrato activo.
 - Viáticos: alta modal, tabla, factura obligatoria en gastos, categoría/subcategoría económica, IVA opcional y reembolso solo para fondos propios.

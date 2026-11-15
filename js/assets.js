@@ -1,143 +1,27 @@
 import {requireUser} from "./guard.js";
-import {listAssets,saveAsset,archiveAsset,reactivateAsset,listContracts,listReceivables} from "./data-service.js";
+import {listAssets,saveAsset,createAssetWithPurchase,addAssetEventWithMovement,archiveAsset,reactivateAsset,listContracts,listReceivables,listAccounts} from "./data-service.js?v=1.0.89";
 import {money,escapeHtml,todayISO} from "./utils.js";
-import {assetRecoverySummary,assetInitialCost} from "./asset-math.js";
+import {assetRecoverySummary} from "./asset-math.js";
 import {confirmAction,toast} from "./ui.js";
 
-let rows=[],contracts=[],receivables=[],showArchived=false;
-const list=document.querySelector("#asset-list");
-const editor=document.querySelector("#asset-editor"),eventEditor=document.querySelector("#asset-event-editor");
+let rows=[],contracts=[],receivables=[],accounts=[],showArchived=false,detailId=null;
+const list=document.querySelector("#asset-list"),editor=document.querySelector("#asset-editor"),eventEditor=document.querySelector("#asset-event-editor"),detail=document.querySelector("#asset-detail-dialog");
 const newButton=document.querySelector("#asset-new"),archivedToggle=document.querySelector("#asset-archived-toggle");
-
-const eventLabels={operating_cost:"Costo operativo",cost:"Costo operativo",capital_improvement:"Mejora capitalizable",revenue:"Ingreso directo"};
-const conceptLabels={transport:"Transporte",maintenance:"Mantenimiento",calibration:"Calibración / certificación",certification:"Calibración / certificación",repair:"Reparación",insurance:"Seguro",improvement:"Mejora / ampliación",rental:"Arriendo / uso productivo",other:"Otro"};
-
-function marketValue(a,book){
-  if(a.marketValueProvided===true)return Number(a.marketValue??0);
-  if(a.marketValue!==undefined&&a.marketValue!==null&&String(a.marketValue)!==""&&Number(a.marketValue)!==0)return Number(a.marketValue);
-  return book;
-}
-function contractNames(a){
-  const linked=contracts.filter(c=>{
-    const allocs=Array.isArray(c.assetAllocations)&&c.assetAllocations.length?c.assetAllocations:(c.assetId?[{assetId:c.assetId,percent:100}]:[]);
-    return allocs.some(x=>x.assetId===a.id&&Number(x.percent||0)>0);
-  });
-  return linked.map(c=>escapeHtml(c.name)).join(", ")||"Sin contratos vinculados";
-}
-function render(){
-  const archivedCount=rows.filter(a=>a.active===false).length;
-  archivedToggle.hidden=!archivedCount;
-  archivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archivedCount})`;
-  newButton.hidden=showArchived;
-  document.querySelector("#event-asset").innerHTML=rows.filter(x=>x.active!==false).map(a=>`<option value="${a.id}">${escapeHtml(a.name)}</option>`).join("");
-
-  list.innerHTML=rows.filter(a=>showArchived?a.active===false:a.active!==false).map(a=>{
-    const s=assetRecoverySummary(a,contracts,receivables);
-    const market=marketValue(a,s.bookValue);
-    const events=[...(a.events||[])].sort((x,y)=>String(y.date||"").localeCompare(String(x.date||""))).slice(0,6);
-    return `<section class="tf-card tf-asset-recovery-card">
-      <div class="tf-asset-head"><div><h2>${escapeHtml(a.name)}</h2><div class="tf-muted">${escapeHtml(a.type||"equipment")} · compra ${escapeHtml(a.purchaseDate||"—")} · servicio ${escapeHtml(a.commissioningDate||a.purchaseDate||"—")}</div></div>${showArchived?`<button class="tf-btn tf-btn-primary" data-reactivate="${a.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-secondary" data-archive="${a.id}">Archivar</button>`}</div>
-      <div class="tf-asset-block"><h3>Adquisición y puesta en operación</h3><div class="tf-detail-grid">
-        <div class="tf-metric"><span class="tf-metric-label">Costo inicial</span><strong>${money(s.initialCost)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Mejoras capitalizadas</span><strong>${money(s.improvements)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Costo capitalizado</span><strong>${money(s.capitalizedCost)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Costo financiero</span><strong>${money(s.financingCost)}</strong></div>
-      </div></div>
-      <div class="tf-asset-block"><h3>Depreciación</h3><div class="tf-detail-grid">
-        <div class="tf-metric"><span class="tf-metric-label">Depreciación anual</span><strong>${money(s.annual)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Depreciación acumulada</span><strong>${money(s.accumulated)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Valor contable</span><strong>${money(s.bookValue)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Valor patrimonial</span><strong>${money(market)}</strong></div>
-      </div></div>
-      <div class="tf-asset-block"><h3>Recuperación por contratos</h3><div class="tf-muted">${contractNames(a)}</div><div class="tf-detail-grid" style="margin-top:.7rem">
-        <div class="tf-metric"><span class="tf-metric-label">Contribución devengada</span><strong>${money(s.recoveredAccrued)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Contribución cobrada</span><strong>${money(s.recoveredCollected)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Pendiente capital</span><strong>${money(s.pendingCapital)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Recuperación inversión</span><strong>${s.recoveryPct.toFixed(1)}%</strong></div>
-      </div><div class="tf-progress" style="margin-top:.55rem"><span style="width:${Math.min(100,Math.max(0,s.recoveryPct))}%"></span></div>
-      <div class="tf-muted" style="margin-top:.55rem">Ingresos contractuales atribuidos cobrados ${money(s.collectedRevenue)} menos costos directos atribuidos ${money(s.directCostCollected)}.</div></div>
-      <div class="tf-asset-block"><h3>Resultado económico</h3><div class="tf-detail-grid">
-        <div class="tf-metric"><span class="tf-metric-label">Costos operativos</span><strong>${money(s.operatingCosts)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Costo económico total</span><strong>${money(s.economicCost)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">Resultado acumulado</span><strong class="${s.economicResult>=0?"tf-positive":"tf-negative"}">${money(s.economicResult)}</strong></div>
-        <div class="tf-metric"><span class="tf-metric-label">ROI</span><strong class="${s.roi>=0?"tf-positive":"tf-negative"}">${s.roi.toFixed(1)}%</strong></div>
-      </div></div>
-      <div class="tf-asset-block"><h3>Últimos movimientos</h3>${events.length?events.map(e=>`<div class="tf-summary-row"><span>${escapeHtml(e.date||"—")} · ${escapeHtml(eventLabels[e.kind]||e.kind)} · ${escapeHtml(conceptLabels[e.concept]||e.concept)}${e.note?`<br><small class="tf-muted">${escapeHtml(e.note)}</small>`:""}</span><strong>${money(e.amount)}</strong></div>`).join(""):`<div class="tf-empty">Sin movimientos adicionales.</div>`}</div>
-      <div class="tf-actions">${showArchived?"":`<button class="tf-btn tf-btn-secondary" data-event="${a.id}">Registrar movimiento</button>`}<a class="tf-btn tf-btn-secondary" href="contratos.html?asset=${a.id}">Ver contratos</a></div>
-    </section>`;
-  }).join("")||`<div class="tf-card tf-empty">${showArchived?"Sin activos archivados.":"Sin activos activos."}</div>`;
-}
-
-async function refresh(){
-  [rows,contracts,receivables]=await Promise.all([listAssets(),listContracts(),listReceivables()]);
-  render();
-}
-
-document.querySelector("#asset-date").value=todayISO();
-document.querySelector("#asset-commissioning").value=todayISO();
-document.querySelector("#event-date").value=todayISO();
-
-document.querySelector("#asset-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const marketInput=document.querySelector("#asset-market").value;
-  const purchaseDate=document.querySelector("#asset-date").value;
-  const commissioningDate=document.querySelector("#asset-commissioning").value||purchaseDate;
-  const asset={
-    name:document.querySelector("#asset-name").value.trim(),
-    type:document.querySelector("#asset-type").value,
-    purchasePrice:Number(document.querySelector("#asset-purchase").value||0),
-    purchaseTaxes:Number(document.querySelector("#asset-taxes").value||0),
-    purchaseTransport:Number(document.querySelector("#asset-purchase-transport").value||0),
-    purchaseInsurance:Number(document.querySelector("#asset-purchase-insurance").value||0),
-    initialAccessories:Number(document.querySelector("#asset-accessories").value||0),
-    initialCertification:Number(document.querySelector("#asset-certification").value||0),
-    initialSetup:Number(document.querySelector("#asset-setup").value||0),
-    otherInitial:Number(document.querySelector("#asset-other-initial").value||0),
-    purchaseDate,commissioningDate,
-    residualValue:Number(document.querySelector("#asset-residual").value||0),
-    usefulLifeYears:Number(document.querySelector("#asset-life").value||5),
-    financingCost:Number(document.querySelector("#asset-financing").value||0),
-    depreciationMethod:"straight_line",
-    marketValue:marketInput===""?null:Number(marketInput),
-    marketValueProvided:marketInput!=="",
-    events:[],active:true
-  };
-  const nonNegative=[asset.purchasePrice,asset.purchaseTaxes,asset.purchaseTransport,asset.purchaseInsurance,asset.initialAccessories,asset.initialCertification,asset.initialSetup,asset.otherInitial,asset.residualValue,asset.financingCost];
-  if(!asset.name||!purchaseDate||!commissioningDate||asset.usefulLifeYears<=0||nonNegative.some(v=>!Number.isFinite(v)||v<0)){toast("Revisa nombre, fechas, costos y vida útil.");return}
-  if(commissioningDate<purchaseDate){toast("La puesta en servicio no puede ser anterior a la compra.");return}
-  if(asset.residualValue>assetInitialCost(asset)){toast("El valor residual no puede superar el costo inicial.");return}
-  await saveAsset(asset);
-  e.target.reset();document.querySelector("#asset-date").value=todayISO();document.querySelector("#asset-commissioning").value=todayISO();
-  toast("Activo guardado.");editor.hidden=true;await refresh();
-});
-
-document.querySelector("#asset-event-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const a=rows.find(x=>x.id===document.querySelector("#event-asset").value);if(!a)return;
-  const ev={
-    id:`ev-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-    kind:document.querySelector("#event-kind").value,
-    concept:document.querySelector("#event-concept").value,
-    date:document.querySelector("#event-date").value,
-    amount:Number(document.querySelector("#event-amount").value||0),
-    note:document.querySelector("#event-note").value.trim()
-  };
-  if(!(ev.amount>0)||!ev.date){toast("Ingresa fecha y monto válido.");return}
-  if(!await confirmAction({title:"Registrar movimiento del activo",message:`${eventLabels[ev.kind]} ${money(ev.amount)}`,impact:[ev.kind==="capital_improvement"?"Aumentará el costo capitalizado y la base de depreciación.":ev.kind==="operating_cost"?"Aumentará el costo económico operativo, no la base contable.":"Se sumará a la recuperación económica directa del activo.","No crea automáticamente un movimiento bancario."]}))return;
-  await saveAsset({...a,events:[...(a.events||[]),ev]},a.id);
-  e.target.reset();document.querySelector("#event-date").value=todayISO();toast("Movimiento registrado.");eventEditor.hidden=true;await refresh();
-});
-
-newButton.addEventListener("click",()=>{document.querySelector("#asset-form").reset();document.querySelector("#asset-date").value=todayISO();document.querySelector("#asset-commissioning").value=todayISO();editor.hidden=false;editor.scrollIntoView({behavior:"smooth"})});
-archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;editor.hidden=true;eventEditor.hidden=true;render()});
-document.querySelector("#asset-cancel")?.addEventListener("click",()=>{editor.hidden=true});
-document.querySelector("#asset-event-cancel")?.addEventListener("click",()=>{eventEditor.hidden=true});
-list.addEventListener("click",async e=>{
-  const b=e.target.closest("[data-archive]"),re=e.target.closest("[data-reactivate]"),ev=e.target.closest("[data-event]");
-  if(ev){document.querySelector("#event-asset").value=ev.dataset.event;eventEditor.hidden=false;eventEditor.scrollIntoView({behavior:"smooth"});return}
-  if(re){await reactivateAsset(re.dataset.reactivate);await refresh();return}
-  if(b&&await confirmAction({title:"Archivar activo",message:"Se conserva todo el historial económico y contractual.",confirmText:"Archivar"})){
-    await archiveAsset(b.dataset.archive);await refresh();
-  }
-});
-requireUser(()=>refresh().catch(console.error));
+const typeLabels={computer:"Computadora",survey:"Equipo topográfico",equipment:"Equipo",vehicle:"Vehículo",other:"Otro"};
+const conceptLabels={maintenance:"Mantenimiento",calibration:"Calibración / certificación",repair:"Reparación",insurance:"Seguro",improvement:"Mejora / ampliación",rental:"Arriendo / uso productivo",other:"Otro"};
+function marketValue(a,s){return a.marketValueProvided===true||Number(a.marketValue||0)>0?Number(a.marketValue||0):s.bookValue}
+function linkedContracts(a){return contracts.filter(c=>{const allocs=Array.isArray(c.assetAllocations)&&c.assetAllocations.length?c.assetAllocations:(c.assetId?[{assetId:c.assetId,percent:100}]:[]);return allocs.some(x=>x.assetId===a.id&&Number(x.percent||0)>0)});}
+function accountLabel(id){const a=accounts.find(x=>x.id===id);return a?`${a.bank||a.institutionDisplayName||"Cuenta"} · ${a.alias||a.last4||""}`:"—";}
+function fillAccounts(select,selected=""){const active=accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card");select.innerHTML=`<option value="">Seleccionar…</option>`+active.map(a=>`<option value="${a.id}" ${a.id===selected?"selected":""}>${escapeHtml(`${a.bank||a.institutionDisplayName||"Cuenta"} · ${a.alias||a.last4||""}`)}</option>`).join("");}
+function render(){const archived=rows.filter(a=>a.active===false),visible=rows.filter(a=>showArchived?a.active===false:a.active!==false);archivedToggle.hidden=!archived.length;archivedToggle.textContent=showArchived?"Ver activos":`Archivados (${archived.length})`;newButton.hidden=showArchived;list.innerHTML=visible.map(a=>{const s=assetRecoverySummary(a,contracts,receivables),linked=linkedContracts(a);return `<tr><td><strong>${escapeHtml(a.name)}</strong></td><td>${escapeHtml(typeLabels[a.type]||a.type||"—")}</td><td class="tf-num">${money(s.capitalizedCost)}</td><td class="tf-num">${money(marketValue(a,s))}</td><td>${linked.length}</td><td><span class="tf-pill ${a.active===false?"":"tf-pill-ok"}">${a.active===false?"Archivado":"Activo"}</span></td><td><button class="tf-icon-btn" data-asset-info="${a.id}" title="Información">ⓘ</button></td></tr>`}).join("")||`<tr><td colspan="7" class="tf-empty">${showArchived?"Sin activos archivados.":"Sin activos registrados."}</td></tr>`;}
+async function refresh(){[rows,contracts,receivables,accounts]=await Promise.all([listAssets(),listContracts(),listReceivables(),listAccounts()]);fillAccounts(document.querySelector("#asset-account"));fillAccounts(document.querySelector("#event-account"));render();}
+function resetAsset(){document.querySelector("#asset-form").reset();document.querySelector("#asset-id").value="";document.querySelector("#asset-editor-title").textContent="Nuevo activo";document.querySelector("#asset-date").value=todayISO();document.querySelector("#asset-commissioning").value=todayISO();document.querySelector("#asset-life").value="5";document.querySelector("#asset-purchase-flow").hidden=false;fillAccounts(document.querySelector("#asset-account"));syncHistorical();}
+function syncHistorical(){const historical=document.querySelector("#asset-historical").checked;const sel=document.querySelector("#asset-account");sel.disabled=historical;if(historical)sel.value="";}
+function openAsset(a=null){resetAsset();if(a){document.querySelector("#asset-id").value=a.id;document.querySelector("#asset-editor-title").textContent="Editar activo";document.querySelector("#asset-name").value=a.name||"";document.querySelector("#asset-type").value=a.type||"equipment";document.querySelector("#asset-purchase").value=Number(a.purchasePrice||0);document.querySelector("#asset-taxes").value=Number(a.purchaseTaxes||0);document.querySelector("#asset-purchase-transport").value=Number(a.purchaseTransport||0);document.querySelector("#asset-purchase-insurance").value=Number(a.purchaseInsurance||0);document.querySelector("#asset-accessories").value=Number(a.initialAccessories||0);document.querySelector("#asset-certification").value=Number(a.initialCertification||0);document.querySelector("#asset-setup").value=Number(a.initialSetup||0);document.querySelector("#asset-other-initial").value=Number(a.otherInitial||0);document.querySelector("#asset-date").value=a.purchaseDate||todayISO();document.querySelector("#asset-commissioning").value=a.commissioningDate||a.purchaseDate||todayISO();document.querySelector("#asset-residual").value=Number(a.residualValue||0);document.querySelector("#asset-life").value=Number(a.usefulLifeYears||5);document.querySelector("#asset-financing").value=Number(a.financingCost||0);document.querySelector("#asset-market").value=a.marketValueProvided?Number(a.marketValue||0):"";document.querySelector("#asset-purchase-flow").hidden=true;}editor.showModal();}
+function openEvent(id){document.querySelector("#asset-event-form").reset();document.querySelector("#event-asset").value=id;document.querySelector("#event-date").value=todayISO();fillAccounts(document.querySelector("#event-account"));document.querySelector("#event-invoice-fields").hidden=true;eventEditor.showModal();}
+function openDetail(id){const a=rows.find(x=>x.id===id);if(!a)return;detailId=id;const s=assetRecoverySummary(a,contracts,receivables),linked=linkedContracts(a),events=[...(a.events||[])].sort((x,y)=>String(y.date||"").localeCompare(String(x.date||"")));document.querySelector("#asset-detail-title").textContent=a.name;document.querySelector("#asset-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Costo inicial</span><strong>${money(s.initialCost)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Costo capitalizado</span><strong>${money(s.capitalizedCost)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Valor contable</span><strong>${money(s.bookValue)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Valor actual</span><strong>${money(marketValue(a,s))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Recuperación cobrada</span><strong>${money(s.recoveredCollected)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Contratos</span><strong>${linked.length}</strong></div></div><div class="tf-muted" style="margin-top:.7rem">Compra: ${escapeHtml(a.purchaseMovementMode==="automatic"?`movimiento vinculado · ${accountLabel(a.purchaseAccountId)}`:"histórica / sin movimiento")}</div><div class="tf-muted" style="margin-top:.35rem">${escapeHtml(linked.map(x=>x.name).join(", ")||"Sin contratos vinculados")}</div><h3 style="margin-top:1rem">Eventos</h3><div class="tf-table-wrap"><table class="tf-table"><thead><tr><th>Fecha</th><th>Concepto</th><th>Tratamiento</th><th class="tf-num">Monto</th><th>Cuenta</th></tr></thead><tbody>${events.map(e=>`<tr><td>${escapeHtml(e.date||"—")}</td><td>${escapeHtml(conceptLabels[e.concept]||e.concept||"—")}</td><td>${escapeHtml(e.kind||"—")}</td><td class="tf-num">${money(e.amount||0)}</td><td>${escapeHtml(accountLabel(e.accountId))}</td></tr>`).join("")||`<tr><td colspan="5" class="tf-empty">Sin eventos.</td></tr>`}</tbody></table></div><div class="tf-actions" style="margin-top:1rem">${a.active===false?`<button class="tf-btn tf-btn-primary" data-asset-reactivate="${a.id}">Reactivar</button>`:`<button class="tf-btn tf-btn-primary" data-asset-event="${a.id}">Registrar evento</button><button class="tf-btn tf-btn-secondary" data-asset-edit="${a.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-asset-archive="${a.id}">Archivar</button>`}</div>`;detail.showModal();}
+newButton.addEventListener("click",()=>openAsset());archivedToggle.addEventListener("click",()=>{showArchived=!showArchived;render()});document.querySelector("#asset-editor-close").addEventListener("click",()=>editor.close());document.querySelector("#asset-cancel").addEventListener("click",()=>editor.close());document.querySelector("#asset-event-close").addEventListener("click",()=>eventEditor.close());document.querySelector("#asset-event-cancel").addEventListener("click",()=>eventEditor.close());document.querySelector("#asset-detail-close").addEventListener("click",()=>detail.close());document.querySelector("#asset-historical").addEventListener("change",syncHistorical);document.querySelector("#event-has-invoice").addEventListener("change",e=>{document.querySelector("#event-invoice-fields").hidden=!e.target.checked;if(!e.target.checked){document.querySelector("#event-invoice-number").value="";document.querySelector("#event-vat").value="0";}});
+document.querySelector("#asset-form").addEventListener("submit",async e=>{e.preventDefault();const id=document.querySelector("#asset-id").value||null,old=id?rows.find(x=>x.id===id):null;const marketText=document.querySelector("#asset-market").value.trim();const data={name:document.querySelector("#asset-name").value.trim(),type:document.querySelector("#asset-type").value,purchasePrice:Number(document.querySelector("#asset-purchase").value||0),purchaseTaxes:Number(document.querySelector("#asset-taxes").value||0),purchaseTransport:Number(document.querySelector("#asset-purchase-transport").value||0),purchaseInsurance:Number(document.querySelector("#asset-purchase-insurance").value||0),initialAccessories:Number(document.querySelector("#asset-accessories").value||0),initialCertification:Number(document.querySelector("#asset-certification").value||0),initialSetup:Number(document.querySelector("#asset-setup").value||0),otherInitial:Number(document.querySelector("#asset-other-initial").value||0),purchaseDate:document.querySelector("#asset-date").value,commissioningDate:document.querySelector("#asset-commissioning").value||document.querySelector("#asset-date").value,residualValue:Number(document.querySelector("#asset-residual").value||0),usefulLifeYears:Number(document.querySelector("#asset-life").value||5),financingCost:Number(document.querySelector("#asset-financing").value||0),depreciationMethod:"straight_line",marketValue:marketText===""?null:Number(marketText),marketValueProvided:marketText!=="",events:old?.events||[],active:old?.active!==false,purchaseAccountId:old?.purchaseAccountId||null,purchaseTransactionId:old?.purchaseTransactionId||null,purchaseMovementMode:old?.purchaseMovementMode||"historical"};try{if(id)await saveAsset(data,id);else await createAssetWithPurchase(data,{accountId:document.querySelector("#asset-account").value,historical:document.querySelector("#asset-historical").checked});editor.close();toast(id?"Activo actualizado.":"Activo guardado y vinculado al movimiento correspondiente.");await refresh();}catch(err){toast(err.message||"No se pudo guardar el activo.");}});
+document.querySelector("#asset-event-form").addEventListener("submit",async e=>{e.preventDefault();const id=document.querySelector("#event-asset").value,a=rows.find(x=>x.id===id);if(!a)return;const event={id:globalThis.crypto?.randomUUID?.()||`asset-event-${Date.now()}`,kind:document.querySelector("#event-kind").value,concept:document.querySelector("#event-concept").value,date:document.querySelector("#event-date").value,amount:Number(document.querySelector("#event-amount").value||0),note:document.querySelector("#event-note").value.trim()};if(!(event.amount>0))return toast("El monto debe ser mayor que cero.");try{await addAssetEventWithMovement(id,event,{accountId:document.querySelector("#event-account").value,hasInvoice:document.querySelector("#event-has-invoice").checked,invoiceNumber:document.querySelector("#event-invoice-number").value,vat:Number(document.querySelector("#event-vat").value||0)});eventEditor.close();toast("Evento y movimiento registrados sin duplicar el flujo.");await refresh();openDetail(id);}catch(err){toast(err.message||"No se pudo registrar el evento.");}});
+document.addEventListener("click",async e=>{const info=e.target.closest("[data-asset-info]"),edit=e.target.closest("[data-asset-edit]"),event=e.target.closest("[data-asset-event]"),archive=e.target.closest("[data-asset-archive]"),react=e.target.closest("[data-asset-reactivate]");if(info)return openDetail(info.dataset.assetInfo);if(edit){detail.close();return openAsset(rows.find(x=>x.id===edit.dataset.assetEdit));}if(event){detail.close();return openEvent(event.dataset.assetEvent);}if(archive&&await confirmAction({title:"Archivar activo",message:"Se conserva todo el histórico y sus movimientos vinculados.",confirmText:"Archivar"})){await archiveAsset(archive.dataset.assetArchive);detail.close();await refresh();}if(react){await reactivateAsset(react.dataset.assetReactivate);detail.close();await refresh();}});
+requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudieron cargar los activos.")}));

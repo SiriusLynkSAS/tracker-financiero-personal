@@ -3,8 +3,8 @@ import {requireUser} from "./guard.js";
 import {
   listLiabilities,saveLiability,archiveLiability,reactivateLiability,
   listFinancingPlans,archiveFinancingPlan,reactivateFinancingPlan,
-  listAccounts,listTransactions,calculateBalances,atomicWrite
-} from "./data-service.js?v=1.0.86";
+  listAccounts,listTransactions,calculateBalances,atomicWrite,markReconciliationsNeedsReview
+} from "./data-service.js?v=1.0.89";
 import {
   germanSchedule,frenchSchedule,fixedInstallmentSchedule,
   scheduleTotals,balanceAfterInstallment
@@ -33,6 +33,8 @@ const cardScheduleBody=document.querySelector("#card-schedule-body");
 const debtPaymentPanel=document.querySelector("#debt-payment-panel");
 const debtPaymentForm=document.querySelector("#debt-payment-form");
 let debtPaymentInstallment=null;
+let debtPaymentEditingId=null;
+let cardPaymentEditing=null;
 let showArchived=false;
 const debtEditorSection=document.querySelector("#debt-editor-section");
 const planEditorSection=document.querySelector("#plan-editor-section");
@@ -1238,7 +1240,7 @@ function showDebtSchedule(debt){
     const isPaid=s.status==="paid",isPartial=s.status==="partial",isHistorical=!!s.historicalPayment,isNext=!isPaid&&Number(s.n)===Number(nextPending?.n);
     const actual=paymentTotal(s)>0?paymentTotal(s):Number(s.paidAmount||0),expected=Number(s.payment||0),remaining=expected>0?Math.max(0,expected-actual):null;
     const statusLabel=isPaid?(isHistorical?"Pagada (hist.)":"Pagada"):isPartial?"Pago parcial":isNext?"Por pagar":"Pendiente";
-    const history=(s.payments||[]).length?`<div class="tf-muted" style="margin-top:.25rem">${(s.payments||[]).map(p=>`${escapeHtml(p.date||"")} · ${money(p.amount)}${p.transactionId?" · movimiento vinculado":""}`).join("<br>")}</div>`:"";
+    const history=(s.payments||[]).length?`<div class="tf-payment-history" style="margin-top:.25rem">${(s.payments||[]).map(p=>`<div class="tf-payment-history-row"><span>${escapeHtml(p.date||"")} · ${money(p.amount)}${p.transactionId?" · movimiento vinculado":""}</span>${p.transactionId?`<button class="tf-btn tf-btn-secondary tf-btn-compact" type="button" data-edit-debt-payment="${escapeHtml(p.id||"")}" data-installment="${Number(s.n||0)}">Corregir</button>`:""}</div>`).join("")}</div>`:"";
     return `<tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}"><td>${s.n}</td><td>${escapeHtml(s.dueDate||"")}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${expected>0?money(expected):"—"}</td><td>${actual>0?money(actual):"—"}${remaining!==null&&remaining>.009?`<div class="tf-muted">resta ${money(remaining)}</div>`:""}${history}</td><td>${fmt(s.closingBalance)}</td><td><span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">${statusLabel}</span></td><td>${isPaid?`<span class="tf-installment-paid-mark">✓ ${isHistorical?"Histórica":"Pagada"}</span>`:isNext?`<button class="tf-btn tf-btn-primary" data-pay-debt="${s.n}">Registrar pago</button>`:`<span class="tf-muted">Después de cuota ${nextPending?.n||"—"}</span>`}</td></tr>`;
   }).join(""):`<tr><td colspan="9" class="tf-empty">Completa plazo y primera cuota para construir el cronograma.</td></tr>`;
   if(debtDlg&&!debtDlg.open)debtDlg.showModal();
@@ -1281,7 +1283,9 @@ function openDebtPayment(n){
     return;
   }
 
-  debtPaymentInstallment=Number(n);
+  debtPaymentInstallment=Number(n);debtPaymentEditingId=null;
+  document.querySelector("#debt-payment-movement-mode").disabled=false;
+  const submit=debtPaymentForm?.querySelector('button[type="submit"]');if(submit)submit.textContent="Registrar pago";
   const actual=paymentTotal(row);
   const expected=Number(row.payment||0);
   const remaining=expected>0?Math.max(0,expected-actual):0;
@@ -1320,7 +1324,113 @@ function openDebtPayment(n){
   debtPaymentPanel.scrollIntoView({behavior:"smooth",block:"center"});
 }
 
+
+function openDebtPaymentCorrection(n,paymentIdValue){
+  const debt=debts.find(x=>x.id===selectedDebtId);if(!debt)return;
+  const schedule=markPaidThrough(effectiveDebtSchedule(debt),paidThroughInstallment(debt),{historical:true});
+  const row=schedule.find(x=>Number(x.n)===Number(n));
+  const payment=(row?.payments||[]).find(p=>String(p.id)===String(paymentIdValue));
+  if(!row||!payment){toast("Pago no encontrado.");return;}
+  debtPaymentInstallment=Number(n);debtPaymentEditingId=String(payment.id||"");
+  document.querySelector("#debt-payment-title").textContent=`Corregir pago · ${debt.creditor} · cuota ${n}`;
+  document.querySelector("#debt-payment-date").value=payment.date||todayISO();
+  document.querySelector("#debt-payment-amount").value=Number(payment.amount||0).toFixed(2);
+  document.querySelector("#debt-payment-capital").value=Number(payment.capital||0).toFixed(2);
+  document.querySelector("#debt-payment-interest").value=Number(payment.interest||0).toFixed(2);
+  document.querySelector("#debt-payment-fees").value=Number(payment.fees||0).toFixed(2);
+  document.querySelector("#debt-payment-balance").value=payment.reportedBalanceAfter===null||payment.reportedBalanceAfter===undefined?"":Number(payment.reportedBalanceAfter).toFixed(2);
+  document.querySelector("#debt-payment-note").value=payment.note||"";
+  document.querySelector("#debt-payment-bank-fee").value=Number(payment.bankFeeAmount||0).toFixed(2);
+  document.querySelector("#debt-payment-bank-tax").value=Number(payment.bankTaxAmount||0).toFixed(2);
+  document.querySelector("#debt-payment-bank-other").value=Number(payment.bankOtherChargeAmount||0).toFixed(2);
+  document.querySelector("#debt-payment-destination").value=payment.destinationBank||"";
+  document.querySelector("#debt-payment-reference").value=payment.reference||"";
+  document.querySelector("#debt-payment-close").checked=payment.closesInstallment!==false;
+  const tx=transactions.find(x=>x.id===payment.transactionId);
+  document.querySelector("#debt-payment-movement-mode").value=tx?"create":"none";
+  document.querySelector("#debt-payment-movement-mode").disabled=true;
+  const activeAccounts=accounts.filter(a=>a.active!==false);
+  const accountSelect=document.querySelector("#debt-payment-account");
+  accountSelect.innerHTML=activeAccounts.map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");
+  if(tx?.accountId||payment.accountId) accountSelect.value=tx?.accountId||payment.accountId;
+  document.querySelector("#debt-payment-existing-wrap").hidden=true;
+  document.querySelector("#debt-payment-account-wrap").hidden=!tx;
+  document.querySelector("#debt-payment-gross").textContent=money(Number(payment.amount||0)+Number(payment.bankFeeAmount||0)+Number(payment.bankTaxAmount||0)+Number(payment.bankOtherChargeAmount||0));
+  const submit=debtPaymentForm?.querySelector('button[type="submit"]');if(submit)submit.textContent="Guardar corrección";
+  debtPaymentPanel.hidden=false;debtPaymentPanel.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function consecutivePaidThrough(schedule=[]){
+  let paid=0;
+  for(const row of [...schedule].sort((a,b)=>Number(a.n||0)-Number(b.n||0))){
+    if(Number(row.n)!==paid+1||row.status!=="paid")break;
+    paid=Number(row.n);
+  }
+  return paid;
+}
+
+async function correctDebtPayment(){
+  const debt=debts.find(x=>x.id===selectedDebtId);const n=Number(debtPaymentInstallment||0);
+  if(!debt||!n||!debtPaymentEditingId)return;
+  const date=document.querySelector("#debt-payment-date").value;
+  const amount=Number(document.querySelector("#debt-payment-amount").value||0);
+  const capital=Number(document.querySelector("#debt-payment-capital").value||0);
+  const interest=Number(document.querySelector("#debt-payment-interest").value||0);
+  const fees=Number(document.querySelector("#debt-payment-fees").value||0);
+  const balanceRaw=document.querySelector("#debt-payment-balance").value;
+  const reportedBalanceAfter=balanceRaw===""?null:Number(balanceRaw);
+  const note=document.querySelector("#debt-payment-note").value.trim();
+  const bankFeeAmount=Number(document.querySelector("#debt-payment-bank-fee").value||0);
+  const bankTaxAmount=Number(document.querySelector("#debt-payment-bank-tax").value||0);
+  const bankOtherChargeAmount=Number(document.querySelector("#debt-payment-bank-other").value||0);
+  const destinationBank=document.querySelector("#debt-payment-destination").value.trim();
+  const reference=document.querySelector("#debt-payment-reference").value.trim();
+  const closesInstallment=document.querySelector("#debt-payment-close").checked;
+  const accountId=document.querySelector("#debt-payment-account").value;
+  if(!date||!(amount>0)){toast("Ingresa fecha y monto realmente pagado.");return;}
+  if([capital,interest,fees,bankFeeAmount,bankTaxAmount,bankOtherChargeAmount].some(x=>x<0)){toast("Los valores no pueden ser negativos.");return;}
+  const breakdown=capital+interest+fees;if(breakdown>0&&Math.abs(breakdown-amount)>.02){toast("Capital + interés + otros cargos debe coincidir con el pago real.");return;}
+  if(reportedBalanceAfter!==null&&reportedBalanceAfter<0){toast("El saldo informado no puede ser negativo.");return;}
+  const base=markPaidThrough(effectiveDebtSchedule(debt),paidThroughInstallment(debt),{historical:true});
+  const row=base.find(x=>Number(x.n)===n);const oldPayment=(row?.payments||[]).find(p=>String(p.id)===String(debtPaymentEditingId));
+  if(!row||!oldPayment){toast("Pago no encontrado.");return;}
+  const linkedTx=oldPayment.transactionId?transactions.find(x=>x.id===oldPayment.transactionId):null;
+  if(linkedTx&&!accountId){toast("Selecciona la cuenta origen.");return;}
+  const hasLaterPaid=base.some(x=>Number(x.n)>n&&x.status==="paid");
+  if(hasLaterPaid&&!closesInstallment){toast("No puedes reabrir esta cuota porque existen cuotas posteriores pagadas.");return;}
+  const corrected={...oldPayment,date,amount,capital,interest,fees,reportedBalanceAfter,accountId:linkedTx?accountId:(oldPayment.accountId||""),note,closesInstallment,bankFeeAmount,bankTaxAmount,bankOtherChargeAmount,destinationBank,reference};
+  const schedule=base.map(x=>{
+    if(Number(x.n)!==n)return x;
+    const payments=(x.payments||[]).map(p=>String(p.id)===String(oldPayment.id)?corrected:p);
+    const totalPaid=payments.reduce((sum,p)=>sum+Number(p.amount||0),0);
+    const lastDate=payments.map(p=>p.date).filter(Boolean).sort().slice(-1)[0]||date;
+    return {...x,payments,paidAmount:totalPaid,paidDate:lastDate,historicalPayment:false,status:closesInstallment?"paid":totalPaid>.009?"partial":"pending"};
+  });
+  const newPaidThrough=consecutivePaidThrough(schedule);
+  const effectiveAfter=markPaidThrough(schedule,newPaidThrough,{historical:true});
+  const newNext=effectiveAfter.find(x=>x.status!=="paid")||null;
+  const capitalDelta=Number(oldPayment.capital||0)-capital;
+  let newReported=debt.bankReportedBalance??debt.currentManualBalance??null;
+  if(reportedBalanceAfter!==null)newReported=reportedBalanceAfter;
+  else if(newReported!==null&&Math.abs(capitalDelta)>.009)newReported=Math.max(0,Number(newReported)+capitalDelta);
+  let newCalculated=debt.calculatedBalance;
+  if(debt.mode==="calculated"&&newCalculated!==null&&newCalculated!==undefined&&Math.abs(capitalDelta)>.009)newCalculated=Math.max(0,Number(newCalculated)+capitalDelta);
+  const referenceAfter=newReported!==null?newReported:(newCalculated??loanPending(debt));
+  const paidOff=!newNext&&referenceAfter<=.009;
+  const updated={...debt,schedule,paidThroughInstallment:newPaidThrough,currentInstallment:newNext?Number(newNext.n):Number(debt.termMonths||schedule.length||n),calculatedBalance:newCalculated,currentManualBalance:debt.mode==="calculated"?null:newReported,bankReportedBalance:newReported,balanceNeedsUpdate:newReported===null,balanceEstimated:reportedBalanceAfter===null&&capital>0,status:paidOff?"paid_off":"active",paidOffDate:paidOff?date:null};
+  const ops=[{collection:"liabilities",id:debt.id,action:"update",auditType:"liability",note:`Corrección pago cuota ${n}`,data:updated}];
+  if(linkedTx){
+    ops.push({collection:"transactions",id:linkedTx.id,action:"update",auditType:"transaction",note:`Corrección pago deuda ${debt.creditor}`,data:{...linkedTx,type:"expense",date,amount,accountId,fromAccountId:null,toAccountId:null,description:`Pago deuda: ${debt.creditor} · ${debt.concept} · cuota ${n}`,category:"Deudas",subcategory:"Pago de préstamo",liabilityId:debt.id,debtPaymentId:oldPayment.id,installmentNumber:n,feeAmount:bankFeeAmount,taxAmount:bankTaxAmount,otherChargeAmount:bankOtherChargeAmount,grossDebitAmount:amount+bankFeeAmount+bankTaxAmount+bankOtherChargeAmount,receipt:reference}});
+  }
+  if(!await confirmAction({title:"Corregir pago registrado",message:`${debt.creditor} · cuota ${n} · ${money(amount)}`,impact:["Se actualizará el pago existente.",linkedTx?"Se conservará el mismo ID de Movimiento; no se creará otro egreso.":"Este pago no tiene movimiento bancario vinculado.","Los saldos de cuenta se recalcularán desde el ledger."],confirmText:"Guardar corrección"}))return;
+  await atomicWrite(ops);
+  if(linkedTx){const since=[linkedTx.date,date].filter(Boolean).sort()[0];await markReconciliationsNeedsReview([linkedTx.accountId,accountId].filter(Boolean),since,{reason:"debt_payment_corrected"});}
+  toast("Pago corregido sin duplicar el movimiento.");debtPaymentEditingId=null;debtPaymentInstallment=null;debtPaymentPanel.hidden=true;
+  await refresh();const latest=debts.find(x=>x.id===debt.id);if(latest)showDebtSchedule(latest);
+}
+
 async function registerDebtPayment(){
+  if(debtPaymentEditingId){await correctDebtPayment();return;}
   const debt=debts.find(x=>x.id===selectedDebtId);
   const n=Number(debtPaymentInstallment||0);
   if(!debt||!n) return;
@@ -1597,7 +1707,8 @@ function showCardSchedule(plan){
   cardScheduleBody.innerHTML=ordered.length?ordered.map(s=>{
     const isPaid=s.status==="paid",isHistorical=!!s.historicalPayment,isNext=!isPaid&&Number(s.n)===Number(nextPending?.n);
     const statusLabel=isPaid?(isHistorical?"Pagada (hist.)":"Pagada"):isNext?"Por pagar":"Pendiente";
-    return `<tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}"><td>${s.n}</td><td>${escapeHtml(s.dueDate||"")}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${money(s.payment)}</td><td>${fmt(s.closingBalance)}</td><td><span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">${statusLabel}</span></td><td>${isPaid?`<span class="tf-installment-paid-mark">✓ Pagada</span>`:isNext?`<button class="tf-btn tf-btn-primary" data-pay-card="${s.n}">Pagar cuota</button>`:`<span class="tf-muted">Después de cuota ${nextPending?.n||"—"}</span>`}</td></tr>`;
+    const linkedTx=transactions.find(t=>t.financingPlanId===plan.id&&Number(t.installmentNumber)===Number(s.n)&&t.type==="transfer");
+    return `<tr class="${isPaid?"tf-installment-paid":isNext?"tf-installment-next":""}"><td>${s.n}</td><td>${escapeHtml(s.dueDate||"")}</td><td>${fmt(s.principal)}</td><td>${fmt(s.interest)}</td><td>${money(s.payment)}</td><td>${fmt(s.closingBalance)}</td><td><span class="tf-pill ${isPaid?"tf-pill-ok":"tf-pill-warn"}">${statusLabel}</span></td><td>${isPaid?(linkedTx?`<button class="tf-btn tf-btn-secondary tf-btn-compact" data-edit-card-payment="${s.n}">Corregir</button>`:`<span class="tf-installment-paid-mark">✓ ${isHistorical?"Histórica":"Pagada"}</span>`):isNext?`<button class="tf-btn tf-btn-primary" data-pay-card="${s.n}">Pagar cuota</button>`:`<span class="tf-muted">Después de cuota ${nextPending?.n||"—"}</span>`}</td></tr>`;
   }).join(""):`<tr><td colspan="8" class="tf-empty">Sin cuotas.</td></tr>`;
   if(cardDlg&&!cardDlg.open)cardDlg.showModal();
 }
@@ -1658,6 +1769,7 @@ async function payCardInstallment(n){
     ]
   })) return;
 
+  const txId=transactionId();
   const schedule=scheduleBefore.map(x=>
     Number(x.n)===Number(n)
       ? {
@@ -1665,7 +1777,10 @@ async function payCardInstallment(n){
           status:"paid",
           paidAmount:Number(x.payment||0),
           paidDate:paymentDate,
-          historicalPayment:false
+          historicalPayment:false,
+          transactionId:txId,
+          paymentAccountId:bankId,
+          feeAmount,taxAmount,otherChargeAmount,reference
         }
       : x
   );
@@ -1696,6 +1811,7 @@ async function payCardInstallment(n){
     },
     {
       collection:"transactions",
+      id:txId,
       action:"create",
       auditType:"transaction",
       data:{
@@ -1743,6 +1859,46 @@ async function payCardInstallment(n){
       );
     }
   }
+}
+
+
+function openCardPaymentCorrection(n){
+  const plan=plans.find(x=>x.id===selectedCardPlanId);if(!plan)return;
+  const tx=transactions.find(t=>t.financingPlanId===plan.id&&Number(t.installmentNumber)===Number(n)&&t.type==="transfer");
+  if(!tx){toast("No existe un movimiento vinculado que pueda corregirse.");return;}
+  cardPaymentEditing={n:Number(n),transactionId:tx.id};
+  document.querySelector("#schedule-payment-account").value=tx.fromAccountId||"";
+  document.querySelector("#schedule-payment-date").value=tx.date||todayISO();
+  document.querySelector("#schedule-payment-fee").value=Number(tx.feeAmount||0).toFixed(2);
+  document.querySelector("#schedule-payment-tax").value=Number(tx.taxAmount||0).toFixed(2);
+  document.querySelector("#schedule-payment-other").value=Number(tx.otherChargeAmount||0).toFixed(2);
+  document.querySelector("#schedule-payment-reference").value=tx.receipt||"";
+  document.querySelector("#card-payment-correction-actions").hidden=false;
+  document.querySelector("#card-payment-correction-label").textContent=`Corrigiendo cuota ${n}. El movimiento ${tx.id.slice(0,8)}… conservará su ID.`;
+  document.querySelector("#card-payment-correction-actions").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+async function saveCardPaymentCorrection(){
+  const plan=plans.find(x=>x.id===selectedCardPlanId);if(!plan||!cardPaymentEditing)return;
+  const n=cardPaymentEditing.n;const tx=transactions.find(x=>x.id===cardPaymentEditing.transactionId);
+  const row=(plan.schedule||[]).find(x=>Number(x.n)===Number(n));if(!tx||!row){toast("Pago vinculado no encontrado.");return;}
+  const bankId=document.querySelector("#schedule-payment-account").value;
+  const date=document.querySelector("#schedule-payment-date").value||todayISO();
+  const feeAmount=Number(document.querySelector("#schedule-payment-fee").value||0);
+  const taxAmount=Number(document.querySelector("#schedule-payment-tax").value||0);
+  const otherChargeAmount=Number(document.querySelector("#schedule-payment-other").value||0);
+  const reference=document.querySelector("#schedule-payment-reference").value.trim();
+  if(!bankId){toast("Selecciona la cuenta bancaria de origen.");return;}
+  if([feeAmount,taxAmount,otherChargeAmount].some(x=>x<0)){toast("Los cargos no pueden ser negativos.");return;}
+  const amount=Number(row.payment||tx.amount||0);const grossDebit=amount+feeAmount+taxAmount+otherChargeAmount;
+  const schedule=(plan.schedule||[]).map(x=>Number(x.n)===Number(n)?{...x,paidDate:date,transactionId:tx.id,paymentAccountId:bankId,feeAmount,taxAmount,otherChargeAmount,reference}:x);
+  const updatedPlan={...plan,schedule};
+  const updatedTx={...tx,type:"transfer",date,amount,accountId:null,fromAccountId:bankId,toAccountId:plan.parentId,receipt:reference,description:`Pago cuota ${n}: ${plan.description}`,financingPlanId:plan.id,installmentNumber:n,feeAmount,taxAmount,otherChargeAmount,grossDebitAmount:grossDebit};
+  if(!await confirmAction({title:"Corregir pago de tarjeta",message:`${accountLabel(plan.parentId)} · cuota ${n}`,impact:["Se actualizará el mismo movimiento de transferencia.","No se creará una segunda salida de dinero.",`Débito total corregido: ${money(grossDebit)}.`],confirmText:"Guardar corrección"}))return;
+  await atomicWrite([{collection:"financingPlans",id:plan.id,action:"update",auditType:"financingPlan",note:`Corrección pago cuota ${n}`,data:updatedPlan},{collection:"transactions",id:tx.id,action:"update",auditType:"transaction",note:`Corrección pago tarjeta cuota ${n}`,data:updatedTx}]);
+  const since=[tx.date,date].filter(Boolean).sort()[0];await markReconciliationsNeedsReview([tx.fromAccountId,bankId].filter(Boolean),since,{reason:"card_payment_corrected"});
+  toast("Pago de tarjeta corregido sin duplicar la transferencia.");cardPaymentEditing=null;document.querySelector("#card-payment-correction-actions").hidden=true;
+  await refresh();const latest=plans.find(x=>x.id===plan.id);if(latest)showCardSchedule(latest);
 }
 
 async function refresh(){
@@ -1845,12 +2001,15 @@ document.querySelector("#plan-method").addEventListener("change",togglePlanMetho
 
 document.querySelector("#debt-schedule-close").addEventListener("click",()=>{
   selectedDebtId=null;
-  debtPaymentInstallment=null;
+  debtPaymentInstallment=null;debtPaymentEditingId=null;
+  document.querySelector("#debt-payment-movement-mode").disabled=false;
   if(debtPaymentPanel) debtPaymentPanel.hidden=true;
   document.querySelector("#debt-schedule-card")?.close();
 });
 document.querySelector("#debt-payment-cancel")?.addEventListener("click",()=>{
-  debtPaymentInstallment=null;
+  debtPaymentInstallment=null;debtPaymentEditingId=null;
+  document.querySelector("#debt-payment-movement-mode").disabled=false;
+  const submit=debtPaymentForm?.querySelector('button[type="submit"]');if(submit)submit.textContent="Registrar pago";
   debtPaymentPanel.hidden=true;
 });
 document.querySelector("#debt-payment-movement-mode")?.addEventListener("change",syncDebtPaymentMovementMode);
@@ -1874,7 +2033,7 @@ debtPaymentForm?.addEventListener("submit",async e=>{
 });
 
 document.querySelector("#card-schedule-close").addEventListener("click",()=>{
-  selectedCardPlanId=null;
+  selectedCardPlanId=null;cardPaymentEditing=null;document.querySelector("#card-payment-correction-actions").hidden=true;
   document.querySelector("#card-schedule-card")?.close();
 });
 
@@ -2404,3 +2563,14 @@ document.querySelector("#card-detail-close")?.addEventListener("click",()=>docum
 requireUser(()=>refresh().catch(console.error));
 
 document.querySelector("#debt-detail-close").addEventListener("click",()=>document.querySelector("#debt-detail-dialog").close());
+
+
+/* AUD-POST-016 · corrección segura desde el cronograma */
+document.addEventListener("click",e=>{
+  const debtEdit=e.target.closest?.("[data-edit-debt-payment]");
+  if(debtEdit){openDebtPaymentCorrection(Number(debtEdit.dataset.installment||0),debtEdit.dataset.editDebtPayment);return;}
+  const cardEdit=e.target.closest?.("[data-edit-card-payment]");
+  if(cardEdit){openCardPaymentCorrection(Number(cardEdit.dataset.editCardPayment||0));}
+});
+document.querySelector("#card-payment-correction-save")?.addEventListener("click",saveCardPaymentCorrection);
+document.querySelector("#card-payment-correction-cancel")?.addEventListener("click",()=>{cardPaymentEditing=null;document.querySelector("#card-payment-correction-actions").hidden=true;});

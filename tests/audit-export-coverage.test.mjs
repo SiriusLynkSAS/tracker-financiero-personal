@@ -24,7 +24,7 @@ assert.equal(new Set(ruled).size, ruled.length, 'Las reglas contienen matches {i
 assert.deepEqual([...exported].sort(), [...ruled].sort(),
   'El exportador RAW y las colecciones {id} de firestore.rules están desalineados');
 assert.equal(exported.length, 26, 'El contrato actual espera 26 colecciones de usuario');
-assert.match(exporter, /const\s+SOURCE_APP_VERSION\s*=\s*["']V1\.0\.87["']/);
+assert.match(exporter, /const\s+SOURCE_APP_VERSION\s*=\s*["']V1\.0\.89["']/);
 assert.match(exporter, /const\s+EXPORTER_VERSION\s*=\s*["']1\.1\.0["']/);
 
-console.log(`Audit export coverage OK: ${exported.length} collections; version V1.0.87; exporter 1.1.0`);
+console.log(`Audit export coverage OK: ${exported.length} collections; version V1.0.89; exporter 1.1.0`);

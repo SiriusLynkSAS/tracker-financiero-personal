@@ -176,7 +176,9 @@ async function init(){
   ]);
   const recv=syncedReceivables;
   const balances=calculateBalances(accounts,txs),active=accounts.filter(a=>a.active!==false);
-  const liquidity=sum(active.filter(a=>a.accountType!=="credit_card"),a=>Math.max(0,balances[a.id]||0));
+  const activeInvestments=investments.filter(i=>i.active!==false&&i.status==="active");
+  const holdingIds=new Set(activeInvestments.map(i=>String(i.holdingAccountId||"")).filter(Boolean));
+  const liquidity=sum(active.filter(a=>a.accountType!=="credit_card"&&!holdingIds.has(String(a.id))),a=>Math.max(0,balances[a.id]||0));
   const cardDebt=sum(active.filter(a=>a.accountType==="credit_card"),a=>Math.max(0,-Number(balances[a.id]||0)));
   const loanDebt=sum(
     debts.filter(d=>d.active!==false),
@@ -188,7 +190,11 @@ async function init(){
       0
     ))
   );
-  const invested=sum(investments.filter(i=>i.active!==false&&i.status==="active"),i=>i.principal);
+  const seenHolding=new Set();
+  const invested=sum(activeInvestments.filter(i=>{
+    if(!i.holdingAccountId) return true;
+    const id=String(i.holdingAccountId);if(seenHolding.has(id)) return false;seenHolding.add(id);return true;
+  }),i=>i.holdingAccountId?Math.max(0,Number(balances[i.holdingAccountId]||0)):Math.max(0,Number(i.currentBalance??i.principal??0)));
   const assetValue=sum(assets.filter(a=>a.active!==false),assetCurrentValue);
   const totalDebt=cardDebt+loanDebt,netWorth=liquidity+invested+assetValue-totalDebt;
   state={accounts,txs,debts,plans,investments,assets,recv,recur,ins,categories,contracts,invoices,emergencyConfig,balances,active,liquidity,cardDebt,loanDebt,totalDebt,invested,assetValue,netWorth};

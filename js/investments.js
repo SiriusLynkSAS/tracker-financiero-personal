@@ -1,105 +1,28 @@
 import {requireUser} from "./guard.js";
-import {listInvestments,listAccounts,atomicWrite} from "./data-service.js";
+import {listInvestments,listAccounts,listTransactions,calculateBalances,saveInvestment,createInvestmentWithCapital,addInvestmentContribution,settleInvestment} from "./data-service.js?v=1.0.89";
 import {investmentProjection} from "./finance.js";
 import {money,escapeHtml,todayISO} from "./utils.js";
 import {confirmAction,toast} from "./ui.js";
 import {institutionDisplay,resolveInstitutionIdentity} from "./institutions.js";
-let rows=[],accounts=[],projection=null,showHistory=false;
-const list=document.querySelector("#inv-list");
-const editor=document.querySelector("#inv-editor"),settleEditor=document.querySelector("#inv-settle-editor");
-const newButton=document.querySelector("#inv-new"),settleOpen=document.querySelector("#inv-settle-open"),historyToggle=document.querySelector("#inv-history-toggle");
-
-function calc(){
-  projection=investmentProjection({
-    principal:Number(document.querySelector("#inv-principal").value),
-    annualRate:Number(document.querySelector("#inv-rate").value),
-    rateType:document.querySelector("#inv-rate-type").value,
-    startDate:document.querySelector("#inv-start").value||todayISO(),
-    termValue:Number(document.querySelector("#inv-term").value),
-    termUnit:document.querySelector("#inv-unit").value,
-    calculation:document.querySelector("#inv-calc").value,
-    capitalization:document.querySelector("#inv-cap").value,
-    withholding:Number(document.querySelector("#inv-withholding").value||0),
-    fees:Number(document.querySelector("#inv-fees").value||0)
-  });
-  document.querySelector("#inv-preview-box").innerHTML=`Vence <strong>${projection.maturityDate}</strong> · interés bruto <strong>${money(projection.grossInterest)}</strong> · neto <strong>${money(projection.netInterest)}</strong> · valor esperado <strong>${money(projection.maturityValue)}</strong>`;
-}
-function render(){
-  const active=rows.filter(x=>x.active!==false&&x.status==="active");
-  const history=rows.filter(x=>x.active===false||x.status!=="active");
-  historyToggle.hidden=!history.length;
-  historyToggle.textContent=showHistory?"Ver activas":`Histórico (${history.length})`;
-  newButton.hidden=showHistory;
-  settleOpen.hidden=showHistory||!active.length;
-  const visible=showHistory?history:active;
-  list.innerHTML=visible.map(i=>`<div class="tf-card">
-    <strong>${escapeHtml(institutionDisplay(i))} · ${escapeHtml(i.name)}</strong>
-    <div class="tf-account-balance">${money(i.principal)}</div>
-    <div class="tf-muted">${i.annualRate}% ${i.rateType==="effective"?"efectiva":"nominal"} · vence ${i.maturityDate||"—"}</div>
-    <div style="margin:.6rem 0">${showHistory?"Rendimiento neto real":"Rendimiento neto esperado"}: <strong>${money(showHistory?(i.actualNetInterest??i.expectedNetInterest):i.expectedNetInterest)}</strong></div>
-    ${showHistory?`<div class="tf-muted">Liquidada ${escapeHtml(i.liquidatedAt||"—")} · histórico en modo consulta.</div>`:""}
-  </div>`).join("")||`<div class="tf-card tf-empty">${showHistory?"Sin inversiones históricas.":"Sin inversiones activas."}</div>`;
-  document.querySelector("#settle-investment").innerHTML=active.map(i=>`<option value="${i.id}">${escapeHtml(institutionDisplay(i)+" · "+i.name)}</option>`).join("");
-  fillSettlementDefaults();
-}
-function fillSettlementDefaults(){
-  const i=rows.find(x=>x.id===document.querySelector("#settle-investment").value);
-  if(!i)return;
-  document.querySelector("#settle-principal").value=Number(i.principal||0).toFixed(2);
-  document.querySelector("#settle-interest").value=Number(i.expectedNetInterest||0).toFixed(2);
-}
-async function refresh(){
-  [rows,accounts]=await Promise.all([listInvestments(),listAccounts({includeArchived:false})]);
-  const bankOptions=accounts.filter(a=>a.accountType!=="credit_card").map(a=>`<option value="${a.id}">${escapeHtml(a.bank+" · "+a.alias)}</option>`).join("");
-  document.querySelector("#inv-account").innerHTML=`<option value="">Seleccionar cuenta...</option>`+bankOptions;
-  document.querySelector("#settle-account").innerHTML=bankOptions;
-  render();
-}
-document.querySelector("#inv-start").value=todayISO();
-document.querySelector("#settle-date").value=todayISO();
-newButton.addEventListener("click",()=>{editor.hidden=false;settleEditor.hidden=true});
-settleOpen.addEventListener("click",()=>{settleEditor.hidden=false;editor.hidden=true;fillSettlementDefaults()});
-historyToggle.addEventListener("click",()=>{showHistory=!showHistory;editor.hidden=true;settleEditor.hidden=true;render()});
-document.querySelector("#inv-cancel").addEventListener("click",()=>{editor.hidden=true});
-document.querySelector("#settle-cancel").addEventListener("click",()=>{settleEditor.hidden=true});
-document.querySelector("#inv-preview").addEventListener("click",calc);
-document.querySelector("#settle-investment").addEventListener("change",fillSettlementDefaults);
-
-document.querySelector("#inv-form").addEventListener("submit",async e=>{
-  e.preventDefault();calc();
-  const principal=Number(document.querySelector("#inv-principal").value),accountId=document.querySelector("#inv-account").value||null,alreadyMoved=document.querySelector("#inv-already-moved").checked;
-  if(!accountId&&!alreadyMoved){toast("Selecciona una cuenta origen o confirma que la salida de capital ya fue registrada.");return}
-  const bank=document.querySelector("#inv-bank").value.trim(),institution=resolveInstitutionIdentity(bank);
-  const data={
-    bank,institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,name:document.querySelector("#inv-name").value.trim(),principal,
-    annualRate:Number(document.querySelector("#inv-rate").value),rateType:document.querySelector("#inv-rate-type").value,
-    calculation:document.querySelector("#inv-calc").value,capitalization:document.querySelector("#inv-cap").value,
-    startDate:document.querySelector("#inv-start").value,termValue:Number(document.querySelector("#inv-term").value),
-    termUnit:document.querySelector("#inv-unit").value,withholding:Number(document.querySelector("#inv-withholding").value||0),
-    fees:Number(document.querySelector("#inv-fees").value||0),maturityDate:projection.maturityDate,
-    expectedGrossInterest:projection.grossInterest,expectedNetInterest:projection.netInterest,
-    expectedMaturityValue:projection.maturityValue,sourceAccountId:accountId,
-    capitalMovementMode:alreadyMoved?"already_registered":"automatic",
-    reminderDaysBefore:Number(document.querySelector("#inv-reminder").value||0),status:"active",active:true
-  };
-  if(!await confirmAction({title:"Crear inversión",message:`Capital ${money(principal)} hasta ${projection.maturityDate}`,impact:[alreadyMoved?"No se creará movimiento: confirmas que ya existe.":"Se registrará salida de capital, no gasto."]}))return;
-  const ops=[{collection:"investments",action:"create",auditType:"investment",data}];
-  if(!alreadyMoved)ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"investment_out",date:data.startDate,amount:principal,vat:0,receipt:"",description:`Capital invertido: ${data.name}`,category:"",subcategory:"",accountId,fromAccountId:null,toAccountId:null,splits:[]}});
-  await atomicWrite(ops);
-  e.target.reset();document.querySelector("#inv-start").value=todayISO();editor.hidden=true;toast("Inversión guardada.");await refresh();
-});
-
-document.querySelector("#inv-settle-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const i=rows.find(x=>x.id===document.querySelector("#settle-investment").value),accountId=document.querySelector("#settle-account").value;
-  if(!i||!accountId)return;
-  const date=document.querySelector("#settle-date").value,capital=Number(document.querySelector("#settle-principal").value||0),interest=Number(document.querySelector("#settle-interest").value||0);
-  if(!await confirmAction({title:"Liquidar inversión",message:`Retorno ${money(capital)} + rendimiento ${money(interest)}`,impact:["El capital vuelve al banco sin contarse como ingreso.","Solo el rendimiento neto se registra como ingreso financiero.","La inversión quedará liquidada."]}))return;
-  const ops=[
-    {collection:"investments",id:i.id,action:"update",auditType:"investment",data:{...i,status:"liquidated",active:false,liquidatedAt:date,actualReturnedPrincipal:capital,actualNetInterest:interest,destinationAccountId:accountId}},
-    {collection:"transactions",action:"create",auditType:"transaction",data:{type:"investment_return",date,amount:capital,vat:0,receipt:"",description:`Retorno de capital: ${i.name}`,category:"",subcategory:"",accountId,fromAccountId:null,toAccountId:null,splits:[],investmentId:i.id}}
-  ];
-  if(interest>0)ops.push({collection:"transactions",action:"create",auditType:"transaction",data:{type:"income",date,amount:interest,vat:0,receipt:"",description:`Rendimiento inversión: ${i.name}`,category:"Inversiones",subcategory:"Rendimientos",accountId,fromAccountId:null,toAccountId:null,splits:[],investmentId:i.id}});
-  await atomicWrite(ops);settleEditor.hidden=true;toast("Inversión liquidada.");await refresh();
-});
-requireUser(()=>refresh().catch(console.error));
+let rows=[],accounts=[],transactions=[],balances={},projection=null,showHistory=false,detailId=null;
+const list=document.querySelector("#inv-list"),editor=document.querySelector("#inv-editor"),contributionDialog=document.querySelector("#inv-contribution-dialog"),settleDialog=document.querySelector("#inv-settle-dialog"),detail=document.querySelector("#inv-detail-dialog");
+const newButton=document.querySelector("#inv-new"),historyToggle=document.querySelector("#inv-history-toggle");
+const liquidityLabels={immediate:"Inmediata",restricted:"Restringida",maturity:"Al vencimiento"},emergencyLabels={none:"No",immediate:"Inmediato",secondary:"Reserva secundaria"},penaltyLabels={none:"Sin penalización",lost_interest:"Pierde intereses",other:"Otra penalización"};
+function accountLabel(a){return [a.bank,a.alias].filter(Boolean).join(" · ")||"Cuenta"}
+function bankAccounts(){return accounts.filter(a=>a.active!==false&&a.accountType!=="credit_card")}
+function investmentBalance(i){return i.holdingAccountId?Math.max(0,Number(balances[i.holdingAccountId]||0)):Math.max(0,Number(i.currentBalance??i.principal||0))}
+function holdingLabel(i){const a=accounts.find(x=>x.id===i.holdingAccountId);return a?accountLabel(a):"Inversión externa"}
+function calc(){projection=investmentProjection({principal:Number(document.querySelector("#inv-principal").value||0),annualRate:Number(document.querySelector("#inv-rate").value||0),rateType:document.querySelector("#inv-rate-type").value,startDate:document.querySelector("#inv-start").value||todayISO(),termValue:Number(document.querySelector("#inv-term").value||0),termUnit:document.querySelector("#inv-unit").value,calculation:document.querySelector("#inv-calc").value,capitalization:document.querySelector("#inv-cap").value,withholding:Number(document.querySelector("#inv-withholding").value||0),fees:Number(document.querySelector("#inv-fees").value||0)});document.querySelector("#inv-preview-box").innerHTML=`Vence <strong>${projection.maturityDate}</strong> · interés neto esperado <strong>${money(projection.netInterest)}</strong> · valor esperado <strong>${money(projection.maturityValue)}</strong>`;return projection;}
+function render(){const active=rows.filter(x=>x.active!==false&&x.status==="active"),history=rows.filter(x=>x.active===false||x.status!=="active"),visible=showHistory?history:active;historyToggle.hidden=!history.length;historyToggle.textContent=showHistory?"Ver activas":`Histórico (${history.length})`;newButton.hidden=showHistory;list.innerHTML=visible.map(i=>`<tr><td><strong>${escapeHtml(i.name)}</strong><div class="tf-muted">${escapeHtml(i.maturityDate||"—")}</div></td><td>${escapeHtml(institutionDisplay(i))}</td><td class="tf-num">${money(investmentBalance(i))}</td><td class="tf-num">${Number(i.annualRate||0).toFixed(2)}%</td><td>${escapeHtml(liquidityLabels[i.liquidity]||"Al vencimiento")}</td><td>${escapeHtml(emergencyLabels[i.emergencyFundTier]||"No")}</td><td><button class="tf-icon-btn" data-inv-info="${i.id}" title="Información">ⓘ</button></td></tr>`).join("")||`<tr><td colspan="7" class="tf-empty">${showHistory?"Sin inversiones históricas.":"Sin inversiones activas."}</td></tr>`;}
+async function refresh(){[rows,accounts,transactions]=await Promise.all([listInvestments(),listAccounts({includeArchived:false}),listTransactions()]);balances=calculateBalances(accounts,transactions);const options=`<option value="">Seleccionar cuenta...</option>`+bankAccounts().map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join("");document.querySelector("#inv-account").innerHTML=options;document.querySelector("#inv-holding-account").innerHTML=`<option value="">Inversión externa / sin cuenta propia</option>`+bankAccounts().map(a=>`<option value="${a.id}">${escapeHtml(accountLabel(a))}</option>`).join("");document.querySelector("#contribution-account").innerHTML=options;document.querySelector("#settle-account").innerHTML=options;render();}
+function resetForm(){document.querySelector("#inv-form").reset();document.querySelector("#inv-id").value="";document.querySelector("#inv-editor-title").textContent="Nueva inversión";document.querySelector("#inv-principal").value="1000";document.querySelector("#inv-rate").value="5";document.querySelector("#inv-start").value=todayISO();document.querySelector("#inv-term").value="12";document.querySelector("#inv-unit").value="months";document.querySelector("#inv-liquidity").value="immediate";document.querySelector("#inv-penalty").value="none";document.querySelector("#inv-emergency").value="none";document.querySelector("#inv-recurring-amount").value="0";document.querySelector("#inv-recurring-day").value="1";document.querySelector("#inv-reminder").value="15";document.querySelector("#inv-preview-box").textContent="";}
+function openEditor(i=null){resetForm();if(i){document.querySelector("#inv-id").value=i.id;document.querySelector("#inv-editor-title").textContent="Editar inversión";document.querySelector("#inv-bank").value=i.bank||"";document.querySelector("#inv-name").value=i.name||"";document.querySelector("#inv-principal").value=Number(i.principal||0);document.querySelector("#inv-principal").disabled=true;document.querySelector("#inv-rate").value=Number(i.annualRate||0);document.querySelector("#inv-rate-type").value=i.rateType||"nominal";document.querySelector("#inv-calc").value=i.calculation||"compound";document.querySelector("#inv-cap").value=i.capitalization||"monthly";document.querySelector("#inv-start").value=i.startDate||todayISO();document.querySelector("#inv-start").disabled=true;document.querySelector("#inv-term").value=Number(i.termValue||1);document.querySelector("#inv-unit").value=i.termUnit||"months";document.querySelector("#inv-withholding").value=Number(i.withholding||0);document.querySelector("#inv-fees").value=Number(i.fees||0);document.querySelector("#inv-account").value=i.sourceAccountId||"";document.querySelector("#inv-holding-account").value=i.holdingAccountId||"";document.querySelector("#inv-historical").checked=i.capitalMovementMode==="historical";document.querySelector("#inv-historical").disabled=true;document.querySelector("#inv-liquidity").value=i.liquidity||"maturity";document.querySelector("#inv-penalty").value=i.withdrawalPenalty||"none";document.querySelector("#inv-emergency").value=i.emergencyFundTier||"none";document.querySelector("#inv-recurring-amount").value=Number(i.recurringContributionAmount||0);document.querySelector("#inv-recurring-day").value=Number(i.recurringContributionDay||1);document.querySelector("#inv-reminder").value=Number(i.reminderDaysBefore||0);calc();}else{document.querySelector("#inv-principal").disabled=false;document.querySelector("#inv-start").disabled=false;document.querySelector("#inv-historical").disabled=false;document.querySelector("#inv-holding-account").value="";}editor.showModal();}
+function openContribution(i){document.querySelector("#contribution-investment").value=i.id;document.querySelector("#inv-contribution-title").textContent=`Aportar · ${i.name}`;document.querySelector("#contribution-date").value=todayISO();document.querySelector("#contribution-account").value=i.sourceAccountId||"";document.querySelector("#contribution-amount").value=Number(i.recurringContributionAmount||0)>0?Number(i.recurringContributionAmount):"";contributionDialog.showModal();}
+function openSettle(i){document.querySelector("#settle-investment").value=i.id;document.querySelector("#settle-date").value=todayISO();document.querySelector("#settle-account").value=i.sourceAccountId||"";document.querySelector("#settle-principal").value=Number(investmentBalance(i)).toFixed(2);document.querySelector("#settle-interest").value=Number(i.expectedNetInterest||0).toFixed(2);settleDialog.showModal();}
+function openDetail(id){const i=rows.find(x=>x.id===id);if(!i)return;detailId=id;document.querySelector("#inv-detail-title").textContent=i.name;document.querySelector("#inv-detail-body").innerHTML=`<div class="tf-detail-grid"><div class="tf-metric"><span class="tf-metric-label">Institución</span><strong>${escapeHtml(institutionDisplay(i))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Saldo invertido</span><strong>${money(investmentBalance(i))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Cuenta de custodia</span><strong>${escapeHtml(holdingLabel(i))}</strong></div><div class="tf-metric"><span class="tf-metric-label">Tasa</span><strong>${Number(i.annualRate||0).toFixed(2)}%</strong></div><div class="tf-metric"><span class="tf-metric-label">Liquidez</span><strong>${escapeHtml(liquidityLabels[i.liquidity]||"Al vencimiento")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Penalización</span><strong>${escapeHtml(penaltyLabels[i.withdrawalPenalty]||"Sin penalización")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Fondo de emergencia</span><strong>${escapeHtml(emergencyLabels[i.emergencyFundTier]||"No")}</strong></div><div class="tf-metric"><span class="tf-metric-label">Aporte programado</span><strong>${money(i.recurringContributionAmount||0)}</strong></div><div class="tf-metric"><span class="tf-metric-label">Vencimiento</span><strong>${escapeHtml(i.maturityDate||"—")}</strong></div></div><div class="tf-actions" style="margin-top:1rem">${i.active!==false&&i.status==="active"?`<button class="tf-btn tf-btn-primary" data-inv-contribute="${i.id}">Registrar aporte</button><button class="tf-btn tf-btn-secondary" data-inv-edit="${i.id}">Editar</button><button class="tf-btn tf-btn-secondary" data-inv-settle="${i.id}">Liquidar</button>`:`<span class="tf-pill">Histórico</span>`}</div>`;detail.showModal();}
+newButton.addEventListener("click",()=>openEditor());historyToggle.addEventListener("click",()=>{showHistory=!showHistory;render()});document.querySelector("#inv-editor-close").addEventListener("click",()=>editor.close());document.querySelector("#inv-cancel").addEventListener("click",()=>editor.close());document.querySelector("#inv-preview").addEventListener("click",calc);document.querySelector("#inv-contribution-close").addEventListener("click",()=>contributionDialog.close());document.querySelector("#inv-contribution-cancel").addEventListener("click",()=>contributionDialog.close());document.querySelector("#settle-close").addEventListener("click",()=>settleDialog.close());document.querySelector("#settle-cancel").addEventListener("click",()=>settleDialog.close());document.querySelector("#inv-detail-close").addEventListener("click",()=>detail.close());
+document.querySelector("#inv-form").addEventListener("submit",async e=>{e.preventDefault();calc();const id=document.querySelector("#inv-id").value||null,principal=Number(document.querySelector("#inv-principal").value||0),accountId=document.querySelector("#inv-account").value,historical=document.querySelector("#inv-historical").checked,bank=document.querySelector("#inv-bank").value.trim(),institution=resolveInstitutionIdentity(bank);const data={bank,institutionId:institution.institutionId||null,institutionDisplayName:institution.displayName||null,name:document.querySelector("#inv-name").value.trim(),principal,annualRate:Number(document.querySelector("#inv-rate").value||0),rateType:document.querySelector("#inv-rate-type").value,calculation:document.querySelector("#inv-calc").value,capitalization:document.querySelector("#inv-cap").value,startDate:document.querySelector("#inv-start").value,termValue:Number(document.querySelector("#inv-term").value||0),termUnit:document.querySelector("#inv-unit").value,withholding:Number(document.querySelector("#inv-withholding").value||0),fees:Number(document.querySelector("#inv-fees").value||0),maturityDate:projection.maturityDate,expectedGrossInterest:projection.grossInterest,expectedNetInterest:projection.netInterest,expectedMaturityValue:projection.maturityValue,sourceAccountId:accountId,holdingAccountId:document.querySelector("#inv-holding-account").value,liquidity:document.querySelector("#inv-liquidity").value,withdrawalPenalty:document.querySelector("#inv-penalty").value,emergencyFundTier:document.querySelector("#inv-emergency").value,recurringContributionAmount:Number(document.querySelector("#inv-recurring-amount").value||0),recurringContributionDay:Number(document.querySelector("#inv-recurring-day").value||1),reminderDaysBefore:Number(document.querySelector("#inv-reminder").value||0),status:"active",active:true};if(data.emergencyFundTier==="immediate"&&(data.liquidity!=="immediate"||data.withdrawalPenalty!=="none"))return toast("Para Fondo inmediato la inversión debe tener liquidez inmediata y sin penalización.");if(!id&&!historical&&!accountId)return toast("Selecciona la cuenta origen del capital.");if(!id&&!historical&&data.holdingAccountId&&data.holdingAccountId===accountId)return toast("La cuenta origen y la cuenta que contiene la inversión deben ser diferentes.");if(id){const old=rows.find(x=>x.id===id);await saveInvestment({...old,...data,principal:old.principal,currentBalance:old.currentBalance??old.principal,capitalMovementMode:old.capitalMovementMode,capitalTransactionId:old.capitalTransactionId},id);toast("Inversión actualizada.");}else{await createInvestmentWithCapital({...data,currentBalance:principal},{sourceAccountId:accountId,historical});toast(historical?"Inversión histórica guardada.":"Inversión y transferencia de capital registradas.");}editor.close();await refresh();});
+document.querySelector("#inv-contribution-form").addEventListener("submit",async e=>{e.preventDefault();const id=document.querySelector("#contribution-investment").value,amount=Number(document.querySelector("#contribution-amount").value||0),accountId=document.querySelector("#contribution-account").value,date=document.querySelector("#contribution-date").value;if(!await confirmAction({title:"Registrar aporte",message:`${money(amount)} hacia la inversión`,impact:["Si la inversión tiene cuenta propia, se registra una transferencia normal entre cuentas.","Si es externa, disminuye la cuenta origen y aumenta la inversión.","Nunca se cuenta como gasto."]}))return;await addInvestmentContribution(id,{date,amount,accountId});contributionDialog.close();toast("Aporte patrimonial registrado.");await refresh();openDetail(id);});
+document.querySelector("#inv-settle-form").addEventListener("submit",async e=>{e.preventDefault();const id=document.querySelector("#settle-investment").value,capital=Number(document.querySelector("#settle-principal").value||0),interest=Number(document.querySelector("#settle-interest").value||0),accountId=document.querySelector("#settle-account").value,date=document.querySelector("#settle-date").value;if(!await confirmAction({title:"Liquidar inversión",message:`Capital ${money(capital)} + rendimiento ${money(interest)}`,impact:["El capital vuelve a la cuenta sin ser ingreso.","Solo el rendimiento es ingreso financiero."]}))return;await settleInvestment(id,{date,accountId,returnedPrincipal:capital,netInterest:interest});settleDialog.close();detail.close();toast("Inversión liquidada.");await refresh();});
+document.addEventListener("click",e=>{const info=e.target.closest("[data-inv-info]"),edit=e.target.closest("[data-inv-edit]"),contrib=e.target.closest("[data-inv-contribute]"),settle=e.target.closest("[data-inv-settle]");if(info)return openDetail(info.dataset.invInfo);if(edit){detail.close();return openEditor(rows.find(x=>x.id===edit.dataset.invEdit));}if(contrib){detail.close();return openContribution(rows.find(x=>x.id===contrib.dataset.invContribute));}if(settle)return openSettle(rows.find(x=>x.id===settle.dataset.invSettle));});
+requireUser(()=>refresh().catch(err=>{console.error(err);toast("No se pudieron cargar las inversiones.")}));
