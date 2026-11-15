@@ -1,9 +1,10 @@
 import {requireUser} from "./guard.js";
 import {
   listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listCategories,
-  saveRecurring,saveRecurringTransaction,saveLiability,saveFinancingPlan,listInvoicesOptional
-} from "./data-service.js?v=1.0.82";
-import {buildPendingItems} from "./pending-engine.js";
+  saveRecurringTransaction,listInvoicesOptional,
+  closeRecurringOccurrenceHistorical,closeLiabilityInstallmentHistorical,closeFinancingPlanInstallmentHistorical
+} from "./data-service.js?v=1.0.92";
+import {buildPendingItems,closeHistoricalInstallment} from "./pending-engine.js?v=1.0.92";
 import {money,escapeHtml} from "./utils.js";
 import {toast} from "./ui.js";
 
@@ -80,42 +81,43 @@ function openHistorical(item){
   const needsDate=item.kind!=="recurring";
   wrap.hidden=!needsDate;
   date.value=item.dueDate;
+  const note=document.querySelector("#pending-historical-note");
+  if(note) note.textContent=item.kind==="recurring"
+    ?`Cierra únicamente el período ${item.occurrence}. No crea un movimiento ni modifica saldos. Si existe otro mes vencido, aparecerá después.`
+    :"Marca esta obligación como resuelta históricamente. No crea un movimiento ni modifica saldos.";
   detailDialog?.close();
   historicalDialog?.showModal();
 }
-function contiguousPaidThrough(schedule=[]){
-  let n=0;
-  for(const row of [...schedule].sort((a,b)=>Number(a.n)-Number(b.n))){
-    if(row.status!=="paid")break;
-    n=Number(row.n||n);
-  }
-  return n;
-}
 async function closeHistorical(item,paidDate){
   if(item.kind==="recurring"){
-    const r=recurring.find(x=>x.id===item.entityId); if(!r)throw new Error("Recurrente no encontrado.");
-    const history=[...(Array.isArray(r.historicalResolvedOccurrences)?r.historicalResolvedOccurrences:[]),item.occurrence]
-      .filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).sort();
-    await saveRecurring({...r,historicalResolvedOccurrences:history},r.id);
+    await closeRecurringOccurrenceHistorical(item.entityId,item.occurrence);
     return;
   }
   if(item.kind==="debt"){
     const d=liabilities.find(x=>x.id===item.entityId); if(!d)throw new Error("Deuda no encontrada.");
-    const n=Number(item.installmentNumber||0);
-    const schedule=(Array.isArray(d.schedule)?d.schedule:[]).map(row=>Number(row.n)===n?{...row,status:"paid",paidAmount:Number(row.payment||0),paidDate,historicalPayment:true}:row);
-    const paidThrough=contiguousPaidThrough(schedule);
-    const next=[...schedule].sort((a,b)=>Number(a.n)-Number(b.n)).find(row=>row.status!=="paid");
-    await saveLiability({...d,schedule,paidThroughInstallment:paidThrough,currentInstallment:next?.n||d.termMonths,status:next?"active":"paid_off",paidOffDate:next?d.paidOffDate:paidDate},d.id);
+    const result=closeHistoricalInstallment(d,item.installmentNumber,paidDate);
+    const next=result.next;
+    await closeLiabilityInstallmentHistorical(d.id,{
+      schedule:result.schedule,
+      paidThroughInstallment:result.paidThroughInstallment,
+      currentInstallment:next?.n||d.termMonths,
+      status:next?"active":"paid_off",
+      paidOffDate:next?d.paidOffDate:paidDate
+    });
     return;
   }
   if(item.kind==="card"){
     const p=plans.find(x=>x.id===item.entityId); if(!p)throw new Error("Plan no encontrado.");
-    const n=Number(item.installmentNumber||0);
-    const schedule=(Array.isArray(p.schedule)?p.schedule:[]).map(row=>Number(row.n)===n?{...row,status:"paid",paidAmount:Number(row.payment||0),paidDate,historicalPayment:true}:row);
-    const paidThrough=contiguousPaidThrough(schedule);
-    const next=[...schedule].sort((a,b)=>Number(a.n)-Number(b.n)).find(row=>row.status!=="paid");
-    const calculatedPending=schedule.reduce((total,row)=>total+Math.max(0,Number(row.payment||0)-Number(row.paidAmount||0)),0);
-    await saveFinancingPlan({...p,schedule,paidThroughInstallment:paidThrough,currentInstallment:next?.n||p.installmentCount,calculatedPending,status:next?"active":"paid_off",paidOffDate:next?p.paidOffDate:paidDate},p.id);
+    const result=closeHistoricalInstallment(p,item.installmentNumber,paidDate);
+    const next=result.next;
+    await closeFinancingPlanInstallmentHistorical(p.id,{
+      schedule:result.schedule,
+      paidThroughInstallment:result.paidThroughInstallment,
+      currentInstallment:next?.n||p.installmentCount,
+      calculatedPending:result.calculatedPending,
+      status:next?"active":"paid_off",
+      paidOffDate:next?p.paidOffDate:paidDate
+    });
     return;
   }
   throw new Error("Tipo de pendiente no soportado.");
@@ -126,6 +128,11 @@ async function load(){
   ]);
   items=buildPendingItems({recurring,transactions,liabilities,plans,accounts,invoices});
   render();
+  const focus=new URLSearchParams(location.search).get("focus");
+  if(focus){
+    const target=items.find(x=>x.key===focus);
+    if(target) openPending(target);
+  }
 }
 
 document.querySelectorAll("[data-pending-filter]").forEach(b=>b.addEventListener("click",()=>{
@@ -180,7 +187,7 @@ document.querySelector("#pending-historical-save")?.addEventListener("click",asy
   const button=document.querySelector("#pending-historical-save");button.disabled=true;
   try{
     await closeHistorical(item,paidDate);
-    historicalTarget=null;historicalDialog?.close();toast("Pendiente cerrado como histórico.");
+    historicalTarget=null;historicalDialog?.close();toast(item.kind==="recurring"?`Período ${item.occurrence} cerrado como histórico. Si existe otro mes vencido, aparecerá a continuación.`:"Pendiente cerrado como histórico.");
     await load();
   }catch(err){toast(err?.message||"No se pudo cerrar el pendiente histórico.");}
   finally{button.disabled=false;}

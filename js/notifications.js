@@ -1,6 +1,6 @@
 import {requireUser} from "./guard.js";
-import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional,listBudgets} from "./data-service.js?v=1.0.83";
-import {buildPendingItems} from "./pending-engine.js";
+import {listRecurring,listTransactions,listLiabilities,listFinancingPlans,listAccounts,listInvoicesOptional,listBudgets} from "./data-service.js?v=1.0.92";
+import {buildPendingItems} from "./pending-engine.js?v=1.0.92";
 import {buildBudgetAlerts} from "./budget-alerts.js";
 import {money,escapeHtml,todayISO} from "./utils.js";
 
@@ -27,7 +27,7 @@ function renderHosts({pending=[],budgetAlerts=[]}){
       : "";
     const pendingHtml=pending.length
       ? `<div class="tf-notification-section-title">Pagos e ingresos</div>`+pending.slice(0,5).map(x=>
-          `<a class="tf-notification-item" href="${x.url}"><span class="tf-notification-status is-${x.status}">${labelStatus(x.status)}</span><strong>${escapeHtml(x.title)}</strong><span>${escapeHtml(x.dueDate)} · ${money(x.amount)}</span></a>`
+          `<a class="tf-notification-item" href="pendientes.html?focus=${encodeURIComponent(x.key)}"><span class="tf-notification-status is-${x.status}">${labelStatus(x.status)}</span><strong>${escapeHtml(x.title)}</strong><span>${escapeHtml(x.dueDate)} · ${money(x.amount)}</span></a>`
         ).join("")
       : "";
 

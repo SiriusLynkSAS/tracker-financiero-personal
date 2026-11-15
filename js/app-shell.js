@@ -1,4 +1,4 @@
-import { setupPendingMenu } from "./notifications.js?v=1.0.83";
+import { setupPendingMenu } from "./notifications.js?v=1.0.92";
 import { initDateOnlyPickers } from "./date-picker.js?v=1.0.83";
 const currentFile = (() => {
   const path = location.pathname.split("/").pop() || "index.html";

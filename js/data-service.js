@@ -550,6 +550,22 @@ export const saveMonthlyPlan=(d,id)=>upsertEntity("monthlyPlans",id||d.month,d,{
 export const removeMonthlyPlan=id=>deleteEntity("monthlyPlans",id,{auditType:"monthlyPlan"});
 export const listRecurring=()=>listEntities("recurring").then(r=>r.map(normalizeRecurring));
 export const saveRecurring=(d,id=null)=>saveEntity("recurring",sanitizeRecurringWrite(d),id,{auditType:"recurring"});
+export async function closeRecurringOccurrenceHistorical(recurringId,occurrence){
+  if(!recurringId) throw new Error("Recurrente no válido.");
+  if(!/^\d{4}-\d{2}$/.test(String(occurrence||""))) throw new Error("Ocurrencia mensual no válida.");
+  const old=await getEntity("recurring",recurringId);
+  if(!old) throw new Error("Recurrente no encontrado.");
+  const history=[...(Array.isArray(old.historicalResolvedOccurrences)?old.historicalResolvedOccurrences:[]),String(occurrence)]
+    .filter(x=>/^\d{4}-\d{2}$/.test(String(x)))
+    .filter((x,i,a)=>a.indexOf(x)===i)
+    .sort();
+  const logicalChanges={historicalResolvedOccurrences:history,schemaVersion:SCHEMA_VERSION};
+  const batch=writeBatch(db);
+  batch.set(ref("recurring",recurringId),{...logicalChanges,updatedAt:serverTimestamp()},{merge:true});
+  batch.set(doc(col("auditLog")),auditPayload("recurring",recurringId,"UPDATE",old,{...old,...logicalChanges},`Cierre histórico de ocurrencia ${occurrence}; sin movimiento financiero`));
+  await batch.commit();
+  invalidateCollection("recurring");
+}
 export const archiveRecurring=id=>archiveEntity("recurring",id,{auditType:"recurring"});
 export const reactivateRecurring=id=>reactivateEntity("recurring",id,{auditType:"recurring"});
 export function recurringOccurrenceId(recurringId,occurrence){
@@ -622,10 +638,47 @@ export const archiveGoal=id=>archiveEntity("goals",id,{auditType:"goal"});
 export const reactivateGoal=id=>reactivateEntity("goals",id,{auditType:"goal"});
 export const listLiabilities=()=>listEntities("liabilities").then(r=>r.map(normalizeLiability));
 export const saveLiability=(d,id=null)=>saveEntity("liabilities",sanitizeLiabilityWrite(d),id,{auditType:"liability"});
+export async function closeLiabilityInstallmentHistorical(id,state={}){
+  if(!id) throw new Error("Deuda no válida.");
+  const old=await getEntity("liabilities",id);
+  if(!old) throw new Error("Deuda no encontrada.");
+  const logicalChanges={
+    schedule:Array.isArray(state.schedule)?state.schedule:[],
+    paidThroughInstallment:Number(state.paidThroughInstallment||0),
+    currentInstallment:Number(state.currentInstallment||1),
+    status:String(state.status||"active"),
+    paidOffDate:state.paidOffDate||null,
+    schemaVersion:SCHEMA_VERSION
+  };
+  const batch=writeBatch(db);
+  batch.set(ref("liabilities",id),{...logicalChanges,updatedAt:serverTimestamp()},{merge:true});
+  batch.set(doc(col("auditLog")),auditPayload("liability",id,"UPDATE",old,{...old,...logicalChanges},"Cierre de cuota histórica; sin crear ni modificar movimientos"));
+  await batch.commit();
+  invalidateCollection("liabilities");
+}
 export const archiveLiability=id=>setLifecycleState("liabilities",id,{active:false,status:"archived",auditType:"liability",action:"ARCHIVE"});
 export const reactivateLiability=id=>setLifecycleState("liabilities",id,{active:true,status:"active",auditType:"liability",action:"REACTIVATE"});
 export const listFinancingPlans=()=>listEntities("financingPlans").then(r=>r.map(normalizeFinancingPlan));
 export const saveFinancingPlan=(d,id=null)=>saveEntity("financingPlans",sanitizeFinancingPlanWrite(d),id,{auditType:"financingPlan"});
+export async function closeFinancingPlanInstallmentHistorical(id,state={}){
+  if(!id) throw new Error("Plan financiado no válido.");
+  const old=await getEntity("financingPlans",id);
+  if(!old) throw new Error("Plan financiado no encontrado.");
+  const logicalChanges={
+    schedule:Array.isArray(state.schedule)?state.schedule:[],
+    paidThroughInstallment:Number(state.paidThroughInstallment||0),
+    currentInstallment:Number(state.currentInstallment||1),
+    calculatedPending:Math.max(0,Number(state.calculatedPending||0)),
+    status:String(state.status||"active"),
+    paidOffDate:state.paidOffDate||null,
+    schemaVersion:SCHEMA_VERSION
+  };
+  const batch=writeBatch(db);
+  batch.set(ref("financingPlans",id),{...logicalChanges,updatedAt:serverTimestamp()},{merge:true});
+  batch.set(doc(col("auditLog")),auditPayload("financingPlan",id,"UPDATE",old,{...old,...logicalChanges},"Cierre de cuota histórica; sin crear ni modificar movimientos"));
+  await batch.commit();
+  invalidateCollection("financingPlans");
+}
 export const archiveFinancingPlan=id=>setLifecycleState("financingPlans",id,{active:false,status:"archived",auditType:"financingPlan",action:"ARCHIVE"});
 export const reactivateFinancingPlan=id=>setLifecycleState("financingPlans",id,{active:true,status:"active",auditType:"financingPlan",action:"REACTIVATE"});
 export const listInsurance=()=>listEntities("insurance");

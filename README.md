@@ -1,4 +1,21 @@
-# Web V1.0.90 · AUD-POST-015 + AUD-POST-016
+# Web V1.0.92 · Pendientes · navegación histórica + paridad Android
+
+
+## V1.0.92 · Pendientes · navegación histórica
+
+- Las notificaciones de pagos/cuotas ya no saltan directamente a pagar: abren el Centro de Pendientes en el elemento seleccionado.
+- Desde ese detalle se puede elegir entre registrar el pago/cobro o **Ya pagado / histórico**, igual que en Android.
+- El cierre histórico conserva la lógica de V1.0.91 y no crea ni modifica movimientos.
+- Se actualiza el versionado de caché de Pendientes y Notificaciones.
+
+
+## V1.0.91 · Pendientes · cierre histórico
+
+- El cierre histórico de recurrentes, deudas y planes de tarjeta actualiza únicamente la obligación; no crea, edita ni elimina documentos de `transactions`.
+- Pendientes de Deudas/Tarjetas respeta `paidThroughInstallment`, evitando reabrir cuotas ya cerradas.
+- Los recurrentes muestran el período `YYYY-MM` que se está cerrando; si hay más meses vencidos, aparece el siguiente después del cierre.
+- Las escrituras históricas son parciales y auditadas para no sobrescribir campos no relacionados.
+- Se actualiza el versionado de caché del módulo Pendientes y del menú de notificaciones.
 
 ## V1.0.90 · Seguros · tarjetas y corrección de primas
 
